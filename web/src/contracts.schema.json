@@ -1,0 +1,817 @@
+{
+  "$defs": {
+    "AudienceProfile": {
+      "additionalProperties": false,
+      "properties": {
+        "club": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Z]{3}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "focus": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Z]{3}-\\d{1,2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "lang": {
+          "default": "en",
+          "enum": [
+            "en",
+            "es"
+          ],
+          "type": "string"
+        },
+        "persona": {
+          "default": "casual",
+          "enum": [
+            "casual",
+            "analyst",
+            "ref_nerd"
+          ],
+          "type": "string"
+        },
+        "pin": {
+          "anyOf": [
+            {
+              "enum": [
+                "sprint_speed",
+                "distance",
+                "pass_difficulty",
+                "possession",
+                "pressure"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "AudienceProfile",
+      "type": "object"
+    },
+    "BallSample": {
+      "additionalProperties": false,
+      "properties": {
+        "t": {
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "z": {
+          "default": 0.0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "t",
+        "x",
+        "y"
+      ],
+      "title": "BallSample",
+      "type": "object"
+    },
+    "Band": {
+      "additionalProperties": false,
+      "properties": {
+        "tag": {
+          "maxLength": 24,
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 140,
+          "type": "string"
+        }
+      },
+      "required": [
+        "tag",
+        "text"
+      ],
+      "title": "Band",
+      "type": "object"
+    },
+    "BodyFrame": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "patternProperties": {
+            "^[A-Z]{3}-\\d{1,2}$": {
+              "additionalProperties": {
+                "additionalItems": false,
+                "items": [
+                  {
+                    "maximum": 110.0,
+                    "minimum": -5.0,
+                    "type": "number"
+                  },
+                  {
+                    "maximum": 73.0,
+                    "minimum": -5.0,
+                    "type": "number"
+                  }
+                ],
+                "maxItems": 2,
+                "minItems": 2,
+                "type": "array"
+              },
+              "propertyNames": {
+                "enum": [
+                  "head",
+                  "torso",
+                  "foot_l",
+                  "foot_r",
+                  "knee_l",
+                  "knee_r",
+                  "arm"
+                ]
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "clock": {
+          "minimum": 0.0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "clock",
+        "body"
+      ],
+      "title": "BodyFrame",
+      "type": "object"
+    },
+    "Incident": {
+      "additionalProperties": false,
+      "properties": {
+        "decided_at": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "facts": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "default": {},
+          "type": "object"
+        },
+        "final": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "goal_event": {
+          "anyOf": [
+            {
+              "pattern": "^m\\d{2}-e\\d+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "incident_id": {
+          "pattern": "^inc-m\\d{2}-\\d+$",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "offside",
+            "foul",
+            "penalty",
+            "handball",
+            "red_card",
+            "goal_check"
+          ],
+          "type": "string"
+        },
+        "on_field": {
+          "type": "string"
+        },
+        "opened_at": {
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "reason_codes": {
+          "default": [],
+          "items": {
+            "enum": [
+              "tight_margin",
+              "subjective_interference",
+              "obstructed_view",
+              "multiple_phases",
+              "earlier_offence"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "state": {
+          "enum": [
+            "open",
+            "reviewing",
+            "decided",
+            "restarted"
+          ],
+          "type": "string"
+        },
+        "var_outcome": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "incident_id",
+        "kind",
+        "state",
+        "on_field",
+        "opened_at"
+      ],
+      "title": "Incident",
+      "type": "object"
+    },
+    "MatchEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "ball_speed_kmh": {
+          "anyOf": [
+            {
+              "maximum": 200,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "ball_track": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalItems": false,
+                "items": [
+                  {
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "maxItems": 3,
+                "minItems": 3,
+                "type": "array"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "clock": {
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "end": {
+          "anyOf": [
+            {
+              "additionalItems": false,
+              "items": [
+                {
+                  "maximum": 110.0,
+                  "minimum": -5.0,
+                  "type": "number"
+                },
+                {
+                  "maximum": 73.0,
+                  "minimum": -5.0,
+                  "type": "number"
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "event_id": {
+          "pattern": "^m\\d{2}-e\\d+$",
+          "type": "string"
+        },
+        "frame": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BodyFrame"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "match_id": {
+          "pattern": "^m\\d{2}$",
+          "type": "string"
+        },
+        "outcome": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "period": {
+          "enum": [
+            1,
+            2
+          ],
+          "type": "integer"
+        },
+        "player": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Z]{3}-\\d{1,2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "positions": {
+          "patternProperties": {
+            "^[A-Z]{3}-\\d{1,2}$": {
+              "additionalItems": false,
+              "items": [
+                {
+                  "maximum": 110.0,
+                  "minimum": -5.0,
+                  "type": "number"
+                },
+                {
+                  "maximum": 73.0,
+                  "minimum": -5.0,
+                  "type": "number"
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "receiver": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Z]{3}-\\d{1,2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "start": {
+          "anyOf": [
+            {
+              "additionalItems": false,
+              "items": [
+                {
+                  "maximum": 110.0,
+                  "minimum": -5.0,
+                  "type": "number"
+                },
+                {
+                  "maximum": 73.0,
+                  "minimum": -5.0,
+                  "type": "number"
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "team": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Z]{3}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "enum": [
+            "kickoff",
+            "pass",
+            "carry",
+            "shot",
+            "tackle",
+            "interception",
+            "pressure",
+            "foul",
+            "card",
+            "goal",
+            "var_check",
+            "var_decision",
+            "period_end"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "event_id",
+        "match_id",
+        "period",
+        "clock",
+        "type",
+        "positions"
+      ],
+      "title": "MatchEvent",
+      "type": "object"
+    },
+    "OverlayCue": {
+      "additionalProperties": false,
+      "properties": {
+        "approval": {
+          "enum": [
+            "auto",
+            "held",
+            "approved",
+            "killed"
+          ],
+          "type": "string"
+        },
+        "at": {
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "audience": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AudienceProfile"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "band": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Band"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "cue_id": {
+          "pattern": "^cue-\\d+$",
+          "type": "string"
+        },
+        "graphics": {
+          "additionalProperties": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "type": "object"
+          },
+          "default": {},
+          "type": "object"
+        },
+        "kind": {
+          "enum": [
+            "speed",
+            "pass_quality",
+            "pressure",
+            "momentum",
+            "goal",
+            "card",
+            "var_check",
+            "var_decision",
+            "recap"
+          ],
+          "type": "string"
+        },
+        "layers": {
+          "items": {
+            "enum": [
+              "scorebug",
+              "player_tag",
+              "chip",
+              "momentum",
+              "var_badge",
+              "offside_lines",
+              "band",
+              "recap"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "origin": {
+          "enum": [
+            "agent",
+            "template"
+          ],
+          "type": "string"
+        },
+        "sources": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "ttl_s": {
+          "exclusiveMinimum": 0,
+          "maximum": 60,
+          "type": "number"
+        },
+        "validated": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "cue_id",
+        "at",
+        "ttl_s",
+        "kind",
+        "layers",
+        "sources",
+        "origin",
+        "validated",
+        "approval"
+      ],
+      "title": "OverlayCue",
+      "type": "object"
+    },
+    "ReplayFrame": {
+      "additionalProperties": false,
+      "properties": {
+        "positions": {
+          "patternProperties": {
+            "^[A-Z]{3}-\\d{1,2}$": {
+              "additionalItems": false,
+              "items": [
+                {
+                  "maximum": 110.0,
+                  "minimum": -5.0,
+                  "type": "number"
+                },
+                {
+                  "maximum": 73.0,
+                  "minimum": -5.0,
+                  "type": "number"
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "t": {
+          "minimum": 0.0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "t",
+        "positions"
+      ],
+      "title": "ReplayFrame",
+      "type": "object"
+    },
+    "ReplayMoment": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "maxLength": 80,
+          "type": "string"
+        },
+        "reveal": {
+          "enum": [
+            "always",
+            "during",
+            "after"
+          ],
+          "type": "string"
+        },
+        "t": {
+          "minimum": 0.0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "t",
+        "label",
+        "reveal"
+      ],
+      "title": "ReplayMoment",
+      "type": "object"
+    },
+    "ReplayPackage": {
+      "additionalProperties": false,
+      "properties": {
+        "ball": {
+          "items": {
+            "$ref": "#/$defs/BallSample"
+          },
+          "minItems": 2,
+          "type": "array"
+        },
+        "frames": {
+          "items": {
+            "$ref": "#/$defs/ReplayFrame"
+          },
+          "minItems": 2,
+          "type": "array"
+        },
+        "incident_id": {
+          "pattern": "^inc-m\\d{2}-\\d+$",
+          "type": "string"
+        },
+        "moments": {
+          "items": {
+            "$ref": "#/$defs/ReplayMoment"
+          },
+          "type": "array"
+        },
+        "slow": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SlowWindow"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "status": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "propertyNames": {
+            "enum": [
+              "stadium",
+              "fan",
+              "analyst",
+              "officials"
+            ]
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "incident_id",
+        "frames",
+        "ball",
+        "moments",
+        "status"
+      ],
+      "title": "ReplayPackage",
+      "type": "object"
+    },
+    "SlowWindow": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "rate": {
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "type": "number"
+        },
+        "start": {
+          "minimum": 0.0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "start",
+        "end",
+        "rate"
+      ],
+      "title": "SlowWindow",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "Incident": {
+      "$ref": "#/$defs/Incident"
+    },
+    "MatchEvent": {
+      "$ref": "#/$defs/MatchEvent"
+    },
+    "OverlayCue": {
+      "$ref": "#/$defs/OverlayCue"
+    },
+    "ReplayPackage": {
+      "$ref": "#/$defs/ReplayPackage"
+    }
+  },
+  "title": "TouchlineContracts",
+  "type": "object"
+}
