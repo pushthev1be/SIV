@@ -1,0 +1,24 @@
+{
+  "name": "golden",
+  "match_id": "m01",
+  "seed": 20261018,
+  "home": "NBR",
+  "away": "ASH",
+  "script": [
+    { "kind": "goal", "at": 1830.0, "team": "ASH" },
+    { "kind": "goal", "at": 3960.0, "team": "NBR" },
+    {
+      "kind": "offside_goal",
+      "at": 4679.4,
+      "team": "NBR",
+      "passer": "NBR-8",
+      "attacker": "NBR-9",
+      "defender": "ASH-4",
+      "passer_pos": [60.0, 40.0],
+      "attacker_y": 26.0,
+      "defender_pos": [84.4, 30.0],
+      "margin_m": 0.31,
+      "check_s": 35
+    }
+  ]
+}

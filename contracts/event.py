@@ -1,6 +1,7 @@
 """Contract 1: match event (simulator -> Event Hubs -> engine).
 
-Every event carries all 22 positions so speeds are derived by the engine, never stated.
+Every on-ball event carries the position of every player on the pitch (22, fewer after a red
+card), so speeds are derived by the engine, never stated.
 `frame` and `ball_track` appear only on passes that may lead to an offside check.
 """
 
@@ -11,6 +12,7 @@ from pydantic import Field, model_validator
 from contracts.common import Clock, Contract, EventId, PlayerId, Point, TeamCode
 
 EventType = Literal[
+    "tracking",  # positions only, at a fixed rate; ball position in `start`
     "kickoff",
     "pass",
     "carry",
@@ -61,6 +63,9 @@ class MatchEvent(Contract):
             raise ValueError("frame and ball_track must appear together")
         if self.frame is not None and self.type != "pass":
             raise ValueError("frame and ball_track appear only on passes")
-        if self.type not in ("period_end", "var_check", "var_decision") and len(self.positions) != 22:
-            raise ValueError("on-ball events must carry all 22 positions")
+        if (
+            self.type not in ("period_end", "var_check", "var_decision")
+            and not 14 <= len(self.positions) <= 22
+        ):
+            raise ValueError("on-ball events must carry every on-pitch position (14 to 22)")
         return self

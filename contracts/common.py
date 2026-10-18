@@ -1,7 +1,8 @@
 """Shared types and pitch geometry for every contract.
 
 Pitch coordinates are metres: x runs 0..105 along the length, y runs 0..68 across.
-Clocks are seconds of match time since kickoff of period 1.
+Clocks are match-clock seconds: period 1 starts at 0, period 2 at 2700 (45:00), and added time
+runs past 2700 and 5400. Order events by (period, clock).
 """
 
 from typing import Annotated, Literal

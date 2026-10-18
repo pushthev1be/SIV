@@ -1,0 +1,15 @@
+{
+  "name": "late_comeback",
+  "match_id": "m03",
+  "seed": 777,
+  "home": "NBR",
+  "away": "ASH",
+  "random_goals": false,
+  "script": [
+    { "kind": "goal", "at": 1400.0, "team": "ASH" },
+    { "kind": "goal", "at": 3300.0, "team": "ASH" },
+    { "kind": "goal", "at": 4700.0, "team": "NBR" },
+    { "kind": "goal", "at": 5100.0, "team": "NBR" },
+    { "kind": "goal", "at": 5395.0, "team": "NBR" }
+  ]
+}

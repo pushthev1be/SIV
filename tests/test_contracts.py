@@ -84,11 +84,12 @@ def test_event_rejects_unknown_fields():
         MatchEvent.model_validate(event(speed_kmh=30))  # speeds are derived, never stated
 
 
-def test_event_needs_all_22_positions():
+def test_event_needs_every_on_pitch_position():
     p = positions()
-    p.pop("ASH-11")
-    with pytest.raises(ValidationError, match="22 positions"):
-        MatchEvent.model_validate(event(positions=p))
+    p.pop("ASH-11")  # after a red card: 21 players is fine
+    MatchEvent.model_validate(event(positions=p))
+    with pytest.raises(ValidationError, match="every on-pitch position"):
+        MatchEvent.model_validate(event(positions={"NBR-9": [84.91, 26.0]}))
 
 
 def test_frame_and_ball_track_come_together_on_passes_only():

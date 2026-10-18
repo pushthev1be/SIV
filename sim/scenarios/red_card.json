@@ -1,0 +1,10 @@
+{
+  "name": "red_card",
+  "match_id": "m02",
+  "seed": 4242,
+  "home": "NBR",
+  "away": "ASH",
+  "script": [
+    { "kind": "red_card", "at": 1950.0, "player": "ASH-5", "var": true, "check_s": 40 }
+  ]
+}

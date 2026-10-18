@@ -487,6 +487,7 @@
         },
         "type": {
           "enum": [
+            "tracking",
             "kickoff",
             "pass",
             "carry",

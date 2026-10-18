@@ -56,6 +56,7 @@ export interface MatchEvent {
   start?: [number, number] | null;
   team?: string | null;
   type:
+    | "tracking"
     | "kickoff"
     | "pass"
     | "carry"
