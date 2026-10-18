@@ -1,4 +1,4 @@
-/* Generated from contracts/ by `npm run gen:contracts`. Do not edit. */
+/* Generated from contracts/ by npm run gen:contracts. Do not edit. */
 
 export interface TouchlineContracts {
   Incident?: Incident;

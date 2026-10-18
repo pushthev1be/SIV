@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "gen:contracts": "json2ts -i src/contracts.schema.json -o src/contracts.ts --unreachableDefinitions --additionalProperties false --bannerComment \"/* Generated from contracts/ by `npm run gen:contracts`. Do not edit. */\""
+    "gen:contracts": "json2ts -i src/contracts.schema.json -o src/contracts.ts --unreachableDefinitions --additionalProperties false --bannerComment \"/* Generated from contracts/ by npm run gen:contracts. Do not edit. */\""
   },
   "devDependencies": {
     "json-schema-to-typescript": "^15.0.4"
