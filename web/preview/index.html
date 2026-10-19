@@ -699,8 +699,9 @@
 
     // HUD callouts for the players involved (toggle in the header)
     const tags = $("rTags"); tags.innerHTML = "";
-    const zoomed = z > 0.5;
-    if (hud && !zoomed) {
+    const calloutAlpha = Math.max(0, 1 - z / 0.15);   // gone before the zoom gets close
+    tags.setAttribute("opacity", calloutAlpha.toFixed(2));
+    if (hud && calloutAlpha > 0) {
       const shown = P.focus.map((f) => f.player);
       if (selected && !shown.includes(selected)) shown.push(selected);
       shown.forEach((pid, slot) => {
@@ -728,30 +729,57 @@
     if (R.frozen && P.kind === "offside") {
       if (P.lines && R.zoom > 0.05) {
         const ln = P.lines, u = vb[2];          // sizes relative to the visible width, so they read at any zoom
-        const ya = ln.body[ln.attacker] ? Object.values(ln.body[ln.attacker])[0][1] : 30;
-        const yd = ln.body[ln.defender] ? Object.values(ln.body[ln.defender])[0][1] : 30;
-        const x0 = Math.min(ln.defender_x, ln.attacker_x), gap = Math.abs(ln.attacker_x - ln.defender_x);
+        const textAlpha = Math.min(1, Math.max(0, (z - 0.8) / 0.2));   // text only once the zoom has landed
+        const dotAlpha = Math.min(1, Math.max(0, (z - 0.4) / 0.3));
+        const keyPoint = (pid, part) => (ln.body[pid] && ln.body[pid][part]) || (ln.body[pid] ? Object.values(ln.body[pid])[0] : null);
+        const ka = keyPoint(ln.attacker, ln.attacker_part), kd = keyPoint(ln.defender, ln.defender_part);
+        const x0 = Math.min(ln.defender_x, ln.attacker_x), x1 = Math.max(ln.defender_x, ln.attacker_x), gap = x1 - x0;
         svg("rect", { x: x0, y: -3, width: gap, height: 74, fill: "rgba(255,255,255,.14)" }, L);
         svg("line", { x1: ln.defender_x, y1: -3, x2: ln.defender_x, y2: 71, stroke: colour[ln.defender.slice(0, 3)], "stroke-width": u / 260 }, L);
         svg("line", { x1: ln.attacker_x, y1: -3, x2: ln.attacker_x, y2: 71, stroke: colour[ln.attacker.slice(0, 3)], "stroke-width": u / 260, "stroke-dasharray": `${u / 60} ${u / 120}` }, L);
-        const label = (x, y, text, fill, size, anchor = "start") => {
-          const el = svg("text", { x, y, "text-anchor": anchor, "font-size": size, "font-family": "IBM Plex Mono", "font-weight": 600, fill, stroke: "#0b0f14", "stroke-width": size * 0.22, "paint-order": "stroke" }, L);
-          el.textContent = text;
-        };
+
+        const dots = svg("g", { opacity: dotAlpha.toFixed(2) }, L);
         Object.entries(ln.body).forEach(([pid, parts]) => {
           Object.entries(parts).forEach(([part, [x, y]]) => {
-            const arm = part === "arm", key = (pid === ln.attacker && part === ln.attacker_part) || (pid === ln.defender && part === ln.defender_part);
-            svg("circle", { cx: x, cy: y, r: key ? u / 70 : u / 130, fill: arm ? "var(--alert)" : key ? "#fff" : colour[pid.slice(0, 3)], stroke: "#0b0f14", "stroke-width": u / 900 }, L);
-            if (key) label(x + u / 45, y + u / 140, `${name(pid)} · ${part.replace("_", " ")}`, "#fff", u / 42);
-            if (arm) label(x + u / 45, y + u / 140, "arm · doesn't count", "var(--alert)", u / 50);
+            const key = (pid === ln.attacker && part === ln.attacker_part) || (pid === ln.defender && part === ln.defender_part);
+            svg("circle", { cx: x, cy: y, r: key ? u / 75 : u / 140, fill: part === "arm" ? "var(--alert)" : key ? "#fff" : colour[pid.slice(0, 3)], stroke: "#0b0f14", "stroke-width": u / 900 }, dots);
           });
         });
-        const ym = (ya + yd) / 2;
-        svg("line", { x1: ln.defender_x, y1: ym, x2: ln.attacker_x, y2: ym, stroke: "#fff", "stroke-width": u / 200 }, L);
-        const m = Math.abs(ln.margin_m);
-        const big = m < 1 ? `${(m / 0.0254).toFixed(1)} in · ${Math.round(m * 100)} cm` : `${m.toFixed(2)} m · ${(m / 0.3048).toFixed(1)} ft`;
-        label(x0 + gap / 2, ym - u / 40, big, "#fff", u / 16, "middle");
-        label(x0 + gap / 2, ym + u / 14, ln.margin_m > 0 ? "ahead at the pass" : "behind at the pass", "var(--muted)", u / 40, "middle");
+
+        if (textAlpha > 0) {
+          const T = svg("g", { opacity: textAlpha.toFixed(2) }, L);
+          const text = (x, y, str, fill, size, anchor = "start", font = "IBM Plex Mono", weight = 600) => {
+            const el = svg("text", { x, y, "text-anchor": anchor, "font-size": size, "font-family": font, "font-weight": weight, fill }, T);
+            el.textContent = str;
+            return el;
+          };
+          // One tag per player, off to the side, with a leader to the body part that sets the line
+          const tagX = x1 + u * 0.09, fs = u / 48, tagW = u * 0.3, tagH = fs * 3.1;
+          const above = ka && kd ? ka[1] <= kd[1] : true;
+          [[ln.attacker, ka, above ? -1 : 1, ln.attacker_part], [ln.defender, kd, above ? 1 : -1, ln.defender_part]].forEach(([pid, kp, side, part]) => {
+            if (!kp) return;
+            const vh = vb[3], pad = u * 0.015;
+            const ty = Math.min(Math.max(kp[1] + side * u * 0.06 - (side < 0 ? tagH : 0), vb[1] + pad), vb[1] + vh - tagH - pad);
+            const elbowY = side < 0 ? ty + tagH : ty;
+            svg("polyline", { points: `${kp[0]},${kp[1]} ${tagX - u * 0.02},${elbowY} ${tagX},${elbowY}`, fill: "none", stroke: colour[pid.slice(0, 3)], "stroke-width": u / 700 }, T);
+            svg("rect", { x: tagX, y: ty, width: tagW, height: tagH, rx: u / 400, fill: "rgba(6,14,22,.88)", stroke: colour[pid.slice(0, 3)], "stroke-width": u / 900 }, T);
+            text(tagX + u / 80, ty + fs * 1.2, `${name(pid).toUpperCase()} · ${part.replace("_l", " (left)").replace("_r", " (right)").replace("_", " ")}`, "#fff", fs);
+            const arm = ln.body[pid] && ln.body[pid].arm;
+            const armAhead = arm && ln.attack_dir * (arm[0] - kp[0]) > 0;   // the arm is past the line-setting part
+            text(tagX + u / 80, ty + fs * 2.45, armAhead ? "arm reaches further · doesn't count" : "deepest playable part", armAhead ? "var(--alert)" : "var(--muted)", fs * 0.8, "start", "IBM Plex Mono", 500);
+          });
+          // The margin, in its own pill to the left of the lines
+          const m = Math.abs(ln.margin_m);
+          const big = m < 1 ? `${(m / 0.0254).toFixed(1)} in · ${Math.round(m * 100)} cm` : `${m.toFixed(2)} m · ${(m / 0.3048).toFixed(1)} ft`;
+          const ym = ka && kd ? (ka[1] + kd[1]) / 2 : 34;
+          const bs = u / 18, pw = big.length * bs * 0.5 + u * 0.04, ph = bs * 2.1;
+          const px = x0 - u * 0.04 - pw;
+          svg("line", { x1: x0, y1: ym, x2: x1, y2: ym, stroke: "#fff", "stroke-width": u / 220 }, T);
+          svg("line", { x1: px + pw, y1: ym, x2: x0, y2: ym, stroke: "#fff", "stroke-width": u / 700, "stroke-dasharray": `${u / 200} ${u / 200}` }, T);
+          svg("rect", { x: px, y: ym - ph / 2, width: pw, height: ph, rx: u / 200, fill: "rgba(6,14,22,.9)", stroke: "#fff", "stroke-width": u / 900 }, T);
+          text(px + pw / 2, ym + bs * 0.05, big, "#fff", bs, "middle", "Barlow Condensed", 700);
+          text(px + pw / 2, ym + bs * 0.75, ln.margin_m > 0 ? "AHEAD WHEN THE PASS WAS PLAYED" : "BEHIND WHEN THE PASS WAS PLAYED", "var(--muted)", bs * 0.3, "middle", "IBM Plex Mono", 500);
+        }
       } else if (!P.lines) {
         note.textContent = "Moment of the pass · measurement shown once the officials decide";
         note.classList.add("on");
