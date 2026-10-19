@@ -1,0 +1,274 @@
+"""The engine: the only writer of match facts.
+
+    engine = Engine("m01")
+    for event in feed:
+        for fact in engine.ingest(event):
+            ...  # facts feed the moment detector, agents (through MCP) and deterministic overlays
+
+Every Fact cites the event IDs it came from, so anything shown on screen traces back to the feed.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any
+
+from contracts import Incident, MatchEvent
+from contracts.common import PITCH_LENGTH_M
+from engine.decisions import DecisionDesk
+from engine.offside import measure
+from engine.stats import Movement, Rolling, distance_to_goal, pass_quality
+
+PASS_QUALITY_MIN = 0.55  # completed passes at or above this difficulty become facts
+PRESSURE_SWING_UP, PRESSURE_SWING_RESET = 60, 45
+METRICS_EVERY_S = 60.0
+MULTIPLE_PHASES = 4  # on-ball events between the kick and the goal that make a check slow
+
+RESTARTS = {"kickoff", "pass", "carry", "shot", "tackle", "interception"}
+VAR_KIND = {"offside": "offside", "red_card": "red_card", "penalty": "penalty", "handball": "handball"}
+VAR_DECISION = {  # var_decision outcome -> (final, var_outcome)
+    "no_goal": ("no_goal", None),
+    "goal_stands": ("goal", "no_offence"),
+    "red_card_upheld": ("red_card", "upheld"),
+    "red_card_overturned": ("no_card", "overturned"),
+}
+
+
+@dataclass(frozen=True)
+class Fact:
+    kind: str  # sprint | pass_quality | shot | goal | card | pressure_swing | metrics | incident
+    period: int
+    clock: float
+    values: dict[str, Any]
+    sources: list[str]
+    team: str | None = None
+    player: str | None = None
+
+
+def incident_view(inc: Incident) -> dict[str, Any]:
+    """What may leave the engine about an incident: facts stay locked until it is decided."""
+    return inc.model_dump(exclude={"facts"}) | {"facts": inc.overlay_facts()}
+
+
+@dataclass
+class _Context:
+    last_frame_pass: dict[str, MatchEvent] = field(default_factory=dict)  # per attacking team
+    on_ball_since_frame: dict[str, int] = field(default_factory=dict)
+    last_foul: MatchEvent | None = None
+    last_metrics_clock: float = -1e9
+    pressure_high: dict[str, bool] = field(default_factory=dict)
+    review_opened: dict[str, float] = field(default_factory=dict)
+
+
+class Engine:
+    def __init__(self, match_id: str) -> None:
+        self.match_id = match_id
+        self.desk = DecisionDesk(match_id)
+        self.movement = Movement()
+        self.rolling = Rolling()
+        self.teams: tuple[str, str] | None = None
+        self.direction: dict[str, int] = {}
+        self.score: dict[str, int] = {}
+        self.period = 1
+        self.clock = 0.0
+        self._ctx = _Context()
+
+    # ── Public ───────────────────────────────────────────────────────────────
+
+    def ingest(self, e: MatchEvent) -> list[Fact]:
+        self.period, self.clock = e.period, e.clock
+        facts: list[Fact] = []
+        if e.type == "kickoff":
+            self._set_directions(e)
+        if e.type in RESTARTS:
+            facts += self._restart(e)
+        for s in self.movement.update(e):
+            values = {k: v for k, v in vars(s).items() if k != "player"}
+            facts.append(self._fact("sprint", e, [e.event_id], player=s.player, team=s.player[:3], **values))
+        self.rolling.add(e)
+
+        handler = getattr(self, f"_on_{e.type}", None)
+        if handler:
+            facts += handler(e)
+        if e.type == "tracking" and e.clock - self._ctx.last_metrics_clock >= METRICS_EVERY_S and self.teams:
+            facts += self._metrics(e)
+        return facts
+
+    def snapshot(self) -> dict[str, Any]:
+        return {
+            "match_id": self.match_id,
+            "period": self.period,
+            "clock": self.clock,
+            "score": dict(self.score),
+            "metrics": self.rolling.metrics(self.period, self.clock, self.teams) if self.teams else {},
+            "distance_km": {k: round(v / 1000, 2) for k, v in sorted(self.movement.distance_m.items())},
+            "top_speed_kmh": {k: round(v, 1) for k, v in sorted(self.movement.top_kmh.items())},
+            "incidents": [incident_view(i) for i in self.desk.incidents.values()],
+        }
+
+    # ── Helpers ──────────────────────────────────────────────────────────────
+
+    def _fact(
+        self, fact_kind: str, e: MatchEvent, sources: list[str], /, team=None, player=None, **values
+    ) -> Fact:
+        # positional-only, so a value named `kind` (an incident's kind) lands in values
+        return Fact(fact_kind, e.period, e.clock, values, sources, team=team, player=player)
+
+    def _set_directions(self, e: MatchEvent) -> None:
+        """At kickoff both teams stand in their own half: that gives each team's attacking direction."""
+        by_team: dict[str, list[float]] = {}
+        for pid, (x, _) in e.positions.items():
+            by_team.setdefault(pid[:3], []).append(x)
+        a, b = sorted(by_team)
+        self.teams = (a, b)
+        for team, xs in by_team.items():
+            self.direction[team] = 1 if sum(xs) / len(xs) < PITCH_LENGTH_M / 2 else -1
+            self.score.setdefault(team, 0)
+
+    def _incident_fact(self, inc: Incident, e: MatchEvent) -> Fact:
+        sources = [s for s in (inc.goal_event, e.event_id, inc.incident_id) if s]
+        return self._fact("incident", e, list(dict.fromkeys(sources)), **incident_view(inc))
+
+    def _restart(self, e: MatchEvent) -> list[Fact]:
+        """Play resumed: calls with no review are decided as given; decided calls are restarted."""
+        out = []
+        for inc in self.desk.unresolved():
+            if inc.state == "open":
+                final = "goal" if inc.kind == "goal_check" else inc.on_field
+                out.append(self._incident_fact(self.desk.decide(inc.incident_id, final, e.clock), e))
+        for inc in self.desk.awaiting_restart():
+            out.append(self._incident_fact(self.desk.restart(inc.incident_id), e))
+        return out
+
+    # ── Event handlers ───────────────────────────────────────────────────────
+
+    def _on_pass(self, e: MatchEvent) -> list[Fact]:
+        ctx, d = self._ctx, self.direction.get(e.team, 1)
+        out = []
+        if e.frame is not None:
+            ctx.last_frame_pass[e.team] = e
+            ctx.on_ball_since_frame[e.team] = 0
+        else:
+            ctx.on_ball_since_frame[e.team] = ctx.on_ball_since_frame.get(e.team, 0) + 1
+        if e.outcome == "complete":
+            q = pass_quality(e, d)
+            if q.difficulty >= PASS_QUALITY_MIN:
+                out.append(
+                    self._fact(
+                        "pass_quality", e, [e.event_id], team=e.team, player=e.player,
+                        receiver=e.receiver, ball_speed_kmh=e.ball_speed_kmh, **vars(q),
+                    )
+                )  # fmt: skip
+        elif e.outcome == "offside":
+            inc = self.desk.open("offside", "offside", e.clock)
+            if e.frame is not None:
+                self.desk.add_facts(inc.incident_id, self._offside_facts(e))
+            inc = self.desk.decide(inc.incident_id, "offside", e.clock)
+            out.append(self._incident_fact(inc, e))
+        return out
+
+    def _on_carry(self, e: MatchEvent) -> list[Fact]:
+        self._ctx.on_ball_since_frame[e.team] = self._ctx.on_ball_since_frame.get(e.team, 0) + 1
+        return []
+
+    def _on_shot(self, e: MatchEvent) -> list[Fact]:
+        self._ctx.on_ball_since_frame[e.team] = self._ctx.on_ball_since_frame.get(e.team, 0) + 1
+        dist = distance_to_goal(e.start, self.direction.get(e.team, 1))
+        return [
+            self._fact(
+                "shot", e, [e.event_id], team=e.team, player=e.player, outcome=e.outcome,
+                ball_speed_kmh=e.ball_speed_kmh, distance_m=round(dist, 1),
+            )
+        ]  # fmt: skip
+
+    def _on_goal(self, e: MatchEvent) -> list[Fact]:
+        self.score[e.team] = self.score.get(e.team, 0) + 1
+        inc = self.desk.open("goal_check", "goal", e.clock, goal_event=e.event_id)
+        return [
+            self._fact("goal", e, [e.event_id], team=e.team, player=e.player, score=dict(self.score)),
+            self._incident_fact(inc, e),
+        ]
+
+    def _on_foul(self, e: MatchEvent) -> list[Fact]:
+        self._ctx.last_foul = e
+        return []
+
+    def _on_card(self, e: MatchEvent) -> list[Fact]:
+        kind = "red_card" if e.outcome in ("red", "second_yellow") else "foul"
+        inc = self.desk.open(kind, e.outcome or "card", e.clock)
+        foul = self._ctx.last_foul
+        facts: dict[str, Any] = {"offender": e.player}
+        if foul is not None and foul.player == e.player:
+            facts |= {"foul_event": foul.event_id, "fouled": foul.receiver or "", "foul_clock": foul.clock}
+        inc = self.desk.add_facts(inc.incident_id, facts)
+        sources = [e.event_id] + ([foul.event_id] if foul is not None and foul.player == e.player else [])
+        return [
+            self._fact("card", e, sources, team=e.team, player=e.player, outcome=e.outcome),
+            self._incident_fact(inc, e),
+        ]
+
+    def _on_var_check(self, e: MatchEvent) -> list[Fact]:
+        open_ = [i for i in self.desk.unresolved() if i.state == "open"]
+        if not open_:
+            return []
+        inc = open_[-1]
+        kind = VAR_KIND.get(e.outcome or "", inc.kind)
+        inc = self.desk.review(inc.incident_id, kind=kind)
+        self._ctx.review_opened[inc.incident_id] = e.clock
+        if kind == "offside":
+            kick = self._ctx.last_frame_pass.get(e.team)
+            if kick is not None:
+                codes = (
+                    ["multiple_phases"]
+                    if self._ctx.on_ball_since_frame.get(e.team, 0) > MULTIPLE_PHASES
+                    else []
+                )
+                inc = self.desk.add_facts(inc.incident_id, self._offside_facts(kick), codes)
+        return [self._incident_fact(inc, e)]
+
+    def _on_var_decision(self, e: MatchEvent) -> list[Fact]:
+        reviewing = [i for i in self.desk.unresolved() if i.state == "reviewing"]
+        if not reviewing:
+            return []
+        inc = reviewing[-1]
+        final, var_outcome = VAR_DECISION.get(e.outcome or "", (e.outcome or "unknown", None))
+        var_outcome = var_outcome or inc.kind
+        opened = self._ctx.review_opened.get(inc.incident_id, inc.opened_at)
+        self.desk.add_facts(inc.incident_id, {"check_s": round(e.clock - opened, 1)})
+        inc = self.desk.decide(inc.incident_id, final, e.clock, var_outcome=var_outcome)
+        out = []
+        if inc.kind in ("offside", "goal_check", "penalty", "handball") and final == "no_goal":
+            team = self.desk.incidents[inc.incident_id].facts.get("attacking_team") or e.team
+            self.score[team] = max(0, self.score.get(team, 0) - 1)
+            out.append(self._fact("goal", e, [e.event_id, inc.incident_id], team=team, disallowed=True,
+                                  score=dict(self.score)))  # fmt: skip
+        return [self._incident_fact(inc, e)] + out
+
+    def _offside_facts(self, kick: MatchEvent) -> dict[str, Any]:
+        m = measure(kick, self.direction.get(kick.team, 1))
+        return {
+            "margin_m": m.margin_m,
+            "kick_clock": m.kick_clock,
+            "kick_event": kick.event_id,
+            "attacker": m.attacker,
+            "defender": m.defender,
+            "attacker_x": m.attacker_x,
+            "defender_x": m.defender_x,
+            "attacking_team": kick.team,
+            "offside_position": m.offside_position,
+        }
+
+    def _metrics(self, e: MatchEvent) -> list[Fact]:
+        self._ctx.last_metrics_clock = e.clock
+        m = self.rolling.metrics(e.period, e.clock, self.teams)
+        out = [self._fact("metrics", e, [e.event_id], score=dict(self.score), **m)]
+        for team in self.teams:
+            p = m[team]["pressure"]
+            high = self._ctx.pressure_high.get(team, False)
+            if not high and p >= PRESSURE_SWING_UP:
+                self._ctx.pressure_high[team] = True
+                out.append(self._fact("pressure_swing", e, [e.event_id], team=team, pressure=p,
+                                      possession=m[team]["possession"], chaos=m["chaos"]))  # fmt: skip
+            elif high and p < PRESSURE_SWING_RESET:
+                self._ctx.pressure_high[team] = False
+        return out
