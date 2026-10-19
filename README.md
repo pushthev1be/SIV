@@ -36,6 +36,13 @@ uv run python -m sim.realism                  # check every scenario looks like 
 uv run python -m contracts.generate && npm --prefix web run gen:contracts
 ```
 
+Watch a match in the browser (simulator + engine, no Azure needed):
+
+```sh
+uv run python -m engine.export                       # writes web/preview/data/*.json
+uv run python -m http.server 8765 -d web/preview     # then open http://localhost:8765
+```
+
 The simulator is seeded, so a scenario produces the same match every time. It emits an event feed
 (passes, shots, tackles, fouls, cards, VAR) and a 2 Hz tracking feed of all player positions; speeds,
 distances and offside margins are never stated, only derived.
