@@ -160,7 +160,7 @@
     <div class="replay" id="replay">
       <div class="rhead">
         <h3 id="rTitle">Call replay</h3><span class="phase" id="rPhase"></span><span class="muted" id="rClock"></span>
-        <button id="rAgain">↺ Replay</button><button id="rPause">❚❚</button><button class="hud on" id="rHud">◎ Callouts</button>
+        <button id="rAgain">↺ Replay</button><button id="rPause">❚❚</button><button class="hud on" id="rHud">◎ Callouts</button><button class="hud on" id="rLoop" title="Replay the call on a loop">⟳ Loop</button>
         <button class="x" id="rClose">✕ Back to live</button>
       </div>
       <div class="rbody"><svg id="rsvg" viewBox="-3 -3 111 74" preserveAspectRatio="xMidYMid meet"></svg><div class="rnote" id="rNote"></div></div>
@@ -562,7 +562,9 @@
 
   // ── Call replay ──────────────────────────────────────────────────────────
 
-  const R = { pkg: null, rt: 0, playing: true, frozen: false, hold: 0, zoom: 0, aud: "fan", view: null, zoomBox: null };
+  const R = { pkg: null, rt: 0, playing: true, frozen: false, hold: 0, zoom: 0, aud: "fan", view: null, zoomBox: null,
+              loop: true, endHold: 0 };
+  const LOOP_PAUSE_S = 1.2;  // beat at the end before the replay starts again
   window.__touchline = { R };  // debugging hook
 
   function openReplay(iid) {
@@ -580,7 +582,8 @@
   function closeReplay() { $("replay").classList.remove("on"); R.pkg = null; render(); }
 
   function restartReplay() {
-    R.rt = R.pkg.frames[0].t; R.playing = true; R.frozen = false; R.hold = 0; R.zoom = 0; $("rPause").textContent = "❚❚";
+    R.rt = R.pkg.frames[0].t; R.playing = true; R.frozen = false; R.hold = 0; R.zoom = 0; R.endHold = 0;
+    $("rPause").textContent = "❚❚";
   }
 
   function bbox(points, pad) {
@@ -657,8 +660,13 @@
     if (!R.frozen && R.rt < P.key_t && next >= P.key_t) {
       R.rt = P.key_t; R.frozen = true; R.hold = P.lines ? 5 : 2.5; drawReplayText(); return;
     }
-    R.rt = Math.min(next, P.frames[P.frames.length - 1].t);
-    if (R.rt >= P.frames[P.frames.length - 1].t) R.playing = false;
+    const last = P.frames[P.frames.length - 1].t;
+    R.rt = Math.min(next, last);
+    if (R.rt >= last) {
+      if (!R.loop) { R.playing = false; $("rPause").textContent = "▶"; return; }
+      R.endHold += dt;
+      if (R.endHold >= LOOP_PAUSE_S) { restartReplay(); drawReplayText(); }
+    }
   }
 
   function drawReplay() {
@@ -783,8 +791,12 @@
     $("rClose").onclick = closeReplay;
     const setHud = (on) => { hud = on; ["rHud", "hudToggle"].forEach((id) => $(id).classList.toggle("on", hud)); render(); if (R.pkg) drawReplay(); };
     $("rHud").onclick = () => setHud(!hud);
+    $("rLoop").onclick = () => {
+      R.loop = !R.loop; $("rLoop").classList.toggle("on", R.loop);
+      if (R.loop && R.pkg && !R.playing) { restartReplay(); drawReplayText(); }
+    };
     $("hudToggle").onclick = () => setHud(!hud);
-    $("rAgain").onclick = restartReplay;
+    $("rAgain").onclick = () => { restartReplay(); drawReplayText(); };
     $("rPause").onclick = () => { R.playing = !R.playing; $("rPause").textContent = R.playing ? "❚❚" : "▶"; };
     $("pcClear").onclick = () => selectPlayer(selected);
     $("pitch").addEventListener("click", () => selected && selectPlayer(selected));
