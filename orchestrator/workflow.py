@@ -1,4 +1,4 @@
-"""Touchline orchestrator as a Microsoft Agent Framework workflow (sketch).
+"""VAR Narrative orchestrator as a Microsoft Agent Framework workflow (sketch).
 
 Graph, one run per aired moment:
 
@@ -258,7 +258,7 @@ async def main() -> None:
             model=os.environ["FOUNDRY_MODEL_SMALL"],
             credential=credential,
         )
-        async with MCPStreamableHTTPTool(name="touchline", url=os.environ["MCP_URL"]) as mcp:
+        async with MCPStreamableHTTPTool(name="var-narrative", url=os.environ["MCP_URL"]) as mcp:
             # TODO(Oct 22): subscribe to engine output; for each detected moment m:
             #   await air_moment(build_workflow(client, strong_model, mcp), m, console)
             raise NotImplementedError((client, mcp))

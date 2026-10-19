@@ -1,4 +1,4 @@
-// Touchline infrastructure. Deploy with `azd up` from the repo root.
+// VAR Narrative infrastructure. Deploy with `azd up` from the repo root.
 targetScope = 'subscription'
 
 @minLength(1)
@@ -18,7 +18,7 @@ param chatModelVersion string = '2025-08-07'
 @description('Thousands of tokens per minute')
 param chatModelCapacity int = 100
 
-var tags = { 'azd-env-name': environmentName, project: 'touchline' }
+var tags = { 'azd-env-name': environmentName, project: 'var-narrative' }
 var token = toLower(uniqueString(subscription().id, environmentName, location))
 
 resource rg 'Microsoft.Resources/resourceGroups@2024-03-01' = {

@@ -41,7 +41,7 @@ def _normalize(node, keep_title: bool = False):
 def build_schema() -> dict:
     _, schema = models_json_schema([(m, "validation") for m in ROOT_MODELS], ref_template="#/$defs/{model}")
     schema = _normalize(schema)
-    schema["title"] = "TouchlineContracts"
+    schema["title"] = "VarNarrativeContracts"
     # A root object referencing every model, so json2ts emits all of them as named exports.
     schema["type"] = "object"
     schema["properties"] = {m.__name__: {"$ref": f"#/$defs/{m.__name__}"} for m in ROOT_MODELS}

@@ -3,7 +3,7 @@
     uv run python -m engine.export golden
     uv run python scripts/record_gifs.py            # writes docs/media/*.gif
 
-Each clip is scripted against the page's window.__touchline hooks, recorded by headless Chromium,
+Each clip is scripted against the page's window.__varNarrative hooks, recorded by headless Chromium,
 then cropped, trimmed and palette-encoded by ffmpeg. Same data in, same GIFs out.
 """
 
@@ -47,17 +47,17 @@ def open_call(page, label: str) -> None:
 # Each scene: (name, selector to crop to, setup(page), seconds to record after setup)
 def scene_offside(page) -> None:
     open_call(page, "VAR offside")
-    page.evaluate("() => { const R = window.__touchline.R; R.rt = R.pkg.key_t - 3.0; }")
+    page.evaluate("() => { const R = window.__varNarrative.R; R.rt = R.pkg.key_t - 3.0; }")
 
 
 def scene_callouts(page) -> None:
     open_call(page, "VAR offside")
-    page.evaluate("() => { const R = window.__touchline.R; R.rt = R.pkg.frames[0].t + 1.0; }")
+    page.evaluate("() => { const R = window.__varNarrative.R; R.rt = R.pkg.frames[0].t + 1.0; }")
 
 
 def scene_live_var(page) -> None:
     page.evaluate(
-        """() => { const T = window.__touchline, at = T.replayAt;
+        """() => { const T = window.__varNarrative, at = T.replayAt;
                    const iid = Object.keys(at).find(k => at[k].during != null);
                    T.seek(at[iid].during - 13); T.play(true, 10); }"""
     )
@@ -65,7 +65,7 @@ def scene_live_var(page) -> None:
 
 def scene_player(page) -> None:
     page.evaluate(
-        "() => { const T = window.__touchline; T.seek(3700); T.selectPlayer('NBR-9'); T.play(true, 5); }"
+        "() => { const T = window.__varNarrative; T.seek(3700); T.selectPlayer('NBR-9'); T.play(true, 5); }"
     )
 
 
@@ -84,7 +84,7 @@ def record(url: str, name: str, selector: str, setup, seconds: float, tmp: Path)
         page = ctx.new_page()
         t0 = time.monotonic()
         page.goto(url)
-        page.wait_for_function("() => window.__touchline && window.__touchline.ready", timeout=60_000)
+        page.wait_for_function("() => window.__varNarrative && window.__varNarrative.ready", timeout=60_000)
         page.wait_for_timeout(800)  # fonts and first frame
         box = page.locator(selector).first.bounding_box()
         setup(page)

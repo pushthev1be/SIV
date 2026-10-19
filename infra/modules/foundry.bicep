@@ -31,13 +31,13 @@ resource account 'Microsoft.CognitiveServices/accounts@2025-06-01' = {
 
 resource project 'Microsoft.CognitiveServices/accounts/projects@2025-06-01' = {
   parent: account
-  name: 'touchline'
+  name: 'touchline'  // resource name kept from the working title; renaming would recreate the project
   location: location
   tags: tags
   identity: { type: 'SystemAssigned' }
   properties: {
-    displayName: 'Touchline'
-    description: 'Agents that turn a synthetic match feed into explainable overlays'
+    displayName: 'VAR Narrative'
+    description: 'Agents that explain VAR checks and calls to fans, grounded in the match data'
   }
 }
 
