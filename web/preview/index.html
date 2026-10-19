@@ -363,11 +363,13 @@
       if (v.state === "reviewing") varOpen = v;
       if (v.state === "decided" && varOpen && varOpen.incident_id === v.incident_id) varOpen = null;
       if (v.state === "decided" && v.kind === "offside" && v.var_outcome && v.facts.attacker_x != null)
-        lines = { until: f.t + 14, ax: v.facts.attacker_x, dx: v.facts.defender_x };
+        lines = { until: f.t + Math.max(14, speed * 5), ax: v.facts.attacker_x, dx: v.facts.defender_x };
     }
     if (!live) return;
     const c = caption(f);
-    if (c && (!band || f.t > band.until || c.prio >= band.prio)) band = { ...c, until: f.t + (c.prio >= 6 ? 10 : 6), src: f.sources.slice(0, 3).join(" · ") };
+    // Big moments stay up at least ~4 s of real time, whatever the playback speed
+    const holdFor = c && c.prio >= 6 ? Math.max(10, speed * 4) : Math.max(6, speed * 1.5);
+    if (c && (!band || f.t > band.until || c.prio >= band.prio)) band = { ...c, until: f.t + holdFor, src: f.sources.slice(0, 3).join(" · ") };
     const li = tickerItem(f);
     if (li) {
       const tk = $("ticker");
@@ -565,7 +567,6 @@
   const R = { pkg: null, rt: 0, playing: true, frozen: false, hold: 0, zoom: 0, aud: "fan", view: null, zoomBox: null,
               loop: true, endHold: 0 };
   const LOOP_PAUSE_S = 1.2;  // beat at the end before the replay starts again
-  window.__touchline = { R };  // debugging hook
 
   function openReplay(iid) {
     const at = replayAt[iid] || {};
@@ -874,6 +875,12 @@
     $("homeTeam").innerHTML = crest(D.home) + D.home;
     $("awayTeam").innerHTML = D.away + crest(D.away);
     precompute(); drawPitch(); controls(); seek(0);
+    // Hooks for scripts/record_gifs.py and debugging; the page never needs them itself.
+    window.__touchline = {
+      R, seek, openReplay, closeReplay, selectPlayer,
+      play: (on, s) => { if (s) speed = s; playing = on; $("play").textContent = on ? "❚❚ Pause" : "▶ Play"; },
+      replayAt, ready: true,
+    };
     $("loading").remove();
     requestAnimationFrame((now) => { lastNow = now; loop(now); });
   }).catch((err) => { $("loading").textContent = err.message; console.error(err); });
