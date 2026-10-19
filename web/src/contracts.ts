@@ -155,6 +155,9 @@ export interface ReplayPackage {
    * @minItems 2
    */
   ball: [BallSample, BallSample, ...BallSample[]];
+  facts?: {
+    [k: string]: number | string | boolean;
+  };
   /**
    * @minItems 1
    */

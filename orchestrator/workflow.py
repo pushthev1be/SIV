@@ -35,6 +35,7 @@ from agent_framework import (
 )
 from agent_framework.foundry import FoundryChatClient
 from azure.identity.aio import DefaultAzureCredential
+
 from orchestrator.templates import template_text  # deterministic fallbacks
 from orchestrator.validator import validate_text  # returns list of violations
 
