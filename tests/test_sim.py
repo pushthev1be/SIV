@@ -118,3 +118,20 @@ def test_late_comeback_goal_order():
     goals = of(run("late_comeback"), "goal")
     assert [g.team for g in goals] == ["ASH", "ASH", "NBR", "NBR", "NBR"]
     assert goals[-1].clock >= 5395
+
+
+# ── Producer pacing (no Azure needed) ────────────────────────────────────────
+
+
+def test_schedule_scales_time_and_pauses_at_half_time():
+    from sim.producer import HALF_TIME_PAUSE_S, schedule
+
+    events = list(run("golden"))
+    plan = schedule(events, speed=60)
+    walls = [w for w, _ in plan]
+    assert walls == sorted(walls) and walls[0] == 0
+    i = next(i for i, e in enumerate(events) if e.period == 2)
+    assert walls[i] - walls[i - 1] == HALF_TIME_PAUSE_S
+    # Within a half, one wall second is 60 match seconds.
+    a, b = events[10], events[400]
+    assert walls[400] - walls[10] == pytest.approx((b.clock - a.clock) / 60)
