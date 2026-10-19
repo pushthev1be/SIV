@@ -5,6 +5,20 @@
   "home": "NBR",
   "away": "ASH",
   "script": [
-    { "kind": "red_card", "at": 1950.0, "player": "ASH-5", "var": true, "check_s": 40 }
+    {
+      "kind": "red_card",
+      "at": 1950.0,
+      "player": "ASH-5",
+      "var": true,
+      "check_s": 40
+    },
+    {
+      "kind": "red_card",
+      "at": 4200.0,
+      "player": "NBR-6",
+      "var": true,
+      "var_result": "overturned",
+      "check_s": 45
+    }
   ]
 }

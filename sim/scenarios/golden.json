@@ -5,8 +5,41 @@
   "home": "NBR",
   "away": "ASH",
   "script": [
-    { "kind": "goal", "at": 1830.0, "team": "ASH" },
-    { "kind": "goal", "at": 3960.0, "team": "NBR" },
+    {
+      "kind": "penalty_review",
+      "at": 1500.0,
+      "team": "ASH",
+      "attacker": "ASH-9",
+      "defender": "NBR-4",
+      "awarded": true,
+      "scored": true,
+      "check_s": 55
+    },
+    {
+      "kind": "goal",
+      "at": 3000.0,
+      "team": "NBR"
+    },
+    {
+      "kind": "offside_goal",
+      "at": 3660.0,
+      "team": "NBR",
+      "passer": "NBR-10",
+      "attacker": "NBR-7",
+      "defender": "ASH-5",
+      "passer_pos": [
+        58.0,
+        30.0
+      ],
+      "attacker_y": 44.0,
+      "defender_pos": [
+        83.0,
+        40.0
+      ],
+      "margin_m": -0.06,
+      "decision": "goal_stands",
+      "check_s": 48
+    },
     {
       "kind": "offside_goal",
       "at": 4679.4,
@@ -14,9 +47,15 @@
       "passer": "NBR-8",
       "attacker": "NBR-9",
       "defender": "ASH-4",
-      "passer_pos": [60.0, 40.0],
+      "passer_pos": [
+        60.0,
+        40.0
+      ],
       "attacker_y": 26.0,
-      "defender_pos": [84.4, 30.0],
+      "defender_pos": [
+        84.4,
+        30.0
+      ],
       "margin_m": 0.31,
       "check_s": 35
     }

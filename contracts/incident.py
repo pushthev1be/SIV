@@ -18,6 +18,7 @@ ReasonCode = Literal[
     "obstructed_view",
     "multiple_phases",
     "earlier_offence",
+    "subjective_judgement",  # a judgement call on contact or intensity, not a measurement
 ]
 
 UNLOCKED_STATES: frozenset[str] = frozenset({"decided", "restarted"})

@@ -19,6 +19,7 @@ NEXT = {
 }
 TIGHT_MARGIN_M = 0.5
 SLOW_CHECK_S = 30.0
+SUBJECTIVE_KINDS = {"penalty", "red_card", "handball"}
 
 
 class IllegalTransition(ValueError):
@@ -74,6 +75,8 @@ class DecisionDesk:
             margin = inc.facts.get("margin_m")
             if isinstance(margin, float) and abs(margin) < TIGHT_MARGIN_M:
                 codes.add("tight_margin")
+            if inc.kind in SUBJECTIVE_KINDS:
+                codes.add("subjective_judgement")
         return self._move(
             incident_id,
             "decided",

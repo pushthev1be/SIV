@@ -24,7 +24,10 @@ from contracts.replay import (
 from engine.stats import distance_to_goal
 
 SPEED_HALF_WINDOW_S = 0.5
-FINAL_TEXT = {"no_goal": "no goal", "goal": "goal", "red_card": "red card", "yellow": "yellow card"}
+FINAL_TEXT = {
+    "no_goal": "no goal", "goal": "goal", "red_card": "red card", "yellow": "yellow card",
+    "penalty": "penalty", "no_penalty": "no penalty",
+}  # fmt: skip
 
 
 def margin_text(m: float) -> str:
@@ -100,7 +103,7 @@ def build_replay(
         return _offside(history, inc, phase, direction)
     if inc.kind == "goal_check":
         return _goal(history, inc, phase, direction)
-    if inc.kind in ("red_card", "foul") and "foul_event" in inc.facts:
+    if inc.kind in ("red_card", "foul", "penalty") and "foul_event" in inc.facts:
         return _challenge(history, inc, phase)
     return None
 
@@ -166,11 +169,19 @@ def _offside(history, inc: Incident, phase, direction) -> ReplayPackage | None:
     else:
         final = FINAL_TEXT.get(inc.final or "", inc.final or "")
         check = f" The check took {f['check_s']:.0f} s." if "check_s" in f else ""
+        stands = inc.final == "goal"
+        if stands:
+            stadium = "Check complete: goal stands, onside"
+            fan = (
+                f"Goal stands. {att} was {margin_text(margin)} behind {deff} when the pass was played: "
+                f"onside.{check}"
+            )
+        else:
+            stadium = f"{'Check complete: ' if reviewed else ''}{final.capitalize()}, offside"
+            fan = f"Offside. {att} was {margin_text(margin)} ahead of {deff} when the pass was played.{check}"
         status = {
-            "stadium": f"{'Check complete: ' if reviewed else ''}{final.capitalize()}, offside",
-            "fan": (
-                f"Offside. {att} was {margin_text(margin)} ahead of {deff} when the pass was played.{check}"
-            ),
+            "stadium": stadium,
+            "fan": fan,
             "analyst": (
                 f"Margin {margin:.2f} m: {att} {f['attacker_part']} vs {deff} {f['defender_part']}. "
                 f"Kick at {clock_text(kick.period, kick_t)} from the 100 fps ball track.{check}"
@@ -249,22 +260,39 @@ def _challenge(history, inc: Incident, phase) -> ReplayPackage | None:
     closing = pkg_probe[offender][i] if frames else None
     closing_text = f", arriving at {closing:.0f} km/h" if closing else ""
     red = inc.kind == "red_card"
+    penalty = inc.kind == "penalty"
+    where = f" {f['distance_to_goal_m']:.0f} m from goal" if "distance_to_goal_m" in f else ""
     moments = [
         ReplayMoment(t=foul.clock, label=f"The challenge by {offender}{closing_text}"[:80], reveal="always")
     ]
     if phase == "during":
         status = {
-            "stadium": "Check in progress: possible red card",
-            "fan": f"The officials are reviewing {offender}'s challenge on {fouled}.",
+            "stadium": f"Check in progress: possible {'penalty' if penalty else 'red card'}",
+            "fan": (
+                f"The officials are checking a possible penalty: {offender}'s challenge on {fouled}{where}."
+                if penalty
+                else f"The officials are reviewing {offender}'s challenge on {fouled}."
+            ),
             "analyst": f"Challenge by {offender}{closing_text}. Review open.",
             "officials": f"Review open: {inc.kind.replace('_', ' ')}. On-field call: {inc.on_field}.",
         }
     else:
         final = FINAL_TEXT.get(inc.final or "", inc.final or "")
+        if penalty:
+            fan = (
+                f"Penalty. After review, {offender}'s challenge on {fouled}{where} is a foul in the box."
+                if inc.final == "penalty"
+                else f"No penalty. The contact by {offender} on {fouled} was not a foul."
+            )
+        elif red and inc.var_outcome == "overturned":
+            fan = f"The red card for {offender} is downgraded to a yellow after review."
+        elif red:
+            fan = f"{offender} is sent off for the challenge on {fouled}."
+        else:
+            fan = f"Yellow card for {offender} for the challenge on {fouled}."
         status = {
-            "stadium": f"{final.capitalize()}: {offender}",
-            "fan": (f"{offender} is sent off for the challenge on {fouled}." if red
-                    else f"Yellow card for {offender} for the challenge on {fouled}."),
+            "stadium": f"{final.capitalize()}: {offender}" if not penalty else f"Check complete: {final}",
+            "fan": fan,
             "analyst": f"Challenge by {offender}{closing_text}.",
             "officials": (
                 f"Facts only. On-field: {inc.on_field}. VAR: {inc.var_outcome or 'no review'}. "

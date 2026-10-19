@@ -206,7 +206,10 @@ def test_golden_score_counts_the_disallowed_goal_out():
 
 def test_red_card_incident_is_upheld_with_foul_facts():
     _, facts = facts_for("red_card")
-    red = [f for f in facts if f.kind == "incident" and f.values["kind"] == "red_card"]
+    first = next(
+        f.values["incident_id"] for f in facts if f.kind == "incident" and f.values["kind"] == "red_card"
+    )
+    red = [f for f in facts if f.kind == "incident" and f.values["incident_id"] == first]
     assert [f.values["state"] for f in red] == ["open", "reviewing", "decided", "restarted"]
     v = red[2].values
     assert (v["final"], v["var_outcome"]) == ("red_card", "upheld")
@@ -268,3 +271,30 @@ def test_player_log_cites_events():
     log = engine.player_log["NBR-9"]
     assert log and all(a["event_id"] for a in log)
     assert any(a["action"] == "call" and a["role"] == "attacker" for a in log)
+
+
+def incidents_of(name, **match):
+    engine, _ = facts_for(name)
+    return [i for i in engine.desk.incidents.values() if all(getattr(i, k) == v for k, v in match.items())]
+
+
+def test_goal_stands_after_a_tight_check():
+    (inc,) = incidents_of("golden", kind="offside", final="goal")
+    assert inc.var_outcome == "no_offence" and inc.facts["margin_m"] == -0.06
+    assert "tight_margin" in inc.reason_codes and inc.facts["offside_position"] is False
+
+
+def test_penalty_review_opens_its_own_incident():
+    engine, _ = facts_for("golden")
+    (inc,) = incidents_of("golden", kind="penalty")
+    assert (inc.on_field, inc.final, inc.var_outcome) == ("no_penalty", "penalty", "penalty")
+    assert inc.reason_codes == ["subjective_judgement"]
+    assert inc.facts["offender"].startswith("NBR") and inc.facts["fouled"].startswith("ASH")
+    assert "Penalty" in engine.replays[inc.incident_id]["after"].status["fan"]
+
+
+def test_red_card_overturned_is_downgraded():
+    engine, _ = facts_for("red_card")
+    (inc,) = incidents_of("red_card", kind="red_card", var_outcome="overturned")
+    assert inc.final == "yellow"
+    assert "downgraded" in engine.replays[inc.incident_id]["after"].status["fan"]

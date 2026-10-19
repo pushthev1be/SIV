@@ -47,8 +47,12 @@ VAR_DECISION = {  # var_decision outcome -> (final, var_outcome)
     "no_goal": ("no_goal", None),
     "goal_stands": ("goal", "no_offence"),
     "red_card_upheld": ("red_card", "upheld"),
-    "red_card_overturned": ("no_card", "overturned"),
+    "red_card_overturned": ("yellow", "overturned"),  # downgraded after review
+    "penalty_awarded": ("penalty", "penalty"),
+    "no_penalty": ("no_penalty", "no_change"),
 }
+# A check with no on-field call to review (e.g. play was waved on): what the referee had given
+ON_FIELD_WHEN_UNCALLED = {"penalty": "no_penalty", "handball": "play_on", "red_card": "no_card"}
 
 
 @dataclass(frozen=True)
@@ -280,9 +284,24 @@ class Engine:
 
     def _on_var_check(self, e: MatchEvent) -> list[Fact]:
         open_ = [i for i in self.desk.unresolved() if i.state == "open"]
-        if not open_:
+        if open_:
+            inc = open_[-1]
+        elif e.outcome in ON_FIELD_WHEN_UNCALLED:  # VAR looks at something the referee let go
+            inc = self.desk.open(VAR_KIND[e.outcome], ON_FIELD_WHEN_UNCALLED[e.outcome], e.clock)
+            challenge = self._last_challenge(e.player)
+            if challenge is not None:
+                d = (
+                    distance_to_goal(challenge.start, -self.direction.get(e.team, 1))
+                    if challenge.start
+                    else None
+                )
+                facts = {"offender": e.player, "fouled": e.receiver or challenge.receiver or "",
+                         "foul_event": challenge.event_id, "foul_clock": challenge.clock}  # fmt: skip
+                if d is not None:
+                    facts["distance_to_goal_m"] = round(d, 1)
+                inc = self.desk.add_facts(inc.incident_id, facts)
+        else:
             return []
-        inc = open_[-1]
         kind = VAR_KIND.get(e.outcome or "", inc.kind)
         inc = self.desk.review(inc.incident_id, kind=kind)
         self._ctx.review_opened[inc.incident_id] = e.clock
@@ -314,6 +333,15 @@ class Engine:
             out.append(self._fact("goal", e, [e.event_id, inc.incident_id], team=team, disallowed=True,
                                   score=dict(self.score)))  # fmt: skip
         return [self._incident_fact(inc, e)] + out
+
+    def _last_challenge(self, player: str | None) -> MatchEvent | None:
+        """The most recent tackle or foul by this player in the last 30 s of feed."""
+        for e in reversed(self.history):
+            if e.clock < self.clock - 30:
+                return None
+            if e.type in ("tackle", "foul") and e.player == player:
+                return e
+        return None
 
     def _offside_facts(self, kick: MatchEvent) -> dict[str, Any]:
         m = measure(kick, self.direction.get(kick.team, 1))

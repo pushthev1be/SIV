@@ -22,7 +22,12 @@ export interface Incident {
   on_field: string;
   opened_at: number;
   reason_codes?: (
-    "tight_margin" | "subjective_interference" | "obstructed_view" | "multiple_phases" | "earlier_offence"
+    | "tight_margin"
+    | "subjective_interference"
+    | "obstructed_view"
+    | "multiple_phases"
+    | "earlier_offence"
+    | "subjective_judgement"
   )[];
   state: "open" | "reviewing" | "decided" | "restarted";
   var_outcome?: string | null;

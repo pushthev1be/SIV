@@ -16,11 +16,11 @@ from contracts import BodyFrame, MatchEvent
 from contracts.common import PITCH_LENGTH_M as L
 from contracts.common import PITCH_WIDTH_M as W
 from sim.match import DT, HALFWAY, Match, Player, clamp, dist, seg_dist
-from sim.scenario import Goal, OffsideGoal, RedCard, Scenario
+from sim.scenario import Goal, OffsideGoal, PenaltyReview, RedCard, Scenario
 from sim.teams import TEAMS
 
 PERIOD_START = {1: 0.0, 2: 2700.0}
-LEAD_S = {"offside_goal": 30.0, "red_card": 20.0, "goal": 0.0}
+LEAD_S = {"offside_goal": 30.0, "red_card": 20.0, "goal": 0.0, "penalty_review": 30.0}
 
 # Body-part offsets (along the attacking direction, lateral), metres from the player's centre.
 # Arms are deliberately the most forward part: Law 11 excludes them, and the engine must too.
@@ -57,7 +57,7 @@ class Simulator:
         self.m = Match(TEAMS[scenario.home], TEAMS[scenario.away], self.rng)
         self.events: list[MatchEvent] = []
         self.pending = sorted(scenario.script, key=lambda s: s.at)
-        self.active: OffsideGoal | RedCard | Goal | None = None
+        self.active: OffsideGoal | RedCard | Goal | PenaltyReview | None = None
         self.pressed = False
         # Constraints that scripts place on free play
         self.force_ball_to: str | None = None  # the other team loses the ball at its next action
@@ -406,9 +406,8 @@ class Simulator:
         ):
             self.active = self.pending.pop(0)
             s = self.active
-            self.force_ball_to = (
-                s.team if isinstance(s, OffsideGoal | Goal) else m.other(m.players[s.player].team)
-            )
+            team_led = isinstance(s, OffsideGoal | Goal | PenaltyReview)
+            self.force_ball_to = s.team if team_led else m.other(m.players[s.player].team)
         s = self.active
         if s is None:
             return False
@@ -418,6 +417,8 @@ class Simulator:
             return self._script_offside(s)
         if isinstance(s, RedCard):
             return self._script_red_card(s)
+        if isinstance(s, PenaltyReview):
+            return self._script_penalty(s)
         self.safe_team = self.goal_team = s.team  # Goal: keep the ball and score from the next shot
         return False
 
@@ -496,7 +497,11 @@ class Simulator:
         self._wait(rng.uniform(4, 7))
         self._emit("var_check", team=s.team, player=attacker.pid, outcome="offside", positions=False)
         self._wait(s.check_s)
-        self._emit("var_decision", team=s.team, player=attacker.pid, outcome="no_goal", positions=False)
+        self._emit("var_decision", team=s.team, player=attacker.pid, outcome=s.decision, positions=False)
+        if s.decision == "goal_stands":
+            self._finish_script()
+            self._after_goal(s.team)  # kickoff as normal
+            return True
         spot = att_pos  # indirect free kick where the attacker stood at the pass
         defender.override, defender.urgency = spot, 0.5
         self._wait(rng.uniform(12, 18))  # indirect free kick from the offside spot
@@ -525,12 +530,86 @@ class Simulator:
                 "var_check", team=offender.team, player=offender.pid, outcome="red_card", positions=False
             )
             self._wait(s.check_s)
+            overturned = s.var_result == "overturned"
             self._emit(
-                "var_decision", team=offender.team, player=offender.pid, outcome="red_card_upheld",
-                positions=False,
+                "var_decision", team=offender.team, player=offender.pid,
+                outcome="red_card_overturned" if overturned else "red_card_upheld", positions=False,
             )  # fmt: skip
+            if overturned:
+                offender.yellows = 1
+                self._wait(rng.uniform(15, 25))
+                self._finish_script()
+                self._give(c)
+                return True
         offender.on_pitch = False
         self._wait(rng.uniform(15, 25))
         self._finish_script()
         self._give(c)
+        return True
+
+    def _script_penalty(self, s: PenaltyReview) -> bool:
+        """Get the ball to the attacker, run him into the box, and have the defender go through him."""
+        m, rng = self.m, self.rng
+        attacker, defender = m.players[s.attacker], m.players[s.defender]
+        self.safe_team = s.team
+        if m.carrier != attacker.pid:
+            self.force_receiver = attacker.pid
+            return False
+        self.force_receiver = None
+        box = m.af(s.team, 96.0, W / 2 + (6.0 if attacker.y > W / 2 else -6.0))
+        ax, ay = m.af(s.team, attacker.x, attacker.y)
+        in_box = ax > L - 16.5 and abs(ay - W / 2) < 20.16
+        defender.chase = True
+        if (not in_box or m.clock < s.at) and m.clock < s.at + 90:
+            attacker.override, attacker.urgency = box, 0.85
+            self._wait(0.5)
+            return True
+        if dist(defender.pos, attacker.pos) > 1.8 and m.clock < s.at + 90:
+            self._wait(0.3)
+            return True
+
+        # The challenge. The referee waves play on, so the feed has a tackle, not a foul.
+        defender.chase = False
+        attacker.override = None
+        self._emit(
+            "tackle", team=defender.team, player=defender.pid, receiver=attacker.pid, outcome="won",
+            start=_r(attacker.pos),
+        )  # fmt: skip
+        self._give(defender)
+        self._wait(rng.uniform(1.0, 2.0))
+        out = m.af(s.team, rng.uniform(40, 60), 0.5)
+        self._emit(
+            "pass", team=defender.team, player=defender.pid, outcome="incomplete", start=_r(defender.pos),
+            end=_r(out), ball_speed_kmh=round(rng.uniform(70, 90), 1),
+        )  # fmt: skip
+        self._fly(defender.pos, out, 1.5)
+        m.carrier = None
+        self._wait(rng.uniform(3, 6))
+        self._emit(
+            "var_check", team=defender.team, player=defender.pid, receiver=attacker.pid, outcome="penalty",
+            positions=False,
+        )  # fmt: skip
+        self._wait(s.check_s)
+        self._emit(
+            "var_decision", team=defender.team, player=defender.pid,
+            outcome="penalty_awarded" if s.awarded else "no_penalty", positions=False,
+        )  # fmt: skip
+        if not s.awarded:
+            self._finish_script()
+            self._wait(rng.uniform(10, 18))
+            self._give(next(p for p in m.on_pitch(defender.team) if p.is_gk))
+            return True
+
+        spot = m.af(s.team, L - 11.0, W / 2)
+        attacker.override, attacker.urgency = m.af(s.team, L - 12.5, W / 2), 0.5
+        self._wait(rng.uniform(35, 50))  # players clear the box, the kick is set
+        attacker.override, attacker.urgency = None, None
+        m.ball = spot
+        self._give(attacker)
+        self.safe_team = None
+        self.force_ball_to = None
+        self.goal_team = s.team if s.scored else None
+        outcome = self._shot(attacker)
+        if outcome != "goal":
+            self._finish_script()
         return True

@@ -251,7 +251,8 @@
               "subjective_interference",
               "obstructed_view",
               "multiple_phases",
-              "earlier_offence"
+              "earlier_offence",
+              "subjective_judgement"
             ],
             "type": "string"
           },

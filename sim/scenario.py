@@ -14,7 +14,10 @@ class _Script(BaseModel):
 
 
 class OffsideGoal(_Script):
-    """A through ball, a goal given on the field, a VAR check, then no goal for offside."""
+    """A through ball, a goal given on the field, then a VAR offside check.
+
+    margin_m > 0: the attacker is ahead of the line (offside); < 0: behind it (onside).
+    """
 
     kind: Literal["offside_goal"]
     team: str
@@ -24,7 +27,8 @@ class OffsideGoal(_Script):
     passer_pos: tuple[float, float]
     attacker_y: float
     defender_pos: tuple[float, float]
-    margin_m: float = Field(gt=0, le=1.5)
+    margin_m: float = Field(ge=-1.5, le=1.5)
+    decision: Literal["no_goal", "goal_stands"] = "no_goal"
     check_s: float = Field(default=35, gt=0)
 
 
@@ -32,7 +36,20 @@ class RedCard(_Script):
     kind: Literal["red_card"]
     player: str
     var: bool = True
+    var_result: Literal["upheld", "overturned"] = "upheld"  # overturned: downgraded to a yellow
     check_s: float = Field(default=40, gt=0)
+
+
+class PenaltyReview(_Script):
+    """A challenge in the box, play waved on, then a VAR review for a possible penalty."""
+
+    kind: Literal["penalty_review"]
+    team: str  # attacking team
+    attacker: str
+    defender: str
+    awarded: bool = True
+    scored: bool = True
+    check_s: float = Field(default=55, gt=0)
 
 
 class Goal(_Script):
@@ -40,7 +57,7 @@ class Goal(_Script):
     team: str
 
 
-Script = Annotated[OffsideGoal | RedCard | Goal, Field(discriminator="kind")]
+Script = Annotated[OffsideGoal | RedCard | Goal | PenaltyReview, Field(discriminator="kind")]
 
 
 class Scenario(BaseModel):
