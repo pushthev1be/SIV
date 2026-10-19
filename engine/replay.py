@@ -24,6 +24,7 @@ from contracts.replay import (
 from engine.stats import distance_to_goal
 
 SPEED_HALF_WINDOW_S = 0.5
+BALL_TRACK_FPS = 100  # the sampling rate the kick point is found from
 FINAL_TEXT = {
     "no_goal": "no goal", "goal": "goal", "red_card": "red card", "yellow": "yellow card",
     "penalty": "penalty", "no_penalty": "no penalty",
@@ -108,7 +109,9 @@ def build_replay(
     return None
 
 
-def _package(inc, phase, period, key_t, frames, ball, moments, focus, status, sources, lines=None):
+def _package(
+    inc, phase, period, key_t, frames, ball, moments, focus, status, sources, lines=None, facts=None
+):
     if len(frames) < 2 or len(ball) < 2:
         return None
     t_first, t_last = frames[0].t, frames[-1].t
@@ -128,6 +131,7 @@ def _package(inc, phase, period, key_t, frames, ball, moments, focus, status, so
         speeds={f.player: _speeds(frames, f.player) for f in focus},
         lines=lines if phase == "after" else None,
         status=status,
+        facts=facts or {},
         sources=list(dict.fromkeys(sources)),
     )
 
@@ -184,7 +188,7 @@ def _offside(history, inc: Incident, phase, direction) -> ReplayPackage | None:
             "fan": fan,
             "analyst": (
                 f"Margin {margin:.2f} m: {att} {f['attacker_part']} vs {deff} {f['defender_part']}. "
-                f"Kick at {clock_text(kick.period, kick_t)} from the 100 fps ball track.{check}"
+                f"Kick at {clock_text(kick.period, kick_t)} from the {BALL_TRACK_FPS} fps ball track.{check}"
             ),
             "officials": (
                 f"Facts only. Measured on playable parts (Law 11) against the second-last opponent ({deff}): "
@@ -204,7 +208,12 @@ def _offside(history, inc: Incident, phase, direction) -> ReplayPackage | None:
         body={pid: parts for pid, parts in kick.frame.body.items() if pid in (att, deff)},
     )
     sources = [kick.event_id] + ([goal.event_id] if goal else []) + [inc.incident_id]
-    return _package(inc, phase, kick.period, kick_t, frames, ball, moments, focus, status, sources, lines)
+    facts = {} if phase == "during" else {k: f[k] for k in ("margin_m", "check_s") if k in f}
+    if phase == "after":
+        facts["ball_track_fps"] = BALL_TRACK_FPS
+    return _package(
+        inc, phase, kick.period, kick_t, frames, ball, moments, focus, status, sources, lines, facts
+    )
 
 
 def _goal(history, inc: Incident, phase, direction) -> ReplayPackage | None:
@@ -223,9 +232,13 @@ def _goal(history, inc: Incident, phase, direction) -> ReplayPackage | None:
     if assist and assist.player:
         focus.append(ReplayFocus(player=assist.player, role="assist"))
     detail = ""
+    gfacts: dict = {}
+    if assist is not None and assist.ball_speed_kmh is not None:
+        gfacts["assist_pass_speed_kmh"] = assist.ball_speed_kmh
     if shot is not None:
         dist = distance_to_goal(shot.start, direction.get(shot.team, 1))
         detail = f" from {dist:.0f} m at {shot.ball_speed_kmh:.0f} km/h"
+        gfacts |= {"shot_distance_m": round(dist, 1), "shot_speed_kmh": shot.ball_speed_kmh}
     moments = [ReplayMoment(t=key.clock, label=f"Shot by {goal.player}{detail}"[:80], reveal="always")]
     if assist:
         moments.insert(0, ReplayMoment(t=assist.clock, label=f"Pass from {assist.player}", reveal="always"))
@@ -241,8 +254,9 @@ def _goal(history, inc: Incident, phase, direction) -> ReplayPackage | None:
         status = {k: "Check in progress: the goal is being reviewed" for k in status}
     sources = [goal.event_id] + ([shot.event_id] if shot else []) + ([assist.event_id] if assist else [])
     return _package(
-        inc, phase, goal.period, key.clock, frames, ball, moments, focus, status, sources + [inc.incident_id]
-    )
+        inc, phase, goal.period, key.clock, frames, ball, moments, focus, status, sources + [inc.incident_id],
+        facts=gfacts if phase == "after" else {},
+    )  # fmt: skip
 
 
 def _challenge(history, inc: Incident, phase) -> ReplayPackage | None:
@@ -269,7 +283,7 @@ def _challenge(history, inc: Incident, phase) -> ReplayPackage | None:
         status = {
             "stadium": f"Check in progress: possible {'penalty' if penalty else 'red card'}",
             "fan": (
-                f"The officials are checking a possible penalty: {offender}'s challenge on {fouled}{where}."
+                f"The officials are checking a possible penalty: {offender}'s challenge on {fouled}."
                 if penalty
                 else f"The officials are reviewing {offender}'s challenge on {fouled}."
             ),
@@ -300,4 +314,9 @@ def _challenge(history, inc: Incident, phase) -> ReplayPackage | None:
             ),
         }  # fmt: skip
     sources = [foul.event_id, inc.incident_id]
-    return _package(inc, phase, foul.period, foul.clock, frames, ball, moments, focus, status, sources)
+    cfacts = {"closing_speed_kmh": closing} if closing else {}
+    if phase == "after" and "distance_to_goal_m" in f:
+        cfacts["distance_to_goal_m"] = f["distance_to_goal_m"]
+    return _package(
+        inc, phase, foul.period, foul.clock, frames, ball, moments, focus, status, sources, facts=cfacts
+    )

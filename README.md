@@ -45,9 +45,9 @@ far, and every call they were part of. Each action cites the event it came from.
 <sub>Clips are recorded from the preview with `uv run python scripts/record_gifs.py`, so they always
 match the code.</sub>
 
-> Status: contracts, CI, the match simulator, the Azure base (Foundry, Event Hubs), the engine
-> (offside, stats, decision state machine, call replays) and the preview are in place; the MCP
-> server and agents are next.
+> Status: contracts, CI, the simulator with five kinds of VAR call, the Azure base (Foundry, Event
+> Hubs), the engine, call replays, the preview, the MCP server and the grounding validator are in
+> place; the agent workflow is next.
 > See [docs/build-plan.md](docs/build-plan.md).
 
 ## Layout
@@ -95,6 +95,7 @@ azd env set AZURE_PRINCIPAL_ID $(az ad signed-in-user show --query id -o tsv)
 azd up                                   # Foundry project + gpt-5-mini, Event Hubs Basic
 uv run python -m agents.smoke            # the model answers through Agent Framework
 uv run python -m sim.producer golden --speed 60   # stream a match into Event Hubs
+uv run python -m agents.mcp_smoke         # a Foundry agent reads state over MCP; its text is validated
 ```
 
 Every call uses Entra ID; there are no keys or connection strings anywhere.

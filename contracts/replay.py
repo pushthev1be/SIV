@@ -76,6 +76,8 @@ class ReplayPackage(Contract):
     speeds: dict[PlayerId, list[float | None]]
     lines: OffsideLines | None = None
     status: dict[ReplayAudience, str]
+    # every number the status text and moments use, so agents and the validator can see them
+    facts: dict[str, float | int | str | bool] = {}
     sources: list[str] = Field(min_length=1)
 
     @model_validator(mode="after")
@@ -89,8 +91,11 @@ class ReplayPackage(Contract):
             raise ValueError("key moment must sit inside the replay")
         if any(len(v) != len(self.frames) for v in self.speeds.values()):
             raise ValueError("speeds must align with frames")
-        if self.phase == "during" and (
-            self.lines is not None or any(m.reveal == "after" for m in self.moments)
-        ):
+        leaks = (
+            self.lines is not None
+            or "margin_m" in self.facts
+            or any(m.reveal == "after" for m in self.moments)
+        )
+        if self.phase == "during" and leaks:
             raise ValueError("a during replay cannot carry the measurement (N4)")
         return self
