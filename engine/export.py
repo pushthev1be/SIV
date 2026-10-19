@@ -70,6 +70,19 @@ def export(name: str) -> Path:
         "facts": facts,
         "feed": feed,
         "final": engine.snapshot(),
+        "replays": {
+            iid: {phase: pkg.model_dump(mode="json") for phase, pkg in phases.items()}
+            for iid, phases in engine.replays.items()
+        },
+        "player_log": {
+            pid: [a | {"t": t_of(a["period"], a["clock"])} for a in log]
+            for pid, log in engine.player_log.items()
+        },
+        "roster": {
+            f"{code}-{p.number}": {"name": p.name, "number": p.number, "role": p.role, "team": code}
+            for code in (sc.home, sc.away)
+            for p in TEAMS[code].players
+        },
     }
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     out = OUT_DIR / f"{name}.json"

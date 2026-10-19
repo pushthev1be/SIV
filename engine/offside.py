@@ -27,6 +27,8 @@ class OffsideMeasurement:
     defender: str  # second-last opponent, usually the deepest outfield defender
     attacker_x: float  # absolute x of the attacker's most forward playable part
     defender_x: float  # absolute x of the line: the second-last opponent's deepest playable part
+    attacker_part: str  # which part set each line, e.g. foot_l; "centre" without a body frame
+    defender_part: str
     margin_m: float  # positive: attacker ahead of the line (offside position), metres, to the cm
     ball_x: float
     offside_position: bool
@@ -49,22 +51,22 @@ def measure(event: MatchEvent, attack_dir: int) -> OffsideMeasurement:
     kick_clock, ball_x, _ = find_kick(event.ball_track)
     attacking = event.receiver.split("-")[0]
 
-    def front(pid: str) -> float:
-        """Most forward playable point along the attacking direction, as absolute x."""
+    def front(pid: str) -> tuple[float, str]:
+        """Most forward playable point along the attacking direction: (absolute x, part)."""
         body = event.frame.body.get(pid)
         if body:
-            xs = [body[p][0] for p in PLAYABLE_PARTS if p in body]
-            if xs:
-                return max(xs, key=lambda x: attack_dir * x)
-        return event.positions[pid][0]  # no frame for this player: use the tracked centre
+            parts = [(body[p][0], p) for p in PLAYABLE_PARTS if p in body]
+            if parts:
+                return max(parts, key=lambda t: attack_dir * t[0])
+        return event.positions[pid][0], "centre"  # no frame for this player: the tracked centre
 
-    attacker_x = front(event.receiver)
+    attacker_x, attacker_part = front(event.receiver)
     defenders = sorted(
-        ((front(pid), pid) for pid in event.positions if not pid.startswith(attacking)),
+        ((*front(pid), pid) for pid in event.positions if not pid.startswith(attacking)),
         key=lambda t: attack_dir * t[0],
         reverse=True,
     )
-    defender_x, defender = defenders[1]
+    defender_x, defender_part, defender = defenders[1]
     margin = attack_dir * (attacker_x - defender_x)
     halfway = PITCH_LENGTH_M / 2
     in_opp_half = attack_dir * (attacker_x - halfway) > 0
@@ -75,6 +77,8 @@ def measure(event: MatchEvent, attack_dir: int) -> OffsideMeasurement:
         defender=defender,
         attacker_x=round(attacker_x, 3),
         defender_x=round(defender_x, 3),
+        attacker_part=attacker_part,
+        defender_part=defender_part,
         margin_m=round(margin, 2),
         ball_x=round(ball_x, 3),
         offside_position=margin > 0 and in_opp_half and ahead_of_ball,

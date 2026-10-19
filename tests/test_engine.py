@@ -216,3 +216,55 @@ def test_red_card_incident_is_upheld_with_foul_facts():
 def test_every_fact_cites_its_events():
     _, facts = facts_for("golden")
     assert all(f.sources for f in facts)
+
+
+# ── Call replays ─────────────────────────────────────────────────────────────
+
+
+def golden_offside_replays():
+    engine, facts = facts_for("golden")
+    iid = next(
+        f.values["incident_id"]
+        for f in facts
+        if f.kind == "incident" and f.values["var_outcome"] == "offside"
+    )
+    return engine.replays[iid]
+
+
+def test_replay_during_the_check_shows_no_measurement():
+    during = golden_offside_replays()["during"]
+    assert during.lines is None
+    assert all(m.reveal != "after" for m in during.moments)
+    text = " ".join(during.status.values()) + " ".join(m.label for m in during.moments)
+    assert "cm" not in text and "0.31" not in text and "no goal" not in text.lower()
+
+
+def test_replay_after_the_decision_carries_the_line():
+    after = golden_offside_replays()["after"]
+    assert after.lines.margin_m == 0.31 and after.lines.attacker_part != "arm"
+    assert {f.role for f in after.focus} == {"attacker", "defender", "passer"}
+    assert "31 cm (12.2 in)" in after.status["fan"]
+    assert after.frames[0].t <= after.key_t <= after.frames[-1].t
+
+
+def test_replay_speeds_are_derived_and_plausible():
+    after = golden_offside_replays()["after"]
+    i = min(range(len(after.frames)), key=lambda i: abs(after.frames[i].t - after.key_t))
+    attacker = after.lines.attacker
+    assert 8 < after.speeds[attacker][i] < 36  # running onto the pass, not standing
+    assert all(v is None or 0 <= v < 40 for vs in after.speeds.values() for v in vs)
+
+
+def test_every_call_gets_a_replay():
+    engine, facts = facts_for("golden")
+    decided = {
+        f.values["incident_id"] for f in facts if f.kind == "incident" and f.values["state"] == "decided"
+    }
+    assert decided == {iid for iid, phases in engine.replays.items() if "after" in phases}
+
+
+def test_player_log_cites_events():
+    engine, _ = facts_for("golden")
+    log = engine.player_log["NBR-9"]
+    assert log and all(a["event_id"] for a in log)
+    assert any(a["action"] == "call" and a["role"] == "attacker" for a in log)

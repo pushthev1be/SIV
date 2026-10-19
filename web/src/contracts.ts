@@ -151,12 +151,32 @@ export interface ReplayPackage {
    */
   ball: [BallSample, BallSample, ...BallSample[]];
   /**
+   * @minItems 1
+   */
+  focus: [ReplayFocus, ...ReplayFocus[]];
+  /**
    * @minItems 2
    */
   frames: [ReplayFrame, ReplayFrame, ...ReplayFrame[]];
   incident_id: string;
+  key_t: number;
+  kind: "offside" | "foul" | "penalty" | "handball" | "red_card" | "goal_check";
+  lines?: OffsideLines | null;
   moments: ReplayMoment[];
+  period: 1 | 2;
+  phase: "during" | "after";
   slow?: SlowWindow | null;
+  /**
+   * @minItems 1
+   */
+  sources: [string, ...string[]];
+  speeds: {
+    /**
+     * This interface was referenced by `undefined`'s JSON-Schema definition
+     * via the `patternProperty` "^[A-Z]{3}-\d{1,2}$".
+     */
+    [k: string]: (number | null)[];
+  };
   status: {
     [k: string]: string;
   };
@@ -170,6 +190,14 @@ export interface BallSample {
   x: number;
   y: number;
   z?: number;
+}
+/**
+ * This interface was referenced by `TouchlineContracts`'s JSON-Schema
+ * via the `definition` "ReplayFocus".
+ */
+export interface ReplayFocus {
+  player: string;
+  role: "attacker" | "defender" | "passer" | "scorer" | "assist" | "offender" | "fouled";
 }
 /**
  * This interface was referenced by `TouchlineContracts`'s JSON-Schema
@@ -187,6 +215,35 @@ export interface ReplayFrame {
     [k: string]: [number, number];
   };
   t: number;
+}
+/**
+ * The measurement at the moment of the pass. Only ever present after the decision.
+ *
+ * This interface was referenced by `TouchlineContracts`'s JSON-Schema
+ * via the `definition` "OffsideLines".
+ */
+export interface OffsideLines {
+  attack_dir: 1 | -1;
+  attacker: string;
+  attacker_part: ("head" | "torso" | "foot_l" | "foot_r" | "knee_l" | "knee_r" | "arm") | "centre";
+  attacker_x: number;
+  body: {
+    /**
+     * This interface was referenced by `undefined`'s JSON-Schema definition
+     * via the `patternProperty` "^[A-Z]{3}-\d{1,2}$".
+     */
+    [k: string]: {
+      /**
+       * @minItems 2
+       * @maxItems 2
+       */
+      [k: string]: [number, number];
+    };
+  };
+  defender: string;
+  defender_part: ("head" | "torso" | "foot_l" | "foot_r" | "knee_l" | "knee_r" | "arm") | "centre";
+  defender_x: number;
+  margin_m: number;
 }
 /**
  * This interface was referenced by `TouchlineContracts`'s JSON-Schema

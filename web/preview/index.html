@@ -9,39 +9,25 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0b0f14;
-    --panel: #121922;
-    --panel-2: #18212c;
-    --line: #243140;
-    --text: #e8eef4;
-    --muted: #8a9bad;
-    --pitch: #14432b;
-    --pitch-2: #174d31;
-    --chalk: rgba(255, 255, 255, 0.55);
-    --nbr: #F2B33D;
-    --ash: #5AA9E6;
-    --var: #c084fc;
-    --alert: #f87171;
-    --ok: #4ade80;
-    --display: "Barlow Condensed", system-ui, sans-serif;
-    --body: "IBM Plex Sans", system-ui, sans-serif;
+    --bg: #0b0f14; --panel: #121922; --panel-2: #18212c; --line: #243140; --text: #e8eef4; --muted: #8a9bad;
+    --pitch: #14432b; --pitch-2: #174d31; --chalk: rgba(255, 255, 255, 0.55);
+    --nbr: #F2B33D; --ash: #5AA9E6; --var: #c084fc; --alert: #f87171; --ok: #4ade80;
+    --display: "Barlow Condensed", system-ui, sans-serif; --body: "IBM Plex Sans", system-ui, sans-serif;
     --mono: "IBM Plex Mono", ui-monospace, monospace;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--body); }
-  body { min-height: 100vh; }
-  .wrap { max-width: 1280px; margin: 0 auto; padding: 16px; display: grid; gap: 12px;
-          grid-template-columns: minmax(0, 1fr) 320px; grid-template-areas: "top top" "pitch side" "ctrl side"; }
-  @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; grid-template-areas: "top" "pitch" "ctrl" "side"; } }
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 16px; display: grid; gap: 12px;
+          grid-template-columns: minmax(0, 1fr) 340px; grid-template-areas: "top top" "pitch side" "ctrl side"; }
+  @media (max-width: 960px) { .wrap { grid-template-columns: 1fr; grid-template-areas: "top" "pitch" "ctrl" "side"; } }
 
-  /* Scorebug */
   .top { grid-area: top; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-  .bug { display: flex; align-items: stretch; background: var(--panel); border: 1px solid var(--line);
-         border-radius: 6px; overflow: hidden; font-family: var(--display); font-size: 26px; font-weight: 700; }
+  .bug { display: flex; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; overflow: hidden;
+         font-family: var(--display); font-size: 26px; font-weight: 700; }
   .bug .team { display: flex; align-items: center; gap: 8px; padding: 6px 12px; letter-spacing: .04em; }
   .bug .score { font-family: var(--mono); font-weight: 600; background: var(--panel-2); padding: 6px 14px; display: flex; align-items: center; }
   .bug .clock { font-family: var(--mono); font-size: 18px; font-weight: 500; color: var(--muted); padding: 6px 12px;
-                display: flex; align-items: center; border-left: 1px solid var(--line); min-width: 92px; justify-content: center; }
+                display: flex; align-items: center; border-left: 1px solid var(--line); min-width: 100px; justify-content: center; }
   .crest { width: 22px; height: 26px; }
   .brand { margin-left: auto; font-family: var(--display); font-size: 20px; letter-spacing: .12em; color: var(--muted); }
   .brand b { color: var(--text); }
@@ -51,51 +37,103 @@
   .meter .bar i { display: block; height: 100%; background: var(--nbr); transition: width .4s; }
   .meter .vals { display: flex; justify-content: space-between; font-family: var(--mono); }
 
-  /* Pitch */
-  .stage { grid-area: pitch; position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+  .stage { grid-area: pitch; position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px; min-height: 300px; }
   svg.pitch { width: 100%; height: auto; display: block; border-radius: 4px; }
-  .badge { position: absolute; top: 18px; right: 18px; font-family: var(--display); font-weight: 700; font-size: 18px;
-           letter-spacing: .08em; padding: 6px 12px; border-radius: 4px; background: var(--var); color: #1a0b2e;
-           display: none; align-items: center; gap: 8px; }
+  #players g { cursor: pointer; }
+  .badge { position: absolute; top: 18px; right: 18px; font-family: var(--display); font-weight: 700; font-size: 18px; letter-spacing: .08em;
+           padding: 6px 12px; border-radius: 4px; background: var(--var); color: #1a0b2e; display: none; align-items: center; gap: 8px; }
   .badge.on { display: flex; }
   .badge .dot { width: 8px; height: 8px; border-radius: 50%; background: #1a0b2e; animation: pulse 1s infinite; }
   @keyframes pulse { 50% { opacity: .25; } }
-  .band { position: absolute; left: 22px; right: 22px; bottom: 22px; display: flex; align-items: stretch;
-          transform: translateY(12px); opacity: 0; transition: all .3s; pointer-events: none; }
-  .band.on { transform: none; opacity: 1; }
+  .band { position: absolute; left: 22px; right: 22px; bottom: 22px; display: flex; transform: translateY(12px); opacity: 0;
+          transition: all .3s; pointer-events: none; }
+  .band.on { transform: none; opacity: 1; pointer-events: auto; }
   .band .tag { font-family: var(--display); font-weight: 700; font-size: 20px; letter-spacing: .06em; text-transform: uppercase;
                padding: 8px 14px; background: var(--nbr); color: #1d1405; border-radius: 4px 0 0 4px; display: flex; align-items: center; }
-  .band .text { flex: 1; background: rgba(11, 15, 20, .92); padding: 8px 14px; font-size: 16px; border-radius: 0 4px 4px 0;
-                border: 1px solid var(--line); border-left: 0; display: flex; align-items: center; }
-  .band .src { margin-left: auto; padding-left: 12px; font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .band .text { flex: 1; background: rgba(11, 15, 20, .92); padding: 8px 14px; font-size: 16px; border: 1px solid var(--line); border-left: 0;
+                display: flex; align-items: center; gap: 12px; }
+  .band .src { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .band .watch { display: none; }
+  .band .watch.on { display: inline-block; }
+  .watch { font: 600 13px var(--body); background: var(--var); color: #1a0b2e; border: 0; border-radius: 4px; padding: 6px 10px; cursor: pointer; white-space: nowrap; }
 
-  /* Controls */
+  /* Replay */
+  .replay { position: absolute; inset: 0; background: var(--panel); border-radius: 8px; display: none; flex-direction: column; z-index: 5; }
+  .replay.on { display: flex; }
+  .rhead { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .rhead h3 { margin: 0; font-family: var(--display); font-size: 22px; letter-spacing: .06em; text-transform: uppercase; }
+  .phase { font: 600 11px var(--mono); letter-spacing: .08em; padding: 3px 8px; border-radius: 3px; }
+  .phase.during { background: var(--var); color: #1a0b2e; }
+  .phase.after { background: var(--ok); color: #052e12; }
+  .rhead .muted { color: var(--muted); font: 12px var(--mono); }
+  .rhead .x { margin-left: auto; }
+  .rbody { position: relative; flex: 1; min-height: 0; padding: 8px 10px 0; }
+  .rbody svg { width: 100%; height: 100%; display: block; border-radius: 4px; }
+  .rnote { position: absolute; left: 20px; top: 16px; font: 600 12px var(--mono); background: rgba(11,15,20,.85); border: 1px solid var(--line);
+           padding: 5px 8px; border-radius: 4px; display: none; }
+  .rnote.on { display: block; }
+  .rfoot { padding: 10px 14px; display: grid; gap: 8px; border-top: 1px solid var(--line); }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .status { font-size: 15px; line-height: 1.45; min-height: 44px; }
+  .moments { display: flex; gap: 6px; flex-wrap: wrap; font-size: 12px; }
+  .moments span { background: var(--panel-2); border: 1px solid var(--line); border-radius: 3px; padding: 3px 7px; }
+  .moments span.now { border-color: var(--var); color: var(--var); }
+  .rsrc { font: 11px var(--mono); color: var(--muted); }
+  button.hud.on { background: #0e2a3a; color: #7dd3fc; border-color: #7dd3fc; }
+
   .ctrl { grid-area: ctrl; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: grid; gap: 10px; }
   .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   button, select { font: 500 13px var(--body); color: var(--text); background: var(--panel-2); border: 1px solid var(--line);
                    border-radius: 4px; padding: 6px 10px; cursor: pointer; }
   button.on { background: var(--text); color: var(--bg); }
   button:hover { border-color: var(--muted); }
+  button.call { border-color: var(--var); }
   .timeline { position: relative; height: 34px; }
-  .timeline input { width: 100%; margin: 0; position: absolute; top: 12px; }
-  .marks { position: absolute; inset: 0 0 auto 0; height: 12px; }
-  .mark { position: absolute; top: 0; transform: translateX(-50%); font-size: 10px; cursor: pointer; line-height: 1; }
+  .timeline input { width: 100%; margin: 0; position: absolute; top: 14px; }
+  .marks { position: absolute; inset: 0 0 auto 0; height: 14px; }
+  .mark { position: absolute; top: 0; transform: translateX(-50%); font-size: 11px; cursor: pointer; line-height: 1; }
   .legend { font-size: 12px; color: var(--muted); }
 
-  /* Side panel */
-  .side { grid-area: side; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; display: flex; flex-direction: column; min-height: 0; max-height: calc(100vh - 32px); }
-  .side h2 { font: 600 13px var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .side { grid-area: side; display: grid; gap: 12px; align-content: start; }
+  .card, .facts { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+  .side h2 { font: 600 12px var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0; padding: 11px 14px;
+             border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
   .side h2 small { text-transform: none; letter-spacing: 0; font-weight: 400; }
+  .side h2 button { margin-left: auto; padding: 2px 8px; font-size: 12px; }
+  .pc { padding: 12px 14px; display: grid; gap: 12px; }
+  .pc .who { display: flex; align-items: center; gap: 10px; }
+  .pc .num { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font: 700 15px var(--mono); color: #0b0f14; }
+  .pc .name { font-family: var(--display); font-size: 24px; font-weight: 700; letter-spacing: .03em; line-height: 1; }
+  .pc .sub { font-size: 12px; color: var(--muted); }
+  .pill { font: 600 11px var(--mono); padding: 3px 8px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line); }
+  .pill.ball { background: var(--ok); color: #052e12; border: 0; }
+  .pill.near { border-color: var(--nbr); color: var(--nbr); }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .stat { background: var(--panel-2); border-radius: 6px; padding: 8px; }
+  .stat b { display: block; font: 600 18px var(--mono); }
+  .stat span { font-size: 11px; color: var(--muted); }
+  .pc h4 { margin: 0; font: 600 11px var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .calls, .recent { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13px; }
+  .calls li { display: flex; align-items: center; gap: 8px; }
+  .calls li button { margin-left: auto; padding: 3px 8px; font-size: 12px; }
+  .recent li { display: grid; grid-template-columns: 56px 1fr; gap: 6px; }
+  .recent li .c { font: 11px var(--mono); color: var(--muted); }
+  .recent li .e { font: 10px var(--mono); color: var(--muted); grid-column: 2; }
+  .foot { font-size: 11px; color: var(--muted); }
+  .hint { padding: 14px; color: var(--muted); font-size: 13px; }
+
+  .facts { display: flex; flex-direction: column; max-height: 520px; }
   .ticker { list-style: none; margin: 0; padding: 0; overflow: auto; flex: 1; }
   .ticker li { padding: 9px 14px; border-bottom: 1px solid var(--line); font-size: 13px; display: grid; gap: 3px; }
+  .ticker li.clickable { cursor: pointer; }
+  .ticker li.clickable:hover { background: var(--panel-2); }
   .ticker li .meta { display: flex; gap: 8px; font-family: var(--mono); font-size: 11px; color: var(--muted); }
   .ticker li .kind { text-transform: uppercase; letter-spacing: .06em; }
-  .ticker li.k-incident .kind { color: var(--var); }
+  .ticker li.k-incident .kind, .ticker li.k-replay .kind { color: var(--var); }
   .ticker li.k-goal .kind { color: var(--ok); }
   .ticker li.k-card .kind { color: var(--alert); }
   .ticker li .src { font-family: var(--mono); font-size: 10px; color: var(--muted); word-break: break-all; }
-  .empty { padding: 14px; color: var(--muted); font-size: 13px; }
-  .loading { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg); font-family: var(--display); font-size: 24px; letter-spacing: .1em; color: var(--muted); }
+  .loading { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg); font-family: var(--display); font-size: 24px; letter-spacing: .1em; color: var(--muted); z-index: 20; }
 </style>
 </head>
 <body>
@@ -103,9 +141,7 @@
 <div class="wrap">
   <div class="top">
     <div class="bug">
-      <div class="team" id="homeTeam"></div>
-      <div class="score" id="score">0 – 0</div>
-      <div class="team" id="awayTeam"></div>
+      <div class="team" id="homeTeam"></div><div class="score" id="score">0 – 0</div><div class="team" id="awayTeam"></div>
       <div class="clock" id="clock">0:00</div>
     </div>
     <div class="meters">
@@ -116,17 +152,30 @@
     <div class="brand"><b>TOUCHLINE</b> PREVIEW</div>
   </div>
 
-  <div class="stage">
+  <div class="stage" id="stage">
     <svg class="pitch" id="pitch" viewBox="-3 -3 111 74" aria-label="Pitch"></svg>
     <div class="badge" id="varBadge"><span class="dot"></span><span id="varText">VAR CHECK</span></div>
-    <div class="band" id="band"><div class="tag" id="bandTag"></div><div class="text"><span id="bandText"></span><span class="src" id="bandSrc"></span></div></div>
+    <div class="band" id="band"><div class="tag" id="bandTag"></div><div class="text"><span id="bandText"></span><button class="watch" id="bandWatch">▶ Watch the call</button><span class="src" id="bandSrc"></span></div></div>
+
+    <div class="replay" id="replay">
+      <div class="rhead">
+        <h3 id="rTitle">Call replay</h3><span class="phase" id="rPhase"></span><span class="muted" id="rClock"></span>
+        <button id="rAgain">↺ Replay</button><button id="rPause">❚❚</button><button class="hud on" id="rHud">◎ Callouts</button>
+        <button class="x" id="rClose">✕ Back to live</button>
+      </div>
+      <div class="rbody"><svg id="rsvg" viewBox="-3 -3 111 74" preserveAspectRatio="xMidYMid meet"></svg><div class="rnote" id="rNote"></div></div>
+      <div class="rfoot">
+        <div class="tabs" id="rTabs"></div>
+        <div class="status" id="rStatus"></div>
+        <div class="moments" id="rMoments"></div>
+        <div class="rsrc" id="rSrc"></div>
+      </div>
+    </div>
   </div>
 
   <div class="ctrl">
     <div class="row">
-      <button id="play">▶ Play</button>
-      <span class="legend">Speed</span>
-      <span id="speeds"></span>
+      <button id="play">▶ Play</button><span class="legend">Speed</span><span id="speeds"></span><button class="hud on" id="hudToggle" title="Show a callout for the selected player">◎ Callouts</button>
       <span class="legend" style="margin-left:auto">Scenario</span>
       <select id="scenario"><option value="golden">Golden match</option><option value="red_card">Red card</option><option value="late_comeback">Late comeback</option></select>
     </div>
@@ -135,8 +184,14 @@
   </div>
 
   <aside class="side">
-    <h2>Engine facts <small id="factCount"></small></h2>
-    <ul class="ticker" id="ticker"><li class="empty">Press play. Every fact here is derived by the engine and cites the events it came from.</li></ul>
+    <section class="card">
+      <h2>Player <small id="pcHint">tap a player on the pitch</small><button id="pcClear" hidden>Clear</button></h2>
+      <div id="pc"><div class="hint">Select any player to see their speed, involvement in play, and the calls they were part of.</div></div>
+    </section>
+    <section class="facts">
+      <h2>Engine facts <small id="factCount"></small></h2>
+      <ul class="ticker" id="ticker"><li class="hint">Press play. Every fact is derived by the engine and cites the events it came from.</li></ul>
+    </section>
   </aside>
 </div>
 
@@ -144,13 +199,15 @@
 (() => {
   const $ = (id) => document.getElementById(id);
   const NS = "http://www.w3.org/2000/svg";
-  const params = new URLSearchParams(location.search);
-  const scenario = params.get("s") || "golden";
+  const scenario = new URLSearchParams(location.search).get("s") || "golden";
   $("scenario").value = scenario;
   $("scenario").onchange = (e) => { location.search = "?s=" + e.target.value; };
 
-  let D, players, nameOf, colour, t = 0, playing = false, speed = 10, lastNow = 0;
-  let factIdx = 0, score = {}, metrics = null, varOpen = null, lines = null, band = null;
+  let D, players, roster, colour, t = 0, playing = false, speed = 10, lastNow = 0;
+  let factIdx = 0, score = {}, metrics = null, varOpen = null, lines = null, band = null, lastReplay = null;
+  let selected = null, cardNext = 0, hud = true;
+  let SPD, CUM, TOP;           // per player, per frame: km/h, cumulative m, top km/h so far
+  const replayAt = {};         // incident_id -> {during: t, after: t}
 
   const svg = (tag, attrs, parent) => {
     const el = document.createElementNS(NS, tag);
@@ -158,15 +215,21 @@
     if (parent) parent.appendChild(el);
     return el;
   };
+  const name = (pid) => (roster[pid] ? roster[pid].name : pid || "");
+  const names = (s) => String(s).replace(/\b[A-Z]{3}-\d{1,2}\b/g, (id) => name(id));
+  const mph = (k) => (k * 0.621371).toFixed(1);
+  const ROLE = { GK: "Goalkeeper", DF: "Defender", MF: "Midfielder", FW: "Forward" };
+  const CALL_ROLE = { attacker: "attacker under check", defender: "defender setting the line", passer: "played the pass",
+                      scorer: "scorer", assist: "assist", offender: "committed the foul", fouled: "was fouled" };
+  const KIND = { offside: "Offside", goal_check: "Goal", red_card: "Red card", foul: "Yellow card", penalty: "Penalty", handball: "Handball" };
 
   function crest(code) {
     return `<svg class="crest" viewBox="0 0 22 26"><path d="M11 1 L21 4 V12 C21 19 16 23 11 25 C6 23 1 19 1 12 V4 Z" fill="${colour[code]}" stroke="rgba(0,0,0,.35)"/><text x="11" y="16" text-anchor="middle" font-size="8" font-family="Barlow Condensed" font-weight="700" fill="#0b0f14">${code[0]}</text></svg>`;
   }
 
-  function drawPitch() {
-    const p = $("pitch");
+  function pitchMarkings(p) {
     for (let i = 0; i < 10; i++) svg("rect", { x: i * 10.5, y: 0, width: 10.5, height: 68, fill: i % 2 ? "var(--pitch)" : "var(--pitch-2)" }, p);
-    const chalk = { fill: "none", stroke: "var(--chalk)", "stroke-width": 0.25 };
+    const chalk = { fill: "none", stroke: "var(--chalk)", "stroke-width": 0.25, "vector-effect": "non-scaling-stroke" };
     svg("rect", { x: 0, y: 0, width: 105, height: 68, ...chalk }, p);
     svg("line", { x1: 52.5, y1: 0, x2: 52.5, y2: 68, ...chalk }, p);
     svg("circle", { cx: 52.5, cy: 34, r: 9.15, ...chalk }, p);
@@ -177,62 +240,99 @@
       svg("rect", { x: x ? 105 : -1.5, y: 30.34, width: 1.5, height: 7.32, ...chalk }, p);
       svg("circle", { cx: x + s * 11, cy: 34, r: 0.25, fill: "var(--chalk)" }, p);
     }
-    svg("g", { id: "lines" }, p);
-    const g = svg("g", { id: "players" }, p);
+  }
+
+  function playerNodes(parent, onClick) {
+    const g = svg("g", {}, parent);
     players.forEach((pid) => {
-      const team = pid.slice(0, 3);
-      const n = pid.split("-")[1];
+      const team = pid.slice(0, 3), n = pid.split("-")[1];
       const node = svg("g", { "data-pid": pid }, g);
+      svg("circle", { class: "ring", r: 2.1, fill: "none", stroke: "#fff", "stroke-width": 0.3, display: "none" }, node);
       svg("circle", { r: 1.25, fill: colour[team], stroke: n === "1" ? "#fff" : "rgba(0,0,0,.45)", "stroke-width": n === "1" ? 0.35 : 0.2 }, node);
       const label = svg("text", { "text-anchor": "middle", y: 0.55, "font-size": 1.5, "font-family": "IBM Plex Mono", "font-weight": 600, fill: "#0b0f14" }, node);
       label.textContent = n;
+      if (onClick) node.addEventListener("click", (ev) => { ev.stopPropagation(); onClick(pid); });
     });
-    svg("circle", { id: "ball", r: 0.6, fill: "#fff", stroke: "#0b0f14", "stroke-width": 0.15 }, p);
-    svg("g", { id: "tags" }, p);
+    return g;
   }
 
-  function frameAt(time) {
+  function drawPitch() {
+    const p = $("pitch");
+    pitchMarkings(p);
+    svg("g", { id: "lines" }, p);
+    playerNodes(p, selectPlayer).id = "players";
+    svg("circle", { id: "ball", r: 0.6, fill: "#fff", stroke: "#0b0f14", "stroke-width": 0.15 }, p);
+    svg("g", { id: "hud" }, p);
+  }
+
+  // ── Frames and derived per-player series ─────────────────────────────────
+
+  function precompute() {
+    const F = D.frames, n = F.length;
+    SPD = []; CUM = []; TOP = [];
+    players.forEach((_, j) => {
+      const s = new Float32Array(n), c = new Float32Array(n), top = new Float32Array(n);
+      let cum = 0, best = 0;
+      for (let i = 0; i < n; i++) {
+        const x = F[i][5 + 2 * j], y = F[i][6 + 2 * j];
+        if (i > 0 && x != null && F[i - 1][5 + 2 * j] != null && F[i][1] === F[i - 1][1])
+          cum += Math.hypot(x - F[i - 1][5 + 2 * j], y - F[i - 1][6 + 2 * j]);
+        c[i] = cum;
+        const a = Math.max(0, i - 1), b = Math.min(n - 1, i + 1);   // 2 Hz: about a 1 s window
+        const xa = F[a][5 + 2 * j], xb = F[b][5 + 2 * j], dt = F[b][2] - F[a][2];
+        s[i] = xa != null && xb != null && F[a][1] === F[b][1] && dt > 0.5 && dt < 1.6
+          ? Math.hypot(xb - xa, F[b][6 + 2 * j] - F[a][6 + 2 * j]) / dt * 3.6 : NaN;
+        if (s[i] > best) best = s[i];
+        top[i] = best;
+      }
+      SPD.push(s); CUM.push(c); TOP.push(top);
+    });
+  }
+
+  function frameIndex(time) {
     const F = D.frames;
     let lo = 0, hi = F.length - 1;
     while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (F[mid][0] <= time) lo = mid; else hi = mid - 1; }
+    return lo;
+  }
+
+  function frameAt(time) {
+    const F = D.frames, lo = frameIndex(time);
     const a = F[lo], b = F[Math.min(lo + 1, F.length - 1)];
     const span = b[0] - a[0];
     const k = span > 0 && span < 1.5 ? Math.min(1, Math.max(0, (time - a[0]) / span)) : 0;
     const lerp = (i) => (a[i] == null ? null : b[i] == null ? a[i] : a[i] + (b[i] - a[i]) * k);
-    return { period: a[1], clock: a[2] + (b[2] - a[2]) * k, ball: [lerp(3), lerp(4)], pos: (j) => [lerp(5 + 2 * j), lerp(6 + 2 * j)] };
+    return { i: lo, period: a[1], clock: a[2] + (b[2] - a[2]) * k, ball: [lerp(3), lerp(4)], pos: (j) => [lerp(5 + 2 * j), lerp(6 + 2 * j)] };
   }
 
   function clockText(period, clock) {
     const base = period === 1 ? 2700 : 5400;
-    const m = Math.floor(clock / 60), s = Math.floor(clock % 60);
-    if (clock >= base) {
-      const extra = Math.floor((clock - base) / 60) + 1;
-      return `${base / 60}+${extra}'`;
-    }
-    return `${m}:${String(s).padStart(2, "0")}`;
+    if (clock >= base) return `${base / 60}+${Math.floor((clock - base) / 60) + 1}'`;
+    return `${Math.floor(clock / 60)}:${String(Math.floor(clock % 60)).padStart(2, "0")}`;
   }
-
-  const N = (pid) => (pid && nameOf[pid]) || pid || "";
   const pct = (v) => Math.round(v * 100);
 
-  // Deterministic captions from engine facts. Agents replace these later; the facts stay the same.
+  // ── Captions (deterministic, from engine facts) ──────────────────────────
+
   function caption(f) {
-    const v = f.values;
+    const v = f.values, N = name;
     switch (f.kind) {
-      case "sprint": return { tag: "Sprint", text: `${N(f.player)} hits ${v.peak_kmh} km/h`, prio: 2, tagFor: f.team };
+      case "sprint": return { tag: "Sprint", text: `${N(f.player)} hits ${v.peak_kmh} km/h (${mph(v.peak_kmh)} mph)`, prio: 2, tagFor: f.team };
       case "pass_quality": return { tag: `Pass ${pct(v.difficulty)}`, text: `${N(f.player)} → ${N(v.receiver)} · ${v.length_m} m, difficulty ${pct(v.difficulty)}/100${v.lane_defenders ? `, past ${v.lane_defenders} defender${v.lane_defenders > 1 ? "s" : ""}` : ""}`, prio: 1, tagFor: f.team };
       case "shot": return { tag: v.outcome === "goal" ? "Shot" : v.outcome.replace("_", " "), text: `${N(f.player)} from ${v.distance_m} m · ${v.ball_speed_kmh} km/h`, prio: 3, tagFor: f.team };
       case "goal": return v.disallowed
         ? { tag: "No goal", text: `${D.teams[f.team].name} goal ruled out · ${score[D.home]}–${score[D.away]}`, prio: 6, tagFor: f.team }
         : { tag: "Goal", text: `${N(f.player)} scores for ${D.teams[f.team].name}`, prio: 5, tagFor: f.team };
       case "card": return { tag: `${v.outcome} card`, text: N(f.player), prio: 4, tagFor: f.team, alert: true };
-      case "pressure_swing": return { tag: `Pressure ${v.pressure}`, text: `${D.teams[f.team].name} squeezing: ${v.pressure} pressure index, ${v.possession}% possession`, prio: 2, tagFor: f.team };
+      case "pressure_swing": return { tag: `Pressure ${v.pressure}`, text: `${D.teams[f.team].name} squeezing: pressure index ${v.pressure}, ${v.possession}% possession`, prio: 2, tagFor: f.team };
       case "incident": {
-        if (v.state === "reviewing") return { tag: "VAR", text: `Checking: possible ${v.kind.replace("_", " ")}. On-field call: ${v.on_field}.`, prio: 6, var: true };
-        if (v.state === "decided" && v.kind === "offside" && v.facts.margin_m != null && v.var_outcome)
-          return { tag: v.final === "no_goal" ? "No goal" : v.final, text: `Offside · ${N(v.facts.attacker)} ${Math.round(v.facts.margin_m * 100)} cm ahead of ${N(v.facts.defender)} at the pass`, prio: 7, var: true };
-        if (v.state === "decided" && v.kind === "red_card" && v.var_outcome) return { tag: "VAR", text: `Red card ${v.var_outcome} · ${N(v.facts.offender)}`, prio: 7, var: true };
-        if (v.state === "decided" && v.kind === "offside") return { tag: "Offside", text: `Flag up: ${N(v.facts.attacker)}`, prio: 3 };
+        if (v.state === "reviewing") return { tag: "VAR", text: `Checking: possible ${v.kind.replace("_", " ")}. On-field call: ${v.on_field}.`, prio: 6, var: true, iid: v.incident_id };
+        if (v.state === "decided" && v.kind === "offside" && v.facts.margin_m != null && v.var_outcome) {
+          const m = v.facts.margin_m;
+          return { tag: v.final === "no_goal" ? "No goal" : v.final, text: `Offside · ${N(v.facts.attacker)} ${m < 1 ? `${(m / 0.0254).toFixed(1)} in (${Math.round(m * 100)} cm)` : `${m.toFixed(1)} m`} ahead of ${N(v.facts.defender)}`, prio: 7, var: true, iid: v.incident_id };
+        }
+        if (v.state === "decided" && v.kind === "red_card" && v.var_outcome) return { tag: "VAR", text: `Red card ${v.var_outcome} · ${N(v.facts.offender)}`, prio: 7, var: true, iid: v.incident_id };
+        if (v.state === "decided" && v.kind === "offside") return { tag: "Offside", text: `Flag up: ${N(v.facts.attacker)}`, prio: 3, iid: v.incident_id };
         return null;
       }
       default: return null;
@@ -240,14 +340,17 @@
   }
 
   function tickerItem(f) {
-    if (f.kind === "metrics") return null;
+    if (f.kind === "metrics" || f.kind === "replay") return null;
     if (f.kind === "incident" && f.values.kind === "goal_check" && f.values.state !== "reviewing") return null;
     const c = caption(f);
     const li = document.createElement("li");
     li.className = "k-" + f.kind;
     const what = c ? `${c.tag} — ${c.text}` : `${f.values.kind} → ${f.values.state}`;
-    const stateNote = f.kind === "incident" ? ` · state: ${f.values.state}` : "";
-    li.innerHTML = `<div class="meta"><span>${clockText(f.period, f.clock)}</span><span class="kind">${f.kind.replace("_", " ")}</span></div><div>${what}${stateNote}</div><div class="src">${f.sources.join(" · ")}</div>`;
+    const note = f.kind === "incident" ? ` · state: ${f.values.state}` : "";
+    li.innerHTML = `<div class="meta"><span>${clockText(f.period, f.clock)}</span><span class="kind">${f.kind.replace("_", " ")}</span></div><div>${what}${note}</div><div class="src">${f.sources.join(" · ")}</div>`;
+    const iid = f.kind === "incident" ? f.values.incident_id : null;
+    if (iid && D.replays[iid]) { li.classList.add("clickable"); li.title = "Watch the call"; li.onclick = () => openReplay(iid); }
+    if (f.player && !iid) { li.classList.add("clickable"); li.title = "Show player"; li.onclick = () => selectPlayer(f.player); }
     return li;
   }
 
@@ -255,6 +358,7 @@
     const v = f.values;
     if (f.kind === "goal") score = { ...v.score };
     if (f.kind === "metrics") metrics = v;
+    if (f.kind === "replay") lastReplay = { iid: v.incident_id, phase: v.phase, until: f.t + 12 };
     if (f.kind === "incident") {
       if (v.state === "reviewing") varOpen = v;
       if (v.state === "decided" && varOpen && varOpen.incident_id === v.incident_id) varOpen = null;
@@ -267,14 +371,14 @@
     const li = tickerItem(f);
     if (li) {
       const tk = $("ticker");
-      if (tk.firstChild && tk.firstChild.classList.contains("empty")) tk.innerHTML = "";
+      if (tk.firstChild && tk.firstChild.classList.contains("hint")) tk.innerHTML = "";
       tk.insertBefore(li, tk.firstChild);
       while (tk.children.length > 120) tk.removeChild(tk.lastChild);
     }
   }
 
   function seek(to) {
-    t = to; factIdx = 0; score = { [D.home]: 0, [D.away]: 0 }; metrics = null; varOpen = null; lines = null; band = null;
+    t = to; factIdx = 0; score = { [D.home]: 0, [D.away]: 0 }; metrics = null; varOpen = null; lines = null; band = null; lastReplay = null;
     $("ticker").innerHTML = "";
     const recent = [];
     while (factIdx < D.facts.length && D.facts[factIdx].t <= t) {
@@ -283,9 +387,12 @@
       if (f.t > t - 600) recent.push(f);
     }
     recent.slice(-40).forEach((f) => { const li = tickerItem(f); if (li) $("ticker").insertBefore(li, $("ticker").firstChild); });
-    if (!$("ticker").children.length) $("ticker").innerHTML = '<li class="empty">No facts yet.</li>';
+    if (!$("ticker").children.length) $("ticker").innerHTML = '<li class="hint">No facts yet.</li>';
+    cardNext = 0;
     render();
   }
+
+  // ── Live render ──────────────────────────────────────────────────────────
 
   function render() {
     const fr = frameAt(t);
@@ -294,30 +401,24 @@
       const [x, y] = fr.pos(j);
       if (x == null) g[j].setAttribute("display", "none");
       else { g[j].removeAttribute("display"); g[j].setAttribute("transform", `translate(${x.toFixed(2)},${y.toFixed(2)})`); }
+      g[j].querySelector(".ring").setAttribute("display", players[j] === selected ? "inline" : "none");
     }
     $("ball").setAttribute("cx", fr.ball[0]); $("ball").setAttribute("cy", fr.ball[1]);
     $("clock").textContent = (fr.period === 1 ? "1H " : "2H ") + clockText(fr.period, fr.clock);
     $("score").textContent = `${score[D.home] ?? 0} – ${score[D.away] ?? 0}`;
-
     if (metrics) {
       const H = metrics[D.home], A = metrics[D.away];
       $("possBar").style.width = H.possession + "%"; $("possH").textContent = H.possession; $("possA").textContent = A.possession;
-      const ps = H.pressure + A.pressure || 1;
-      $("presBar").style.width = (100 * H.pressure / ps) + "%"; $("presH").textContent = H.pressure; $("presA").textContent = A.pressure;
-      const cs = H.control + A.control || 1;
-      $("ctrlBar").style.width = (100 * H.control / cs) + "%"; $("ctrlH").textContent = H.control + "%"; $("ctrlA").textContent = A.control + "%";
+      $("presBar").style.width = (100 * H.pressure / (H.pressure + A.pressure || 1)) + "%"; $("presH").textContent = H.pressure; $("presA").textContent = A.pressure;
+      $("ctrlBar").style.width = (100 * H.control / (H.control + A.control || 1)) + "%"; $("ctrlH").textContent = H.control + "%"; $("ctrlA").textContent = A.control + "%";
     }
-
     $("varBadge").classList.toggle("on", !!varOpen);
     if (varOpen) $("varText").textContent = `VAR CHECK · ${varOpen.kind.replace("_", " ").toUpperCase()}`;
-
-    const L = $("lines");
-    L.innerHTML = "";
+    const L = $("lines"); L.innerHTML = "";
     if (lines && t <= lines.until) {
       svg("line", { x1: lines.dx, y1: 0, x2: lines.dx, y2: 68, stroke: colour[D.away], "stroke-width": 0.3 }, L);
       svg("line", { x1: lines.ax, y1: 0, x2: lines.ax, y2: 68, stroke: colour[D.home], "stroke-width": 0.3, "stroke-dasharray": "1 0.6" }, L);
     }
-
     const on = band && t <= band.until;
     $("band").classList.toggle("on", !!on);
     if (on) {
@@ -325,54 +426,399 @@
       $("bandTag").style.background = band.var ? "var(--var)" : band.alert ? "var(--alert)" : colour[band.tagFor] || "var(--nbr)";
       $("bandText").textContent = band.text;
       $("bandSrc").textContent = band.src;
+      const r = lastReplay && t <= lastReplay.until ? lastReplay : null;
+      $("bandWatch").classList.toggle("on", !!r);
+      if (r) { $("bandWatch").textContent = r.phase === "during" ? "▶ Watch the build-up" : "▶ Watch the call"; $("bandWatch").onclick = () => openReplay(r.iid); }
+    }
+    const H = $("hud"); H.innerHTML = "";
+    if (hud && selected) {
+      const j = players.indexOf(selected), [x, y] = fr.pos(j);
+      if (x != null) {
+        const kmh = SPD[j][fr.i], inv = involvement(fr, j, selected);
+        callout(H, x, y, [
+          { text: `${roster[selected].number} · ${name(selected).toUpperCase()}`, bold: true, size: 1.15 },
+          { text: isNaN(kmh) ? "speed –" : `${kmh.toFixed(1)} km/h · ${mph(kmh)} mph`, mono: true, color: HUD },
+          { text: `${inv.label}${inv.dBall != null ? ` · ${inv.dBall.toFixed(0)} m to ball` : ""}`, mono: true, size: 0.85, color: "var(--muted)" },
+        ], colour[selected.slice(0, 3)], 111, 0, [-3, -3, 111, 74]);
+      }
     }
     $("scrub").value = t;
     $("factCount").textContent = `· ${factIdx} so far`;
+    const now = performance.now();
+    if (selected && now >= cardNext) { renderCard(fr); cardNext = now + 250; }
   }
 
+  // ── HUD callouts: reticle, leader line, glass panel ──────────────────────
+
+  const HUD = "#7dd3fc";
+  const SLOTS = [[1, -1], [1, 1], [-1, -1], [-1, 1]];
+  function callout(parent, px, py, rows, accent, u, slot, view) {
+    const g = svg("g", { class: "callout" }, parent);
+    const r = u / 55;                                       // reticle radius
+    const arm = r * 0.6;
+    for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      const cx = px + sx * r, cy = py + sy * r;
+      svg("path", { d: `M ${cx} ${cy - sy * arm} L ${cx} ${cy} L ${cx - sx * arm} ${cy}`, fill: "none", stroke: accent, "stroke-width": u / 500 }, g);
+    }
+    const fs = u / 58, h = fs * (rows.length * 1.35 + 0.6);
+    const longest = Math.max(...rows.map((r) => r.text.length * (r.mono ? 0.62 : 0.5) * (r.size || 1)));
+    const w = Math.max(u * 0.16, fs * longest + u * 0.03);   // fit the text
+    let [dx, dy] = SLOTS[slot % SLOTS.length];
+    const lx = u * 0.07, ly = u * 0.07;
+    let ex = px + dx * lx, ey = py + dy * ly;
+    let bx = dx > 0 ? ex + u * 0.03 : ex - u * 0.03 - w;
+    if (view && (bx + w > view[0] + view[2] - u * 0.01 || bx < view[0] + u * 0.01)) {   // keep the panel in view
+      dx = -dx; ex = px + dx * lx; bx = dx > 0 ? ex + u * 0.03 : ex - u * 0.03 - w;
+    }
+    let by = ey - h / 2;
+    if (view) by = Math.min(Math.max(by, view[1] + u * 0.01), view[1] + view[3] - h - u * 0.01);
+    const sx0 = px + dx * r * 0.9, sy0 = py + dy * r * 0.9;
+    const tip = dx > 0 ? bx : bx + w;
+    svg("polyline", { points: `${sx0},${sy0} ${ex},${ey} ${tip},${ey}`, fill: "none", stroke: accent, "stroke-width": u / 600, opacity: 0.9 }, g);
+    svg("circle", { cx: ex, cy: ey, r: u / 700, fill: accent }, g);
+    svg("rect", { x: bx, y: by, width: w, height: h, rx: u / 400, fill: "rgba(6,14,22,.82)", stroke: accent, "stroke-width": u / 900 }, g);
+    svg("rect", { x: dx > 0 ? bx : bx + w - u / 260, y: by, width: u / 260, height: h, fill: accent }, g);   // edge bar
+    const c = u / 90;                                       // corner ticks
+    svg("path", { d: `M ${bx + w - c} ${by - u / 600} H ${bx + w + u / 600} V ${by + c}`, fill: "none", stroke: accent, "stroke-width": u / 500 }, g);
+    rows.forEach((row, i) => {
+      const t = svg("text", { x: bx + (dx > 0 ? u / 120 : u / 160) + u / 260, y: by + fs * (1.15 + i * 1.35),
+        "font-size": fs * (row.size || 1), "font-family": row.mono ? "IBM Plex Mono" : "Barlow Condensed",
+        "font-weight": row.bold ? 700 : 500, fill: row.color || "#e8eef4", "letter-spacing": row.mono ? 0 : fs * 0.04 }, g);
+      t.textContent = row.text;
+    });
+    return g;
+  }
+
+  // ── Player card ──────────────────────────────────────────────────────────
+
+  function selectPlayer(pid) {
+    selected = selected === pid ? null : pid;
+    $("pcClear").hidden = !selected;
+    $("pcHint").textContent = selected ? "" : "tap a player on the pitch";
+    if (!selected) $("pc").innerHTML = '<div class="hint">Select any player to see their speed, involvement in play, and the calls they were part of.</div>';
+    cardNext = 0;
+    render();
+    if (R.pkg) drawReplay();
+  }
+
+  function involvement(fr, j, pid) {
+    const [x, y] = fr.pos(j);
+    if (x == null) return { label: "Off the pitch", cls: "" };
+    const dBall = Math.hypot(x - fr.ball[0], y - fr.ball[1]);
+    if (dBall < 1.6) return { label: "On the ball", cls: "ball", dBall };
+    if (dBall < 12) return { label: "In the play", cls: "near", dBall };
+    return { label: "Off the ball", cls: "", dBall };
+  }
+
+  function renderCard(fr) {
+    const pid = selected, j = players.indexOf(pid), r = roster[pid], i = fr.i;
+    const log = (D.player_log[pid] || []).filter((a) => a.t <= t);
+    const count = (act, pred) => log.filter((a) => a.action === act && (!pred || pred(a))).length;
+    const passes = count("pass"), done = count("pass", (a) => a.outcome === "complete");
+    const sprints = log.filter((a) => a.action === "sprint");
+    const calls = log.filter((a) => a.action === "call");
+    const inv = involvement(fr, j, pid);
+    const kmh = SPD[j][i], top = TOP[j][i], km = CUM[j][i] / 1000;
+    const last = log.slice(-5).reverse();
+    const verb = { pass: "Pass", received: "Received from", carry: "Carry", shot: "Shot", tackle: "Tackle", tackled: "Tackled by",
+                   interception: "Interception", pressure: "Pressed", pressed: "Pressed by", foul: "Foul on", fouled: "Fouled by",
+                   card: "Card", goal: "Goal", kickoff: "Kickoff", sprint: "Sprint", hard_pass: "Hard pass", call: "In a call" };
+    const desc = (a) => {
+      let s = verb[a.action] || a.action;
+      if (a.with) s += ` ${a.action === "pass" ? "to " : ""}${name(a.with)}`;
+      if (a.outcome && !["complete"].includes(a.outcome)) s += ` · ${String(a.outcome).replace("_", " ")}`;
+      if (a.kmh) s += ` · ${a.kmh} km/h`;
+      if (a.difficulty) s += ` · difficulty ${pct(a.difficulty)}`;
+      if (a.role) s += ` · ${CALL_ROLE[a.role] || a.role}`;
+      return s;
+    };
+    const inReplay = R.pkg && R.pkg.focus.find((f) => f.player === pid);
+    $("pc").innerHTML = `
+      <div class="pc">
+        <div class="who"><div class="num" style="background:${colour[r.team]}">${r.number}</div>
+          <div><div class="name">${r.name}</div><div class="sub">${ROLE[r.role]} · ${D.teams[r.team].name}</div></div>
+          <span class="pill ${inv.cls}" style="margin-left:auto">${inv.label}</span></div>
+        ${inReplay ? `<div class="pill" style="justify-self:start;border-color:var(--var);color:var(--var)">In this replay: ${CALL_ROLE[inReplay.role]}</div>` : ""}
+        <div class="grid">
+          <div class="stat"><b>${isNaN(kmh) ? "–" : kmh.toFixed(1)}</b><span>km/h now${isNaN(kmh) ? "" : ` · ${mph(kmh)} mph`}</span></div>
+          <div class="stat"><b>${inv.dBall != null ? inv.dBall.toFixed(0) : "–"}</b><span>m from the ball</span></div>
+          <div class="stat"><b>${km.toFixed(2)}</b><span>km covered</span></div>
+          <div class="stat"><b>${top ? top.toFixed(1) : "–"}</b><span>top km/h so far</span></div>
+          <div class="stat"><b>${passes ? `${done}/${passes}` : "0"}</b><span>passes completed</span></div>
+          <div class="stat"><b>${count("received")}</b><span>passes received</span></div>
+          <div class="stat"><b>${count("pressure")}</b><span>presses</span></div>
+          <div class="stat"><b>${count("tackle", (a) => a.outcome === "won")}/${count("tackle")}</b><span>tackles won</span></div>
+          <div class="stat"><b>${count("interception")}</b><span>interceptions</span></div>
+          <div class="stat"><b>${count("shot")}</b><span>shots</span></div>
+          <div class="stat"><b>${sprints.length}</b><span>sprints${sprints.length ? ` · best ${Math.max(...sprints.map((s) => s.kmh))}` : ""}</span></div>
+          <div class="stat"><b>${count("hard_pass")}</b><span>hard passes</span></div>
+        </div>
+        <div><h4>Calls involving ${r.name}</h4>${calls.length ? `<ul class="calls">${calls.map((c) => `<li><span>${clockText(c.period, c.clock)}</span><span>${KIND[c.kind] || c.kind}: ${CALL_ROLE[c.role] || c.role}</span><button data-iid="${c.incident_id}">▶ Replay</button></li>`).join("")}</ul>` : '<div class="foot">None so far.</div>'}</div>
+        <div><h4>Recent actions</h4>${last.length ? `<ul class="recent">${last.map((a) => `<li><span class="c">${clockText(a.period, a.clock)}</span><span>${desc(a)}</span><span class="e">${a.event_id}</span></li>`).join("")}</ul>` : '<div class="foot">No on-ball actions yet.</div>'}</div>
+        <div class="foot">Speed and distance are derived from tracking positions (about a 1 s window); counts come from the engine's action log, each entry citing its event.</div>
+      </div>`;
+    $("pc").querySelectorAll("button[data-iid]").forEach((b) => (b.onclick = () => openReplay(b.dataset.iid)));
+  }
+
+  // ── Call replay ──────────────────────────────────────────────────────────
+
+  const R = { pkg: null, rt: 0, playing: true, frozen: false, hold: 0, zoom: 0, aud: "fan", view: null, zoomBox: null };
+  window.__touchline = { R };  // debugging hook
+
+  function openReplay(iid) {
+    const at = replayAt[iid] || {};
+    const phase = at.after != null && t >= at.after ? "after" : at.during != null && t >= at.during ? "during" : null;
+    if (!phase) return;
+    R.pkg = D.replays[iid][phase];
+    playing = false; $("play").textContent = "▶ Play";
+    R.aud = R.aud || "fan";
+    buildReplayScene();
+    restartReplay();
+    $("replay").classList.add("on");
+  }
+
+  function closeReplay() { $("replay").classList.remove("on"); R.pkg = null; render(); }
+
+  function restartReplay() {
+    R.rt = R.pkg.frames[0].t; R.playing = true; R.frozen = false; R.hold = 0; R.zoom = 0; $("rPause").textContent = "❚❚";
+  }
+
+  function bbox(points, pad) {
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    points.forEach(([x, y]) => { if (x == null) return; x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); });
+    x0 -= pad; y0 -= pad; x1 += pad; y1 += pad;
+    const aspect = 111 / 74;
+    let w = x1 - x0, h = y1 - y0;
+    if (w / h < aspect) { const nw = h * aspect; x0 -= (nw - w) / 2; w = nw; } else { const nh = w / aspect; y0 -= (nh - h) / 2; h = nh; }
+    if (w > 111) return [-3, -3, 111, 74];
+    x0 = Math.min(Math.max(x0, -3), 108 - w); y0 = Math.min(Math.max(y0, -3), 71 - h);
+    return [x0, y0, w, h];
+  }
+
+  function buildReplayScene() {
+    const P = R.pkg, s = $("rsvg");
+    s.innerHTML = "";
+    pitchMarkings(s);
+    svg("g", { id: "rLines" }, s);
+    const g = playerNodes(s, selectPlayer); g.id = "rPlayers";
+    svg("circle", { id: "rBall", r: 0.6, fill: "#fff", stroke: "#0b0f14", "stroke-width": 0.15 }, s);
+    svg("g", { id: "rTags" }, s);
+    const pts = [];
+    P.frames.forEach((f) => P.focus.forEach((x) => f.positions[x.player] && pts.push(f.positions[x.player])));
+    P.ball.forEach((b) => pts.push([b.x, b.y]));
+    R.view = bbox(pts, 6);
+    R.zoomBox = null;
+    if (P.lines) {
+      const bp = [];
+      Object.values(P.lines.body).forEach((parts) => Object.values(parts).forEach((p) => bp.push(p)));
+      R.zoomBox = bbox(bp, 1.6);
+    }
+    $("rTitle").textContent = `${KIND[P.kind] || P.kind}${P.kind === "offside" && P.lines && P.lines.margin_m != null ? " check" : ""}`;
+    $("rPhase").className = "phase " + P.phase;
+    $("rPhase").textContent = P.phase === "during" ? "CHECK IN PROGRESS" : "DECIDED";
+    $("rClock").textContent = `${P.period === 1 ? "1H" : "2H"} ${clockText(P.period, P.key_t)} · ${P.incident_id}`;
+    $("rSrc").textContent = "Sources: " + P.sources.join(" · ");
+    $("rTabs").innerHTML = "";
+    [["fan", "Fan"], ["analyst", "Analyst"], ["stadium", "Stadium"], ["officials", "Officials"]].forEach(([k, label]) => {
+      const b = document.createElement("button");
+      b.textContent = label; b.className = R.aud === k ? "on" : "";
+      b.onclick = () => { R.aud = k; [...$("rTabs").children].forEach((c) => c.classList.toggle("on", c === b)); drawReplayText(); };
+      $("rTabs").appendChild(b);
+    });
+    drawReplayText();
+  }
+
+  function drawReplayText() {
+    const P = R.pkg;
+    $("rStatus").textContent = names(P.status[R.aud] || P.status.fan);
+    $("rMoments").innerHTML = P.moments.map((m) => `<span class="${R.frozen && Math.abs(m.t - P.key_t) < 0.05 ? "now" : ""}">${clockText(P.period, m.t)} · ${names(m.label)}</span>`).join("");
+  }
+
+  function interp(list, time, get) {
+    let lo = 0, hi = list.length - 1;
+    while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (list[mid].t <= time) lo = mid; else hi = mid - 1; }
+    const a = list[lo], b = list[Math.min(lo + 1, list.length - 1)];
+    const k = b.t > a.t ? Math.min(1, Math.max(0, (time - a.t) / (b.t - a.t))) : 0;
+    return get(a, b, k, lo);
+  }
+
+  function replayTick(dt) {
+    const P = R.pkg;
+    if (!R.playing) return;
+    if (R.hold > 0) {
+      R.hold -= dt;
+      R.zoom = Math.min(1, R.zoom + dt * 1.2);
+      if (R.hold <= 0) { R.hold = 0; }
+      return;
+    }
+    if (R.zoom > 0 && R.frozen) R.zoom = Math.max(0, R.zoom - dt * 1.2);
+    const slow = P.slow && R.rt >= P.slow.start && R.rt <= P.slow.end;
+    const next = R.rt + dt * (slow ? P.slow.rate : 1);
+    if (!R.frozen && R.rt < P.key_t && next >= P.key_t) {
+      R.rt = P.key_t; R.frozen = true; R.hold = P.lines ? 5 : 2.5; drawReplayText(); return;
+    }
+    R.rt = Math.min(next, P.frames[P.frames.length - 1].t);
+    if (R.rt >= P.frames[P.frames.length - 1].t) R.playing = false;
+  }
+
+  function drawReplay() {
+    const P = R.pkg;
+    if (!P) return;
+    const z = R.zoomBox ? R.zoom * R.zoom * (3 - 2 * R.zoom) : 0;  // smoothstep
+    const v = R.view, zb = R.zoomBox || v;
+    const vb = v.map((a, k) => a + (zb[k] - a) * z);
+    $("rsvg").setAttribute("viewBox", vb.join(" "));
+    const scale = vb[2] / 111;                      // 1 at full pitch
+    const nodes = $("rPlayers").children;
+    const pos = {};
+    interp(P.frames, R.rt, (a, b, k) => {
+      players.forEach((pid, j) => {
+        const pa = a.positions[pid], pb = b.positions[pid] || pa;
+        const n = nodes[j];
+        if (!pa) { n.setAttribute("display", "none"); return; }
+        const x = pa[0] + (pb[0] - pa[0]) * k, y = pa[1] + (pb[1] - pa[1]) * k;
+        pos[pid] = [x, y];
+        n.removeAttribute("display");
+        n.setAttribute("transform", `translate(${x.toFixed(3)},${y.toFixed(3)}) scale(${Math.max(scale, 0.18)})`);
+        const focus = P.focus.find((f) => f.player === pid);
+        n.style.opacity = focus || pid === selected ? 1 : 0.45;
+        n.querySelector(".ring").setAttribute("display", focus || pid === selected ? "inline" : "none");
+        n.querySelector(".ring").setAttribute("stroke", pid === selected ? "#fff" : "var(--var)");
+      });
+    });
+    const ball = interp(P.ball, R.rt, (a, b, k) => [a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k]);
+    $("rBall").setAttribute("cx", ball[0]); $("rBall").setAttribute("cy", ball[1]); $("rBall").setAttribute("r", 0.6 * Math.max(scale, 0.18));
+
+    // HUD callouts for the players involved (toggle in the header)
+    const tags = $("rTags"); tags.innerHTML = "";
+    const zoomed = z > 0.5;
+    if (hud && !zoomed) {
+      const shown = P.focus.map((f) => f.player);
+      if (selected && !shown.includes(selected)) shown.push(selected);
+      shown.forEach((pid, slot) => {
+        const p = pos[pid];
+        if (!p) return;
+        const f = P.focus.find((x) => x.player === pid);
+        const series = P.speeds[pid];
+        const kmh = series ? interp(P.frames, R.rt, (a, b, k, lo) => {
+          const sa = series[lo], sb = series[Math.min(lo + 1, series.length - 1)];
+          return sa == null ? sb : sb == null ? sa : sa + (sb - sa) * k;
+        }) : null;
+        const rows = [
+          { text: name(pid).toUpperCase(), bold: true, size: 1.15 },
+          { text: kmh != null ? `${kmh.toFixed(1)} km/h · ${mph(kmh)} mph` : "speed –", mono: true, color: HUD },
+          { text: f ? (CALL_ROLE[f.role] || f.role) : "selected", mono: true, size: 0.85, color: "var(--var)" },
+        ];
+        callout(tags, p[0], p[1], rows, colour[pid.slice(0, 3)], vb[2], slot, vb);
+      });
+    }
+
+    // The measurement, only in an after replay and only once the replay reaches the pass
+    const L = $("rLines"); L.innerHTML = "";
+    const note = $("rNote");
+    note.classList.remove("on");
+    if (R.frozen && P.kind === "offside") {
+      if (P.lines && R.zoom > 0.05) {
+        const ln = P.lines, u = vb[2];          // sizes relative to the visible width, so they read at any zoom
+        const ya = ln.body[ln.attacker] ? Object.values(ln.body[ln.attacker])[0][1] : 30;
+        const yd = ln.body[ln.defender] ? Object.values(ln.body[ln.defender])[0][1] : 30;
+        const x0 = Math.min(ln.defender_x, ln.attacker_x), gap = Math.abs(ln.attacker_x - ln.defender_x);
+        svg("rect", { x: x0, y: -3, width: gap, height: 74, fill: "rgba(255,255,255,.14)" }, L);
+        svg("line", { x1: ln.defender_x, y1: -3, x2: ln.defender_x, y2: 71, stroke: colour[ln.defender.slice(0, 3)], "stroke-width": u / 260 }, L);
+        svg("line", { x1: ln.attacker_x, y1: -3, x2: ln.attacker_x, y2: 71, stroke: colour[ln.attacker.slice(0, 3)], "stroke-width": u / 260, "stroke-dasharray": `${u / 60} ${u / 120}` }, L);
+        const label = (x, y, text, fill, size, anchor = "start") => {
+          const el = svg("text", { x, y, "text-anchor": anchor, "font-size": size, "font-family": "IBM Plex Mono", "font-weight": 600, fill, stroke: "#0b0f14", "stroke-width": size * 0.22, "paint-order": "stroke" }, L);
+          el.textContent = text;
+        };
+        Object.entries(ln.body).forEach(([pid, parts]) => {
+          Object.entries(parts).forEach(([part, [x, y]]) => {
+            const arm = part === "arm", key = (pid === ln.attacker && part === ln.attacker_part) || (pid === ln.defender && part === ln.defender_part);
+            svg("circle", { cx: x, cy: y, r: key ? u / 70 : u / 130, fill: arm ? "var(--alert)" : key ? "#fff" : colour[pid.slice(0, 3)], stroke: "#0b0f14", "stroke-width": u / 900 }, L);
+            if (key) label(x + u / 45, y + u / 140, `${name(pid)} · ${part.replace("_", " ")}`, "#fff", u / 42);
+            if (arm) label(x + u / 45, y + u / 140, "arm · doesn't count", "var(--alert)", u / 50);
+          });
+        });
+        const ym = (ya + yd) / 2;
+        svg("line", { x1: ln.defender_x, y1: ym, x2: ln.attacker_x, y2: ym, stroke: "#fff", "stroke-width": u / 200 }, L);
+        const m = Math.abs(ln.margin_m);
+        const big = m < 1 ? `${(m / 0.0254).toFixed(1)} in · ${Math.round(m * 100)} cm` : `${m.toFixed(2)} m · ${(m / 0.3048).toFixed(1)} ft`;
+        label(x0 + gap / 2, ym - u / 40, big, "#fff", u / 16, "middle");
+        label(x0 + gap / 2, ym + u / 14, ln.margin_m > 0 ? "ahead at the pass" : "behind at the pass", "var(--muted)", u / 40, "middle");
+      } else if (!P.lines) {
+        note.textContent = "Moment of the pass · measurement shown once the officials decide";
+        note.classList.add("on");
+      }
+    }
+    if (R.frozen && R.hold > 0 && P.kind !== "offside") {
+      const m = P.moments.find((x) => Math.abs(x.t - P.key_t) < 0.05);
+      if (m) { note.textContent = names(m.label); note.classList.add("on"); }
+    }
+    const clockNow = R.rt;
+    $("rClock").textContent = `${P.period === 1 ? "1H" : "2H"} ${clockText(P.period, clockNow)} · ${R.hold > 0 ? "frozen at the moment" : P.slow && clockNow >= P.slow.start && clockNow <= P.slow.end ? "slow motion ×0.25" : "replay"} · ${P.incident_id}`;
+  }
+
+  // ── Loop and controls ────────────────────────────────────────────────────
+
   function loop(now) {
-    if (playing) {
-      const dt = Math.min(0.25, (now - lastNow) / 1000);
+    const dt = Math.min(0.25, (now - lastNow) / 1000);
+    lastNow = now;
+    if (R.pkg) { replayTick(dt); drawReplay(); }
+    else if (playing) {
       t = Math.min(D.frames[D.frames.length - 1][0], t + dt * speed);
       while (factIdx < D.facts.length && D.facts[factIdx].t <= t) applyFact(D.facts[factIdx++], true);
       if (t >= D.frames[D.frames.length - 1][0]) { playing = false; $("play").textContent = "▶ Play"; }
       render();
-    }
-    lastNow = now;
+    } else if (selected && now >= cardNext) render();
     requestAnimationFrame(loop);
   }
 
   function controls() {
-    $("play").onclick = () => { playing = !playing; $("play").textContent = playing ? "❚❚ Pause" : "▶ Play"; };
+    $("play").onclick = () => { if (R.pkg) closeReplay(); playing = !playing; $("play").textContent = playing ? "❚❚ Pause" : "▶ Play"; };
     [1, 5, 10, 30, 60].forEach((s) => {
       const b = document.createElement("button");
       b.textContent = s + "×"; b.className = s === speed ? "on" : "";
       b.onclick = () => { speed = s; [...$("speeds").children].forEach((c) => c.classList.toggle("on", c === b)); };
       $("speeds").appendChild(b);
     });
+    $("rClose").onclick = closeReplay;
+    const setHud = (on) => { hud = on; ["rHud", "hudToggle"].forEach((id) => $(id).classList.toggle("on", hud)); render(); if (R.pkg) drawReplay(); };
+    $("rHud").onclick = () => setHud(!hud);
+    $("hudToggle").onclick = () => setHud(!hud);
+    $("rAgain").onclick = restartReplay;
+    $("rPause").onclick = () => { R.playing = !R.playing; $("rPause").textContent = R.playing ? "❚❚" : "▶"; };
+    $("pcClear").onclick = () => selectPlayer(selected);
+    $("pitch").addEventListener("click", () => selected && selectPlayer(selected));
+
     const end = D.frames[D.frames.length - 1][0];
     $("scrub").max = end;
-    $("scrub").oninput = (e) => seek(parseFloat(e.target.value));
+    $("scrub").oninput = (e) => { if (R.pkg) closeReplay(); seek(parseFloat(e.target.value)); };
 
-    const jumps = [];
-    const ruledOut = new Set(D.facts.filter((f) => f.kind === "incident" && f.values.state === "decided" && f.values.final === "no_goal").map((f) => f.values.goal_event));
+    D.facts.forEach((f) => { if (f.kind === "replay") (replayAt[f.values.incident_id] ||= {})[f.values.phase] = f.t; });
+
+    // Jump to a call: go to the decision and open its replay. Reviewed calls and goals get buttons.
+    const calls = [];
     D.facts.forEach((f) => {
-      const v = f.values;
-      let icon = null, label = null;
-      if (f.kind === "goal" && !v.disallowed) { icon = "⚽"; label = `${clockText(f.period, f.clock)} Goal ${f.team}${ruledOut.has(f.sources[0]) ? " (ruled out)" : ""}`; }
-      if (f.kind === "incident" && v.state === "reviewing") { icon = "◆"; label = `${clockText(f.period, f.clock)} VAR ${v.kind.replace("_", " ")}`; }
-      if (f.kind === "card" && v.outcome === "red") { icon = "🟥"; label = `${clockText(f.period, f.clock)} Red card`; }
-      if (!icon) return;
-      const m = document.createElement("span");
-      m.className = "mark"; m.textContent = icon; m.title = label; m.style.left = (100 * f.t / end) + "%";
-      m.onclick = () => seek(Math.max(0, f.t - 20));
-      $("marks").appendChild(m);
-      jumps.push([f.t, label]);
+      if (f.kind !== "replay" || f.values.phase !== "after") return;
+      const inc = D.facts.find((g) => g.kind === "incident" && g.values.incident_id === f.values.incident_id && g.values.state === "decided");
+      if (!inc) return;
+      const v = inc.values;
+      const ruled = v.kind === "offside" && v.final === "no_goal";
+      if (v.kind === "foul") return;   // yellow cards: replay from the player card or facts list
+      const icon = v.kind === "goal_check" ? "⚽" : v.kind === "red_card" ? "🟥" : ruled || v.var_outcome ? "◆" : "⚑";
+      const label = v.kind === "goal_check" ? `Goal ${name(f.values.roles && Object.keys(f.values.roles)[0])}`
+        : v.kind === "offside" ? (v.var_outcome ? "VAR offside · no goal" : `Offside flag · ${name(v.facts.attacker)}`)
+        : KIND[v.kind] || v.kind;
+      const when = clockText(v.period ?? inc.period, v.opened_at);
+      calls.push({ t: f.t, open: v.incident_id, icon, label: `${when} ${label}`, main: v.kind !== "offside" || !!v.var_outcome });
     });
-    $("jumps").innerHTML = "<span>Jump to:</span>";
-    jumps.forEach(([ft, label]) => {
+    $("jumps").innerHTML = "<span>Watch a call:</span>";
+    calls.forEach((c) => {
+      const go = () => { seek(c.t + 0.1); openReplay(c.open); };
+      const m = document.createElement("span");
+      m.className = "mark"; m.textContent = c.icon; m.title = c.label; m.style.left = (100 * c.t / end) + "%"; m.onclick = go;
+      $("marks").appendChild(m);
       const b = document.createElement("button");
-      b.textContent = label; b.onclick = () => { seek(Math.max(0, ft - 20)); playing = true; $("play").textContent = "❚❚ Pause"; };
+      b.textContent = `${c.icon} ${c.label}`; b.className = c.main ? "call" : ""; b.onclick = go;
       $("jumps").appendChild(b);
     });
   }
@@ -381,18 +827,14 @@
     if (!r.ok) throw new Error(`data/${scenario}.json not found: run  uv run python -m engine.export`);
     return r.json();
   }).then((data) => {
-    D = data;
-    players = D.players;
-    nameOf = Object.assign({}, ...Object.values(D.teams).map((t) => t.players));
+    D = data; players = D.players; roster = D.roster;
     colour = Object.fromEntries(Object.entries(D.teams).map(([k, v]) => [k, v.colour]));
     $("homeTeam").innerHTML = crest(D.home) + D.home;
     $("awayTeam").innerHTML = D.away + crest(D.away);
-    drawPitch();
-    controls();
-    seek(0);
+    precompute(); drawPitch(); controls(); seek(0);
     $("loading").remove();
     requestAnimationFrame((now) => { lastNow = now; loop(now); });
-  }).catch((err) => { $("loading").textContent = err.message; });
+  }).catch((err) => { $("loading").textContent = err.message; console.error(err); });
 })();
 </script>
 </body>

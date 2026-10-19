@@ -151,19 +151,49 @@ def test_band_layer_needs_band():
 # ── Replay package ───────────────────────────────────────────────────────────
 
 
-def test_replay_frames_in_order_and_slow_window_inside():
+def replay_pkg(**over) -> dict:
     p = {"NBR-9": [84.0, 26.0]}
-    pkg = {
+    base = {
         "incident_id": "inc-m01-03",
+        "kind": "offside",
+        "phase": "after",
+        "period": 2,
+        "key_t": 4679.4,
         "frames": [{"t": 4678.0, "positions": p}, {"t": 4681.0, "positions": p}],
         "ball": [{"t": 4678.0, "x": 60, "y": 40}, {"t": 4681.0, "x": 84, "y": 26}],
         "moments": [{"t": 4679.4, "label": "Kick point", "reveal": "always"}],
         "slow": {"start": 4679.0, "end": 4680.0, "rate": 0.25},
+        "focus": [{"player": "NBR-9", "role": "attacker"}],
+        "speeds": {"NBR-9": [None, 27.5]},
+        "lines": {
+            "attack_dir": 1, "attacker": "NBR-9", "defender": "ASH-4", "attacker_x": 84.93,
+            "defender_x": 84.62, "attacker_part": "foot_l", "defender_part": "foot_l", "margin_m": 0.31,
+            "body": {"NBR-9": {"foot_l": [84.93, 26.1]}},
+        },
         "status": {"stadium": "Check complete: no goal", "officials": "Offside, 0.31 m"},
-    }
-    ReplayPackage.model_validate(pkg)
+        "sources": ["m01-e2104", "inc-m01-03"],
+    }  # fmt: skip
+    return base | over
+
+
+def test_replay_frames_in_order_and_slow_window_inside():
+    ReplayPackage.model_validate(replay_pkg())
     with pytest.raises(ValidationError, match="inside the replay"):
-        ReplayPackage.model_validate(pkg | {"slow": {"start": 4600.0, "end": 4680.0, "rate": 0.25}})
+        ReplayPackage.model_validate(replay_pkg(slow={"start": 4600.0, "end": 4680.0, "rate": 0.25}))
+
+
+def test_during_replay_cannot_carry_the_measurement():
+    with pytest.raises(ValidationError, match="N4"):
+        ReplayPackage.model_validate(replay_pkg(phase="during"))
+    with pytest.raises(ValidationError, match="N4"):
+        moments = [{"t": 4679.4, "label": "31 cm ahead", "reveal": "after"}]
+        ReplayPackage.model_validate(replay_pkg(phase="during", lines=None, moments=moments))
+    ReplayPackage.model_validate(replay_pkg(phase="during", lines=None))
+
+
+def test_replay_speeds_align_with_frames():
+    with pytest.raises(ValidationError, match="align"):
+        ReplayPackage.model_validate(replay_pkg(speeds={"NBR-9": [27.5]}))
 
 
 # ── Schema generation ────────────────────────────────────────────────────────

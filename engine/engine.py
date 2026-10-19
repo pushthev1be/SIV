@@ -10,19 +10,36 @@ Every Fact cites the event IDs it came from, so anything shown on screen traces 
 
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
-from contracts import Incident, MatchEvent
+from contracts import Incident, MatchEvent, ReplayPackage
 from contracts.common import PITCH_LENGTH_M
 from engine.decisions import DecisionDesk
 from engine.offside import measure
+from engine.replay import build_replay
 from engine.stats import Movement, Rolling, distance_to_goal, pass_quality
 
 PASS_QUALITY_MIN = 0.55  # completed passes at or above this difficulty become facts
 PRESSURE_SWING_UP, PRESSURE_SWING_RESET = 60, 45
 METRICS_EVERY_S = 60.0
 MULTIPLE_PHASES = 4  # on-ball events between the kick and the goal that make a check slow
+HISTORY_EVENTS = 1500  # about five minutes of feed, enough for any replay window
+# Per-player action log: event type -> what it means for the player in `player` (and `receiver`)
+ACTION_OF = {
+    "pass": "pass",
+    "carry": "carry",
+    "shot": "shot",
+    "tackle": "tackle",
+    "interception": "interception",
+    "pressure": "pressure",
+    "foul": "foul",
+    "card": "card",
+    "goal": "goal",
+    "kickoff": "kickoff",
+}
+RECEIVER_ACTION = {"pass": "received", "foul": "fouled", "tackle": "tackled", "pressure": "pressed"}
 
 RESTARTS = {"kickoff", "pass", "carry", "shot", "tackle", "interception"}
 VAR_KIND = {"offside": "offside", "red_card": "red_card", "penalty": "penalty", "handball": "handball"}
@@ -72,11 +89,16 @@ class Engine:
         self.period = 1
         self.clock = 0.0
         self._ctx = _Context()
+        self.history: deque[MatchEvent] = deque(maxlen=HISTORY_EVENTS)
+        self.replays: dict[str, dict[str, ReplayPackage]] = {}
+        self.player_log: dict[str, list[dict[str, Any]]] = {}
 
     # ── Public ───────────────────────────────────────────────────────────────
 
     def ingest(self, e: MatchEvent) -> list[Fact]:
         self.period, self.clock = e.period, e.clock
+        self.history.append(e)
+        self._log_actions(e)
         facts: list[Fact] = []
         if e.type == "kickoff":
             self._set_directions(e)
@@ -92,7 +114,56 @@ class Engine:
             facts += handler(e)
         if e.type == "tracking" and e.clock - self._ctx.last_metrics_clock >= METRICS_EVERY_S and self.teams:
             facts += self._metrics(e)
+        facts += self._replays_for(facts, e)
+        self._log_facts(facts)
         return facts
+
+    def _replays_for(self, facts: list[Fact], e: MatchEvent) -> list[Fact]:
+        """Build a during replay when a check opens and an after replay at every decision."""
+        out = []
+        for f in facts:
+            if f.kind != "incident" or f.values["state"] not in ("reviewing", "decided"):
+                continue
+            phase = "during" if f.values["state"] == "reviewing" else "after"
+            inc = self.desk.incidents[f.values["incident_id"]]
+            pkg = build_replay(self.history, inc, phase, self.direction)
+            if pkg is None:
+                continue
+            self.replays.setdefault(inc.incident_id, {})[phase] = pkg
+            roles = {x.player: x.role for x in pkg.focus}
+            out.append(self._fact("replay", e, pkg.sources, incident_id=inc.incident_id, phase=phase,
+                                  kind=inc.kind, roles=roles))  # fmt: skip
+        return out
+
+    def _log_actions(self, e: MatchEvent) -> None:
+        """Every on-ball involvement per player, each citing its event."""
+        base = {"period": e.period, "clock": e.clock, "event_id": e.event_id}
+        if e.player and e.type in ACTION_OF:
+            self.player_log.setdefault(e.player, []).append(
+                base | {"action": ACTION_OF[e.type], "outcome": e.outcome, "with": e.receiver}
+            )
+        if e.receiver and e.type in RECEIVER_ACTION and (e.type != "pass" or e.outcome == "complete"):
+            self.player_log.setdefault(e.receiver, []).append(
+                base | {"action": RECEIVER_ACTION[e.type], "outcome": e.outcome, "with": e.player}
+            )
+
+    def _log_facts(self, facts: list[Fact]) -> None:
+        for f in facts:
+            base = {"period": f.period, "clock": f.clock, "event_id": f.sources[0]}
+            if f.kind == "sprint":
+                self.player_log.setdefault(f.player, []).append(
+                    base | {"action": "sprint", "kmh": f.values["peak_kmh"]}
+                )
+            elif f.kind == "pass_quality":
+                self.player_log.setdefault(f.player, []).append(
+                    base | {"action": "hard_pass", "difficulty": f.values["difficulty"]}
+                )
+            elif f.kind == "replay" and f.values["phase"] == "after":
+                for pid, role in f.values["roles"].items():
+                    self.player_log.setdefault(pid, []).append(
+                        base | {"action": "call", "role": role, "incident_id": f.values["incident_id"],
+                                "kind": f.values["kind"]}
+                    )  # fmt: skip
 
     def snapshot(self) -> dict[str, Any]:
         return {
@@ -254,6 +325,8 @@ class Engine:
             "defender": m.defender,
             "attacker_x": m.attacker_x,
             "defender_x": m.defender_x,
+            "attacker_part": m.attacker_part,
+            "defender_part": m.defender_part,
             "attacking_team": kick.team,
             "offside_position": m.offside_position,
         }

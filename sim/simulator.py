@@ -431,32 +431,46 @@ class Simulator:
         passer, attacker, defender = m.players[s.passer], m.players[s.attacker], m.players[s.defender]
         self.safe_team = s.team
 
-        # Geometry in the attacking frame: margin is attacker's front playable part minus defender's.
-        dx, _ = m.af(s.team, *s.defender_pos)
-        att_x = dx + DEFENDER_FRONT + s.margin_m - ATTACKER_FRONT
-        att_pos = m.af(s.team, att_x, m.af(s.team, 0.0, s.attacker_y)[1])
-        for p, target in ((passer, s.passer_pos), (attacker, att_pos), (defender, s.defender_pos)):
+        # Set-up in the attacking frame: the attacker waits 8 m onside, the defender 1 m deeper than the line.
+        # Then the attacker sprints, the defender steps up, and the pass goes the instant the gap between the
+        # attacker's front foot and the defender's deepest playable part equals the scripted margin.
+        dx, dy = m.af(s.team, *s.defender_pos)
+        ay = m.af(s.team, 0.0, s.attacker_y)[1]
+        att_start, def_start = m.af(s.team, dx - 8.0, ay), m.af(s.team, dx + 1.0, dy)
+        for p, target in ((passer, s.passer_pos), (attacker, att_start), (defender, def_start)):
             if m.carrier != p.pid:
                 p.override, p.urgency = target, 0.9
         for p in m.on_pitch(m.other(s.team)):
             if p.pid != defender.pid and not p.is_gk:
-                p.max_af_x = dx - 1.5
+                p.max_af_x = dx - 6.5  # well behind, so the defender stays second-last as he steps up
 
         if m.carrier != passer.pid:
             self.force_receiver = passer.pid
             return False
         self.force_receiver = None
         passer.override = s.passer_pos
-        settled = all(dist(p.pos, t) < 1.0 for p, t in ((attacker, att_pos), (defender, s.defender_pos)))
+        settled = all(dist(p.pos, t) < 1.0 for p, t in ((attacker, att_start), (defender, def_start)))
         if (m.clock < s.at or not settled) and m.clock < s.at + 20:
             self._wait(0.5)
             return True
 
-        # The through ball. Snap the two players onto the scripted line (under 1 m of correction).
-        for p, (x, y) in ((attacker, att_pos), (defender, s.defender_pos)):
-            p.x, p.y = x, y
         d = m.direction(s.team)
-        run_to = (clamp(att_pos[0] + d * 6.0, 1, L - 1), clamp(att_pos[1] + rng.uniform(-1.5, 1.5), 1, W - 1))
+        attacker.override, attacker.urgency = m.af(s.team, dx + 10.0, ay), 1.0
+        defender.override, defender.urgency = m.af(s.team, dx - 5.0, dy), 0.4
+        for _ in range(80):
+            gap = (m.af(s.team, defender.x, 0)[0] + DEFENDER_FRONT + s.margin_m) - (
+                m.af(s.team, attacker.x, 0)[0] + ATTACKER_FRONT
+            )  # how far the attacker's front foot still is from the scripted position
+            closing = d * attacker.vx - d * defender.vx
+            if closing > 0 and gap <= closing * DT:
+                f = max(0.0, gap) / (closing * DT)  # the pass falls inside this tick: move both that far
+                for p in (attacker, defender):
+                    p.x += p.vx * DT * f
+                    p.y += p.vy * DT * f
+                break
+            self._wait(DT)
+        att_pos = attacker.pos
+        run_to = (clamp(attacker.x + d * 6.0, 1, L - 1), clamp(attacker.y + rng.uniform(-1.5, 1.5), 1, W - 1))
         length = dist(passer.pos, run_to)
         speed = clamp(48 + length * 1.2, 60, 95)
         frame, track, tk = self._offside_evidence(passer, attacker, run_to, speed, jitter=False)
@@ -483,7 +497,7 @@ class Simulator:
         self._emit("var_check", team=s.team, player=attacker.pid, outcome="offside", positions=False)
         self._wait(s.check_s)
         self._emit("var_decision", team=s.team, player=attacker.pid, outcome="no_goal", positions=False)
-        spot = m.af(s.team, att_x, m.af(s.team, 0.0, s.attacker_y)[1])
+        spot = att_pos  # indirect free kick where the attacker stood at the pass
         defender.override, defender.urgency = spot, 0.5
         self._wait(rng.uniform(12, 18))  # indirect free kick from the offside spot
         m.ball = spot

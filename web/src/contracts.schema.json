@@ -516,6 +516,126 @@
       "title": "MatchEvent",
       "type": "object"
     },
+    "OffsideLines": {
+      "additionalProperties": false,
+      "description": "The measurement at the moment of the pass. Only ever present after the decision.",
+      "properties": {
+        "attack_dir": {
+          "enum": [
+            1,
+            -1
+          ],
+          "type": "integer"
+        },
+        "attacker": {
+          "pattern": "^[A-Z]{3}-\\d{1,2}$",
+          "type": "string"
+        },
+        "attacker_part": {
+          "anyOf": [
+            {
+              "enum": [
+                "head",
+                "torso",
+                "foot_l",
+                "foot_r",
+                "knee_l",
+                "knee_r",
+                "arm"
+              ],
+              "type": "string"
+            },
+            {
+              "const": "centre",
+              "type": "string"
+            }
+          ]
+        },
+        "attacker_x": {
+          "type": "number"
+        },
+        "body": {
+          "patternProperties": {
+            "^[A-Z]{3}-\\d{1,2}$": {
+              "additionalProperties": {
+                "additionalItems": false,
+                "items": [
+                  {
+                    "maximum": 110.0,
+                    "minimum": -5.0,
+                    "type": "number"
+                  },
+                  {
+                    "maximum": 73.0,
+                    "minimum": -5.0,
+                    "type": "number"
+                  }
+                ],
+                "maxItems": 2,
+                "minItems": 2,
+                "type": "array"
+              },
+              "propertyNames": {
+                "enum": [
+                  "head",
+                  "torso",
+                  "foot_l",
+                  "foot_r",
+                  "knee_l",
+                  "knee_r",
+                  "arm"
+                ]
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "defender": {
+          "pattern": "^[A-Z]{3}-\\d{1,2}$",
+          "type": "string"
+        },
+        "defender_part": {
+          "anyOf": [
+            {
+              "enum": [
+                "head",
+                "torso",
+                "foot_l",
+                "foot_r",
+                "knee_l",
+                "knee_r",
+                "arm"
+              ],
+              "type": "string"
+            },
+            {
+              "const": "centre",
+              "type": "string"
+            }
+          ]
+        },
+        "defender_x": {
+          "type": "number"
+        },
+        "margin_m": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "attack_dir",
+        "attacker",
+        "defender",
+        "attacker_x",
+        "defender_x",
+        "attacker_part",
+        "defender_part",
+        "margin_m",
+        "body"
+      ],
+      "title": "OffsideLines",
+      "type": "object"
+    },
     "OverlayCue": {
       "additionalProperties": false,
       "properties": {
@@ -643,6 +763,33 @@
       "title": "OverlayCue",
       "type": "object"
     },
+    "ReplayFocus": {
+      "additionalProperties": false,
+      "properties": {
+        "player": {
+          "pattern": "^[A-Z]{3}-\\d{1,2}$",
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "attacker",
+            "defender",
+            "passer",
+            "scorer",
+            "assist",
+            "offender",
+            "fouled"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "player",
+        "role"
+      ],
+      "title": "ReplayFocus",
+      "type": "object"
+    },
     "ReplayFrame": {
       "additionalProperties": false,
       "properties": {
@@ -719,6 +866,13 @@
           "minItems": 2,
           "type": "array"
         },
+        "focus": {
+          "items": {
+            "$ref": "#/$defs/ReplayFocus"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
         "frames": {
           "items": {
             "$ref": "#/$defs/ReplayFrame"
@@ -730,11 +884,51 @@
           "pattern": "^inc-m\\d{2}-\\d+$",
           "type": "string"
         },
+        "key_t": {
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "kind": {
+          "enum": [
+            "offside",
+            "foul",
+            "penalty",
+            "handball",
+            "red_card",
+            "goal_check"
+          ],
+          "type": "string"
+        },
+        "lines": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OffsideLines"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "moments": {
           "items": {
             "$ref": "#/$defs/ReplayMoment"
           },
           "type": "array"
+        },
+        "period": {
+          "enum": [
+            1,
+            2
+          ],
+          "type": "integer"
+        },
+        "phase": {
+          "enum": [
+            "during",
+            "after"
+          ],
+          "type": "string"
         },
         "slow": {
           "anyOf": [
@@ -746,6 +940,31 @@
             }
           ],
           "default": null
+        },
+        "sources": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "speeds": {
+          "patternProperties": {
+            "^[A-Z]{3}-\\d{1,2}$": {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
         },
         "status": {
           "additionalProperties": {
@@ -764,10 +983,17 @@
       },
       "required": [
         "incident_id",
+        "kind",
+        "phase",
+        "period",
+        "key_t",
         "frames",
         "ball",
         "moments",
-        "status"
+        "focus",
+        "speeds",
+        "status",
+        "sources"
       ],
       "title": "ReplayPackage",
       "type": "object"
