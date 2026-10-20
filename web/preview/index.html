@@ -110,8 +110,8 @@
   .ev svg { width: 14px; height: 14px; }
   .ev:hover { background: var(--raise); color: var(--text); }
   .ev.future { opacity: .3; }
-  .tick { position: absolute; top: 27px; width: 3px; height: 10px; margin-left: -1.5px; border-radius: 2px; background: var(--muted); cursor: pointer; }
-  .tick.flag { height: 7px; top: 29px; background: var(--faint); }
+  .tick { position: absolute; top: 24px; width: 14px; height: 16px; margin-left: -7px; cursor: pointer; display: grid; place-items: center; }
+  .tick svg { width: 11px; height: 11px; filter: drop-shadow(0 0 1px #121212); }
   .tick.future { opacity: .35; }
   .tip { position: absolute; bottom: 58px; transform: translateX(-50%); background: var(--raise); border: 1px solid var(--line); border-radius: 6px;
          padding: 5px 9px; font-size: 12px; white-space: nowrap; pointer-events: none; display: none; z-index: 3; }
@@ -187,13 +187,16 @@
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
-    <symbol id="i-goal" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="currentColor"/></symbol>
-    <symbol id="i-nogoal" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3.5 12.5 12.5 3.5" stroke="currentColor" stroke-width="1.6"/></symbol>
-    <symbol id="i-var" viewBox="0 0 16 16"><path d="M8 1.5 14.5 8 8 14.5 1.5 8Z" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="8" cy="8" r="1.8" fill="currentColor"/></symbol>
-    <symbol id="i-pen" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="9.5" r="1.6" fill="currentColor"/></symbol>
-    <symbol id="i-red" viewBox="0 0 16 16"><rect x="4.5" y="2" width="7" height="12" rx="1.2" fill="currentColor"/></symbol>
-    <symbol id="i-yellow" viewBox="0 0 16 16"><rect x="4.5" y="2" width="7" height="12" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
-    <symbol id="i-flag" viewBox="0 0 16 16"><path d="M4 14V2" stroke="currentColor" stroke-width="1.6"/><path d="M4.8 2.5h8l-2 3 2 3h-8Z" fill="currentColor"/></symbol>
+    <symbol id="i-goal" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" fill="#f4f4f4" stroke="#121212" stroke-width=".8"/><path d="M8 4.6 10.6 6.5 9.6 9.6H6.4L5.4 6.5Z" fill="#121212"/><path d="M8 4.6V1.6M10.6 6.5l2.9-1M9.6 9.6l1.8 2.5M6.4 9.6l-1.8 2.5M5.4 6.5l-2.9-1" stroke="#121212" stroke-width=".8"/></symbol>
+    <symbol id="i-nogoal" viewBox="0 0 16 16"><use href="#i-goal" opacity=".55"/><path d="M2.5 13.5 13.5 2.5" stroke="#121212" stroke-width="3.2" stroke-linecap="round"/><path d="M2.5 13.5 13.5 2.5" stroke="#ececec" stroke-width="1.4" stroke-linecap="round"/></symbol>
+    <symbol id="i-var" viewBox="0 0 16 16"><rect x="1" y="2" width="14" height="9.5" rx="1.4" fill="#2b2b2b" stroke="#ececec" stroke-width="1"/><text x="8" y="9.1" text-anchor="middle" font-family="Barlow Condensed, sans-serif" font-weight="700" font-size="6.4" fill="#ececec">VAR</text><path d="M6 14.5h4M8 11.5v3" stroke="#ececec" stroke-width="1.1"/></symbol>
+    <symbol id="i-pen" viewBox="0 0 16 16"><path d="M2 3.5h12V9" fill="none" stroke="#ececec" stroke-width="1.2"/><path d="M2 3.5V9" stroke="#ececec" stroke-width="1.2"/><path d="M2.8 4.3h10.4M2.8 5.8h10.4M2.8 7.3h10.4M4.5 3.5v5.5M7 3.5v5.5M9.5 3.5v5.5M12 3.5v5.5" stroke="#ececec" stroke-width=".35" opacity=".6"/><circle cx="8" cy="13" r="1.8" fill="#f4f4f4"/></symbol>
+    <symbol id="i-red" viewBox="0 0 16 16"><rect x="4.3" y="1.6" width="7.4" height="11" rx="1" fill="#e53935" transform="rotate(10 8 8)"/></symbol>
+    <symbol id="i-yellow" viewBox="0 0 16 16"><rect x="4.3" y="1.6" width="7.4" height="11" rx="1" fill="#fdd835" transform="rotate(10 8 8)"/></symbol>
+    <symbol id="i-downgrade" viewBox="0 0 16 16"><rect x="2.8" y="1.4" width="7" height="10.4" rx="1" fill="#e53935" opacity=".55" transform="rotate(-8 6 7)"/><rect x="6.2" y="3.6" width="7" height="10.4" rx="1" fill="#fdd835" transform="rotate(10 9.7 8.8)"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 16 16"><path d="M3.4 15V1.5" stroke="#d6d6d6" stroke-width="1.3" stroke-linecap="round"/><rect x="4" y="1.8" width="9.5" height="7" fill="#fdd835"/><path d="M4 1.8h4.75v3.5H4ZM8.75 5.3h4.75v3.5H8.75Z" fill="#e53935"/></symbol>
+    <symbol id="i-goalline" viewBox="0 0 16 16"><path d="M2 2.5v11M14 2.5v11" stroke="#ececec" stroke-width="1.2"/><path d="M1 13.5h14" stroke="#ececec" stroke-width="1.6"/><circle cx="8" cy="11.2" r="2.2" fill="#f4f4f4" stroke="#121212" stroke-width=".6"/><path d="M2 2.5h12" stroke="#ececec" stroke-width="1.2"/></symbol>
+    <symbol id="i-ballout" viewBox="0 0 16 16"><path d="M5.5 1v14" stroke="#ececec" stroke-width="1.6"/><circle cx="10.3" cy="9" r="3.2" fill="#f4f4f4" stroke="#121212" stroke-width=".6"/><path d="M1.5 9h2.4" stroke="#8a8a8a" stroke-width="1.2" stroke-dasharray="1 1"/></symbol>
     <symbol id="i-hud" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2" fill="currentColor"/><path d="M2 5V2h3M11 2h3v3M14 11v3h-3M5 14H2v-3" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
     <symbol id="i-loop" viewBox="0 0 16 16"><path d="M3 8a5 5 0 0 1 8.5-3.5L13 6M13 2v4H9M13 8a5 5 0 0 1-8.5 3.5L3 10M3 14v-4h4" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
     <symbol id="i-whistle" viewBox="0 0 16 16"><path d="M2 9a4 4 0 1 0 8 0V7h4V4H6.5A4.5 4.5 0 0 0 2 8.5Z" fill="currentColor"/></symbol>
@@ -206,7 +209,7 @@
   <header class="bar">
     <div class="bug"><span id="homeTeam"></span><span class="score" id="score">0 – 0</span><span id="awayTeam"></span><span class="clock" id="clock">0:00</span></div>
     <div class="right">
-      <select id="scenario" aria-label="Match"><option value="golden">Golden match</option><option value="red_card">Red card match</option><option value="late_comeback">Late comeback</option></select>
+      <select id="scenario" aria-label="Match"><option value="var_showcase">Every VAR call</option><option value="golden">Golden match</option><option value="red_card">Red card match</option><option value="late_comeback">Late comeback</option></select>
       <div class="brand"><b>VAR</b> NARRATIVE</div>
     </div>
   </header>
@@ -242,14 +245,15 @@
     <button class="switch" role="switch" aria-checked="true" id="hudToggle" title="Callouts for the selected player"><svg class="ico"><use href="#i-hud"/></svg><span class="lbl">HUD</span><span class="track"><span class="knob"></span></span></button>
     <div class="key"><button id="keyBtn">Key</button>
       <div class="legend" id="legend"><h4>TIMELINE KEY</h4>
-        <div><svg><use href="#i-goal"/></svg>Goal, in the scorer's club colour</div>
-        <div><svg><use href="#i-nogoal"/></svg>Goal ruled out</div>
-        <div><svg><use href="#i-var"/></svg>VAR check, goal stands</div>
-        <div><svg><use href="#i-pen"/></svg>Penalty review</div>
+        <div><svg><use href="#i-goal"/></svg>Goal, ringed in the scorer's colour</div>
+        <div><svg><use href="#i-var"/></svg>VAR offside check</div>
+        <div><svg><use href="#i-ballout"/></svg>Ball out of play</div>
+        <div><svg><use href="#i-goalline"/></svg>Goal-line decision</div>
+        <div><svg><use href="#i-pen"/></svg>Penalty: location or retake</div>
         <div><svg><use href="#i-red"/></svg>Red card</div>
-        <div><svg><use href="#i-yellow"/></svg>Red card downgraded to yellow</div>
-        <div><svg viewBox="0 0 16 16"><rect x="6.5" y="3" width="3" height="10" rx="1.5" fill="#8a8a8a"/></svg>Yellow card (tick on the bar)</div>
-        <div><svg viewBox="0 0 16 16"><rect x="6.5" y="5" width="3" height="7" rx="1.5" fill="#5c5c5c"/></svg>Offside flag (tick on the bar)</div>
+        <div><svg><use href="#i-downgrade"/></svg>Red card downgraded</div>
+        <div><svg><use href="#i-yellow"/></svg>Yellow card (small, on the bar)</div>
+        <div><svg><use href="#i-flag"/></svg>Offside flag (small, on the bar)</div>
       </div>
     </div>
   </footer>
@@ -270,7 +274,7 @@
 (() => {
   const $ = (id) => document.getElementById(id);
   const NS = "http://www.w3.org/2000/svg";
-  const scenario = new URLSearchParams(location.search).get("s") || "golden";
+  const scenario = new URLSearchParams(location.search).get("s") || "var_showcase";
   $("scenario").value = scenario;
   $("scenario").onchange = (e) => { location.search = "?s=" + e.target.value; };
 
@@ -289,8 +293,14 @@
   const PART = { foot_l: "left foot", foot_r: "right foot", knee_l: "left knee", knee_r: "right knee", head: "head", torso: "body", centre: "body" };
   const ROLE = { GK: "Goalkeeper", DF: "Defender", MF: "Midfielder", FW: "Forward" };
   const CALL_ROLE = { attacker: "attacker under check", defender: "defender setting the line", passer: "played the pass", scorer: "scorer", assist: "assist", offender: "made the challenge", fouled: "was challenged" };
-  const KIND = { offside: "Offside", goal_check: "Goal", red_card: "Red card", foul: "Yellow card", penalty: "Penalty", handball: "Handball" };
-  const FINAL = { no_goal: "No goal", goal: "Goal stands", penalty: "Penalty", no_penalty: "No penalty", red_card: "Red card", yellow: "Yellow card", offside: "Offside" };
+  const KIND = { offside: "Offside", goal_check: "Goal", red_card: "Red card", foul: "Yellow card", penalty: "Penalty", handball: "Handball",
+                 ball_out: "Ball out of play", goal_line: "Goal-line", penalty_location: "Penalty or free kick", keeper_encroachment: "Penalty retake", dogso: "DOGSO" };
+  const MEASURED = new Set(["ball_out", "goal_line", "penalty_location", "keeper_encroachment", "dogso"]);
+  const SIDE = (kind, v) => ({ ball_out: v > 0 ? "wholly over the line" : "still on the line", goal_line: v > 0 ? "wholly over the line" : "short of wholly over",
+                               box_edge: v > 0 ? "outside the area" : "inside the area", keeper_line: v > 0 ? "off the line" : "on the line" })[kind] || "";
+  const MKIND = { ball_out: "ball_out", goal_line: "goal_line", penalty_location: "box_edge", keeper_encroachment: "keeper_line", dogso: "dogso" };
+  const FINAL = { no_goal: "No goal", goal: "Goal stands", penalty: "Penalty", no_penalty: "No penalty", red_card: "Red card", yellow: "Yellow card", offside: "Offside",
+                  free_kick: "Free kick", retake: "Retake" };
   const margin = (m) => (Math.abs(m) < 1 ? `${Math.round(Math.abs(m) * 100)} cm (${(Math.abs(m) / 0.0254).toFixed(1)} in)` : `${Math.abs(m).toFixed(2)} m`);
 
   function crest(code) {
@@ -383,11 +393,14 @@
         if (ruledOut.has(v.goal_event) || !after) return;     // a ruled-out goal is shown as its check
         const scorer = after.focus[0].player;
         iconId = "goal"; title = `Goal · ${name(scorer)}`; team = scorer.slice(0, 3);
+      } else if (MEASURED.has(b.kind)) {
+        iconId = { ball_out: "ballout", goal_line: "goalline", penalty_location: "pen", keeper_encroachment: "pen", dogso: "red" }[b.kind];
+        title = `${KIND[b.kind]} · ${FINAL[b.final] || b.final}`;
       } else if (b.kind === "offside") {
-        iconId = reviewed ? (b.final === "no_goal" ? "nogoal" : "var") : "flag";
+        iconId = reviewed ? "var" : "flag";
         title = reviewed ? `Offside check · ${FINAL[b.final]}` : `Offside flag · ${name(f.attacker)}`;
-      } else if (b.kind === "penalty") { iconId = "pen"; title = `Penalty review · ${FINAL[b.final]}`; }
-      else if (b.kind === "red_card") { iconId = b.final === "red_card" ? "red" : "yellow"; title = reviewed ? `Red card review · ${FINAL[b.final]}` : "Red card"; }
+      } else if (b.kind === "penalty") { iconId = "pen"; title = reviewed ? `Penalty review · ${FINAL[b.final]}` : `Penalty given · ${name(f.fouled)}`; }
+      else if (b.kind === "red_card") { iconId = b.final === "red_card" ? "red" : "downgrade"; title = reviewed ? `Red card review · ${FINAL[b.final]}` : "Red card"; }
       else if (b.kind === "foul") { iconId = "yellow"; title = `Yellow card · ${name(f.offender)}`; }
       else return;
       const opened = b.t.open ?? b.t.reviewing ?? dec.t;
@@ -405,7 +418,10 @@
     CALLS.forEach((c) => {
       const b = D.officials[c.iid], f = b.facts, rf = b.replay_facts, when = clockText(c.period, c.at);
       if (c.reviewed && c.review != null) {
-        const what = b.kind === "offside" ? `a possible offside on ${name(f.attacker)}'s goal`
+        const what = MEASURED.has(b.kind) ? ({ ball_out: "whether the ball was out before the goal", goal_line: "whether the whole ball crossed the line",
+            penalty_location: `where ${name(f.offender)}'s challenge on ${name(f.fouled)} started`, keeper_encroachment: `${name(f.subject)}'s position at the penalty`,
+            dogso: `${name(f.offender)}'s foul on ${name(f.fouled)} for DOGSO` })[b.kind]
+          : b.kind === "offside" ? `a possible offside on ${name(f.attacker)}'s goal`
           : b.kind === "penalty" ? `a possible penalty: ${name(f.offender)}'s challenge on ${name(f.fouled)}`
           : `${name(f.offender)}'s challenge on ${name(f.fouled)}`;
         say(c.review, "open", `Check open · ${when}`, `Reviewing <b>${what}</b>. On-field call: <b>${onField(b)}</b>.`);
@@ -413,7 +429,29 @@
           const [first, ...rest] = b.law.summary.split(/(?<=\.)\s+/);
           say(c.review + 0.01, "law", b.law.law, `${first}${rest.length ? `<details><summary class="chip" style="display:inline-block;margin-top:6px;cursor:pointer">More</summary>${rest.join(" ")}<br><span style="color:var(--muted)">${b.law.how_checked}</span></details>` : ""}<div class="row"><span class="chip">${b.factual ? "Factual check" : "Judgement check"}</span></div>`);
         }
-        if (b.kind === "offside") {
+        if (MEASURED.has(b.kind)) {
+          const ms = D.replays[c.iid]?.after?.measurement;
+          if (b.kind === "dogso") {
+            const dir = f.direction_off_goal_deg != null ? `heading ${f.direction_off_goal_deg}° off the line to goal` : "direction unclear";
+            say(c.review + 0.02, "evidence", "Evidence", `The four considerations: <b>${f.distance_to_goal_m} m</b> from goal; ${dir}; <b>${f.defenders_between}</b> outfield defender${f.defenders_between === 1 ? "" : "s"} between ${name(f.subject)} and goal${f.keeper_goal_side ? ", keeper goal-side" : ""}; ball ${f.in_control ? "<b>under control</b>" : "not under control"}.`);
+            const obvious = f.distance_to_goal_m <= 30 && f.defenders_between === 0 && (f.direction_off_goal_deg ?? 0) <= 35 && f.in_control;
+            say(c.review + 0.03, "advice", "Advice", obvious
+              ? `All four point to an obvious goal-scoring opportunity. A judgement call, but the factors support <b>upgrading to a red card</b>. The decision is yours.`
+              : `The factors are mixed. If the on-field yellow looks clearly wrong, take the review at the monitor. <b>The decision is yours.</b>`);
+          } else {
+            const v = f.value_m, side = SIDE(f.measure, v);
+            const what = { ball_out: "ball's edge nearest the pitch", goal_line: "ball's trailing edge", box_edge: "point where contact started", keeper_line: `${name(f.subject)}'s foot nearest the line` }[f.measure];
+            const law = b.law ? b.law.law : "the Laws";
+            say(c.review + 0.02, "evidence", "Evidence", `${law}: the ${what} is <b>${margin(v)} ${side}</b>${ms ? ` (${ms.line_label})` : ""}.`);
+            const advice = {
+              ball_out: v > 0 ? "The ball was out before the goal. <b>Advise: no goal.</b>" : "The ball was still in play. <b>Advise: the goal stands.</b>",
+              goal_line: v > 0 ? "The whole ball was over. <b>Advise: goal.</b>" : "The whole ball never crossed. <b>Advise: no goal.</b>",
+              box_edge: v > 0 ? "Contact started outside the area. <b>Advise: a free kick, not a penalty.</b>" : "Contact started inside the area. <b>Advise: the penalty stands.</b>",
+              keeper_line: v > 0 ? "The keeper was off the line and the save came from it. <b>Advise: retake.</b>" : "The keeper was on the line. <b>Advise: the save stands.</b>",
+            }[f.measure];
+            say(c.review + 0.03, "advice", "Advice", `${advice} A factual call.`);
+          }
+        } else if (b.kind === "offside") {
           const m = f.margin_m, side = m > 0 ? "beyond" : "behind";
           say(c.review + 0.02, "evidence", "Evidence", `Kick frame <b>${clockText(c.period, f.kick_clock)}</b> from the ${rf.ball_track_fps || 100} fps ball track. <b>${name(f.attacker)}</b>'s ${PART[f.attacker_part] || f.attacker_part} is <b>${margin(m)} ${side}</b> ${name(f.defender)}'s ${PART[f.defender_part] || f.defender_part}, the second-last defender. Arms ignored.`);
           say(c.review + 0.03, "advice", "Advice", m > 0
@@ -426,7 +464,7 @@
           say(c.review + 0.02, "evidence", "Evidence", factors.length ? `Factors to weigh: ${factors.join("; ")}.` : "Watch the challenge from the closest angle.");
           say(c.review + 0.03, "advice", "Advice", `A judgement call. If the on-field call (<b>${onField(b)}</b>) looks clearly wrong, take the on-field review at the monitor. <b>The decision is yours.</b>`);
         }
-        const agrees = b.kind !== "offside" || (f.margin_m > 0) === (b.final === "no_goal");
+        const agrees = b.kind === "offside" ? (f.margin_m > 0) === (b.final === "no_goal") : true;
         say(c.decided, "decision", `Decision · ${when}`, `<b>${FINAL[b.final] || b.final}</b>. ${b.factual ? (agrees ? "Consistent with the evidence." : "The measurement points the other way: record the reason.") : "Recorded with the factors above."}`, { iid: c.iid });
       } else if (c.kind === "foul" || (c.kind === "red_card" && !c.reviewed)) {
         say(c.decided, "note", `Card · ${when}`, `${FINAL[b.final] || "Card"} for <b>${name(f.offender)}</b>. Law 12: a reckless challenge is a caution.`, { iid: c.iid });
@@ -461,7 +499,7 @@
       const done = c.decided <= t, lead = c.summary.replace(/^Why [^.]+\.\s*/, "");
       const evidence = lead.split(". ").filter((s) => !s.startsWith("Under Law")).join(". ");
       return `<li class="call ${done ? "" : "live"}" data-iid="${c.iid}">
-        <span style="color:${c.team ? colour[c.team] : "var(--soft)"}">${icon(c.icon)}</span>
+        <span style="${c.team ? `border-radius:50%;box-shadow:0 0 0 2px ${colour[c.team]};width:16px;height:16px;display:grid;place-items:center` : ""}">${icon(c.icon)}</span>
         <div><div class="title">${done ? c.title : `${KIND[c.kind]} check in progress`}</div>
         <div class="sub">${done ? evidence : "The officials are reviewing. Nothing is shown until they decide."}</div></div>
         <span class="when">${clockText(c.period, c.at)}</span></li>`;
@@ -479,6 +517,8 @@
         if (v.state === "reviewing") return { tag: "VAR", text: `Checking a possible ${v.kind.replace("_", " ")}. Nothing is shown until the officials decide.`, prio: 6 };
         if (v.state !== "decided" || !v.var_outcome) return null;
         if (v.kind === "offside") return { tag: FINAL[v.final], text: `${v.final === "goal" ? "Onside" : "Offside"} · ${N(v.facts.attacker)} ${margin(v.facts.margin_m)} ${v.facts.margin_m > 0 ? "beyond" : "behind"} ${N(v.facts.defender)}`, prio: 7 };
+        if (v.kind === "dogso") return { tag: FINAL[v.final], text: `DOGSO · ${N(v.facts.offender)} sent off: ${v.facts.distance_to_goal_m} m out, ${v.facts.defenders_between} defenders between`, prio: 7 };
+        if (MEASURED.has(v.kind) && v.facts.value_m != null) return { tag: FINAL[v.final] || v.final, text: `${KIND[v.kind]} · ${margin(v.facts.value_m)} ${SIDE(v.facts.measure, v.facts.value_m)}`, prio: 7 };
         return { tag: FINAL[v.final] || v.final, text: `${KIND[v.kind]} review · ${N(v.facts.offender)} on ${N(v.facts.fouled)}`, prio: 7 };
       }
       default: return null;
@@ -565,7 +605,7 @@
     $("htMark").style.left = pos(D.second_half_t - 15);
     // Major events get an icon above the rail; cards and flags are small ticks on it, to keep the bar calm.
     const minor = (c) => c.icon === "yellow" && !c.reviewed || c.icon === "flag";
-    $("lane").innerHTML = CALLS.map((c, i) => minor(c) ? "" : `<span class="ev" data-i="${i}" style="left:${pos(c.opened)};${c.team ? `color:${colour[c.team]}` : ""}">${icon(c.icon)}</span>`).join("");
+    $("lane").innerHTML = CALLS.map((c, i) => minor(c) ? "" : `<span class="ev" data-i="${i}" style="left:${pos(c.opened)};${c.team ? `box-shadow:0 0 0 2px ${colour[c.team]}` : ""}">${icon(c.icon)}</span>`).join("");
     // Icons closer than ~18px slide apart, so two events in the same minute stay readable.
     const width = $("tl").getBoundingClientRect().width || 600;
     let lastX = -1e9;
@@ -574,7 +614,7 @@
       el.style.left = `${placed}px`; lastX = placed;
     });
     $("tl").querySelectorAll(".tick").forEach((el) => el.remove());
-    CALLS.forEach((c, i) => { if (minor(c)) $("tl").insertAdjacentHTML("beforeend", `<span class="tick ${c.icon === "flag" ? "flag" : ""}" data-i="${i}" style="left:${pos(c.opened)}"></span>`); });
+    CALLS.forEach((c, i) => { if (minor(c)) $("tl").insertAdjacentHTML("beforeend", `<span class="tick" data-i="${i}" style="left:${pos(c.opened)}">${icon(c.icon)}</span>`); });
     $("tl").querySelectorAll(".ev, .tick").forEach((el) => {
       const c = CALLS[+el.dataset.i];
       el.onmouseenter = () => { const tip = $("tip"); tip.textContent = `${clockText(c.period, c.at)} · ${c.decided <= t ? c.title : KIND[c.kind] || "Call"}`; tip.style.left = el.style.left; tip.classList.add("on"); };
@@ -714,7 +754,11 @@
     P.ball.forEach((b) => pts.push([b.x, b.y]));
     R.view = bbox(pts, 6); R.zoomBox = null;
     if (P.lines) { const bp = []; Object.values(P.lines.body).forEach((parts) => Object.values(parts).forEach((p) => bp.push(p))); R.zoomBox = bbox(bp, 1.6); }
-    $("rTitle").textContent = P.kind === "offside" ? "Offside check" : P.kind === "goal_check" ? "Goal" : `${KIND[P.kind]} review`;
+    else if (P.measurement) {
+      const [fx, fy, fw, fh] = P.measurement.focus;
+      R.zoomBox = P.measurement.kind === "dogso" ? bbox([[fx, fy], [fx + fw, fy + fh]], 2) : bbox([P.measurement.point], 1.4);
+    }
+    $("rTitle").textContent = P.kind === "offside" ? "Offside check" : P.kind === "goal_check" ? "Goal" : MEASURED.has(P.kind) ? KIND[P.kind] : `${KIND[P.kind]} review`;
     $("rPhase").className = "phase " + P.phase;
     $("rPhase").textContent = P.phase === "during" ? "CHECK IN PROGRESS" : "DECIDED";
     $("rSrc").textContent = "Sources · " + P.sources.join(" · ");
@@ -745,7 +789,7 @@
     if (R.zoom > 0 && R.frozen) R.zoom = Math.max(0, R.zoom - dt * 1.2);
     const slow = P.slow && R.rt >= P.slow.start && R.rt <= P.slow.end;
     const next = R.rt + dt * (slow ? P.slow.rate : 1);
-    if (!R.frozen && R.rt < P.key_t && next >= P.key_t) { R.rt = P.key_t; R.frozen = true; R.hold = P.lines ? 5 : 2.5; drawReplayText(); return; }
+    if (!R.frozen && R.rt < P.key_t && next >= P.key_t) { R.rt = P.key_t; R.frozen = true; R.hold = P.lines || P.measurement ? 5 : 2.5; drawReplayText(); return; }
     const last = P.frames[P.frames.length - 1].t;
     R.rt = Math.min(next, last);
     if (R.rt >= last) {
@@ -760,6 +804,7 @@
     const v = R.view, zb = R.zoomBox || v, vb = v.map((a, k) => a + (zb[k] - a) * z);
     $("rsvg").setAttribute("viewBox", vb.join(" "));
     const scale = vb[2] / 111, nodes = $("rPlayers").children, pos = {};
+    const minScale = P.measurement && z > 0.3 ? 0.035 : 0.18;   // a 5 m zoom needs smaller players
     interp(P.frames, R.rt, (a, b, k) => {
       players.forEach((pid, j) => {
         const pa = a.positions[pid], pb = b.positions[pid] || pa, n = nodes[j];
@@ -767,14 +812,14 @@
         const x = pa[0] + (pb[0] - pa[0]) * k, y = pa[1] + (pb[1] - pa[1]) * k;
         pos[pid] = [x, y];
         n.removeAttribute("display");
-        n.setAttribute("transform", `translate(${x.toFixed(3)},${y.toFixed(3)}) scale(${Math.max(scale, 0.18)})`);
+        n.setAttribute("transform", `translate(${x.toFixed(3)},${y.toFixed(3)}) scale(${Math.max(scale, minScale)})`);
         const focus = P.focus.find((f) => f.player === pid);
         n.style.opacity = focus || pid === selected ? 1 : 0.4;
         n.querySelector(".ring").setAttribute("display", focus || pid === selected ? "inline" : "none");
       });
     });
     const ball = interp(P.ball, R.rt, (a, b, k) => [a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k]);
-    $("rBall").setAttribute("cx", ball[0]); $("rBall").setAttribute("cy", ball[1]); $("rBall").setAttribute("r", 0.6 * Math.max(scale, 0.18));
+    $("rBall").setAttribute("cx", ball[0]); $("rBall").setAttribute("cy", ball[1]); const br = 0.6 * Math.max(scale, minScale); $("rBall").setAttribute("r", br); $("rBall").setAttribute("stroke-width", br * 0.25);
 
     const tags = $("rTags"); tags.innerHTML = "";
     const calloutAlpha = Math.max(0, 1 - z / 0.15);
@@ -835,8 +880,57 @@
         }
       } else if (!P.lines) { note.textContent = "The moment of the pass · the measurement appears once the officials decide"; note.classList.add("on"); }
     }
-    if (R.frozen && R.hold > 0 && P.kind !== "offside") { const m = P.moments.find((x) => Math.abs(x.t - P.key_t) < 0.05); if (m) { note.textContent = names(m.label); note.classList.add("on"); } }
+    if (R.frozen && P.measurement && R.zoom > 0.05) drawMeasurement(P.measurement, vb, z, L);
+    else if (R.frozen && !P.measurement && MEASURED.has(P.kind) && R.hold > 0) { note.textContent = "The moment that matters · the measurement appears once the officials decide"; note.classList.add("on"); }
+    if (R.frozen && R.hold > 0 && P.kind !== "offside" && !MEASURED.has(P.kind)) { const m = P.moments.find((x) => Math.abs(x.t - P.key_t) < 0.05); if (m) { note.textContent = names(m.label); note.classList.add("on"); } }
     $("rClock").textContent = `${P.period === 1 ? "1H" : "2H"} ${clockText(P.period, R.rt)} · ${R.hold > 0 ? "frozen at the moment" : P.slow && R.rt >= P.slow.start && R.rt <= P.slow.end ? "slow motion ×0.25" : "replay"}`;
+  }
+
+  // Any measured call: the reference line, what was measured, and the distance between them.
+  function drawMeasurement(ms, vb, z, L) {
+    const u = vb[2], textAlpha = Math.min(1, Math.max(0, (z - 0.8) / 0.2));
+    const [[x1, y1], [x2, y2]] = ms.line, [px, py] = ms.point;
+    const text = (g, x, y, str, fill, size, anchor = "middle", font = "IBM Plex Mono", weight = 600) => { svg("text", { x, y, "text-anchor": anchor, "font-size": size, "font-family": font, "font-weight": weight, fill }, g).textContent = str; };
+    if (ms.kind === "dogso") {
+      svg("line", { x1, y1, x2, y2, stroke: "#ececec", "stroke-width": u / 300, "stroke-dasharray": `${u / 80} ${u / 120}` }, L);
+      svg("circle", { cx: px, cy: py, r: u / 60, fill: "none", stroke: "#ececec", "stroke-width": u / 400 }, L);
+      if (textAlpha > 0) {
+        const T = svg("g", { opacity: textAlpha.toFixed(2) }, L), f = ms.factors, fs = u / 40;
+        const rows = [
+          [`${f.distance_to_goal_m} m to goal`, f.distance_to_goal_m <= 30],
+          [f.direction_off_goal_deg != null ? `${f.direction_off_goal_deg}° off the line to goal` : "direction unclear", (f.direction_off_goal_deg ?? 90) <= 35],
+          [`${f.defenders_between} defenders between`, f.defenders_between === 0],
+          [f.in_control ? "ball under control" : "no clear control", !!f.in_control],
+        ];
+        const bx = vb[0] + u * 0.03, by = vb[1] + vb[3] * 0.06, bw = u * 0.36, bh = fs * (rows.length * 1.5 + 1.8);
+        svg("rect", { x: bx, y: by, width: bw, height: bh, rx: u / 300, fill: "rgba(18,18,18,.9)", stroke: "rgba(255,255,255,.25)", "stroke-width": u / 900 }, T);
+        text(T, bx + u / 60, by + fs * 1.3, "DOGSO · THE FOUR CONSIDERATIONS", "var(--muted)", fs * 0.8, "start");
+        rows.forEach(([label, ok], i) => text(T, bx + u / 60, by + fs * (2.9 + i * 1.5), `${ok ? "✓" : "✗"}  ${label}`, ok ? "#ececec" : "var(--muted)", fs, "start"));
+      }
+      return;
+    }
+    // Reference line, drawn long through the zoom
+    const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
+    svg("line", { x1: x1 - ux * 200, y1: y1 - uy * 200, x2: x2 + ux * 200, y2: y2 + uy * 200, stroke: "#ececec", "stroke-width": u / 160, opacity: 0.9 }, L);
+    // Foot of the perpendicular from the point to the line
+    const tproj = ((px - x1) * ux + (py - y1) * uy), fx = x1 + ux * tproj, fy = y1 + uy * tproj;
+    const isBall = ms.kind === "ball_out" || ms.kind === "goal_line";
+    if (isBall) svg("circle", { cx: px, cy: py, r: 0.11, fill: "#f4f4f4", stroke: "#121212", "stroke-width": u / 900 }, L);
+    // Where the measurement is taken from: the ball's near edge, or the point itself
+    const nx = fx - px, ny = fy - py, nd = Math.hypot(nx, ny) || 1;
+    const mx = isBall ? px + (nx / nd) * 0.11 * Math.sign(ms.value_m >= 0 ? -1 : 1) : px, my = isBall ? py + (ny / nd) * 0.11 * Math.sign(ms.value_m >= 0 ? -1 : 1) : py;
+    if (!isBall) svg("circle", { cx: px, cy: py, r: u / 90, fill: "#ececec", stroke: "#121212", "stroke-width": u / 900 }, L);
+    svg("line", { x1: mx, y1: my, x2: fx, y2: fy, stroke: "#ececec", "stroke-width": u / 260 }, L);
+    if (textAlpha > 0) {
+      const T = svg("g", { opacity: textAlpha.toFixed(2) }, L), v = Math.abs(ms.value_m);
+      const big = v < 1 ? `${(v / 0.0254).toFixed(1)} in · ${Math.round(v * 100)} cm` : `${v.toFixed(2)} m`;
+      const bs = u / 16, pw = big.length * bs * 0.5 + u * 0.05, ph = bs * 2.2;
+      const cx = (mx + fx) / 2 - (nx / nd) * u * 0.18, cy = (my + fy) / 2 - (ny / nd) * u * 0.18 - u * 0.12;
+      svg("rect", { x: cx - pw / 2, y: cy - ph / 2, width: pw, height: ph, rx: u / 200, fill: "rgba(18,18,18,.92)", stroke: "rgba(255,255,255,.3)", "stroke-width": u / 900 }, T);
+      text(T, cx, cy + bs * 0.1, big, "#ececec", bs, "middle", "Barlow Condensed", 700);
+      text(T, cx, cy + bs * 0.75, SIDE(ms.kind, ms.value_m).toUpperCase(), "var(--muted)", bs * 0.3);
+      text(T, fx + ux * u * 0.12, fy + uy * u * 0.12 + u / 60, ms.line_label.toUpperCase(), "var(--muted)", u / 55);
+    }
   }
 
   // ── Loop and controls ───────────────────────────────────────────────────

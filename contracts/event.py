@@ -32,6 +32,10 @@ EventType = Literal[
 BodyPart = Literal["head", "torso", "foot_l", "foot_r", "knee_l", "knee_r", "arm"]
 
 
+BALL_TRACK_TYPES = frozenset({"pass", "shot"})
+FRAME_TYPES = frozenset({"pass", "shot", "foul", "tackle"})
+
+
 class BodyFrame(Contract):
     clock: Clock
     body: dict[PlayerId, dict[BodyPart, Point]]
@@ -51,18 +55,24 @@ class MatchEvent(Contract):
     end: Point | None = None
     ball_speed_kmh: float | None = Field(default=None, ge=0, le=200)
     positions: dict[PlayerId, Point]
+    # Evidence for checks that measure something: body parts at the key moment, the ball at 100 fps
+    # around a kick or shot, and the point where a challenge made contact.
     frame: BodyFrame | None = None
-    # (clock, x, y) samples at 100 fps around the kick, for finding the kick point
     ball_track: list[tuple[Clock, float, float]] | None = None
+    contact: Point | None = None
 
     @model_validator(mode="after")
     def _check(self) -> "MatchEvent":
         if not self.event_id.startswith(f"{self.match_id}-"):
             raise ValueError("event_id must be prefixed with match_id")
-        if (self.frame is None) != (self.ball_track is None):
-            raise ValueError("frame and ball_track must appear together")
-        if self.frame is not None and self.type != "pass":
-            raise ValueError("frame and ball_track appear only on passes")
+        if self.ball_track is not None and self.frame is None:
+            raise ValueError("a ball_track needs a body frame at the same moment")
+        if self.ball_track is not None and self.type not in BALL_TRACK_TYPES:
+            raise ValueError("ball_track appears only on passes and shots")
+        if self.frame is not None and self.type not in FRAME_TYPES:
+            raise ValueError("frame appears only on passes, shots, fouls and tackles")
+        if self.contact is not None and self.type not in ("foul", "tackle"):
+            raise ValueError("contact appears only on fouls and tackles")
         if self.type not in ("period_end", "var_check", "var_decision") and not 14 <= len(self.positions) <= 22:
             raise ValueError("on-ball events must carry every on-pitch position (14 to 22)")
         return self

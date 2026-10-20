@@ -1,0 +1,17 @@
+{
+  "name": "var_showcase",
+  "match_id": "m04",
+  "seed": 2026,
+  "home": "NBR",
+  "away": "ASH",
+  "random_goals": false,
+  "script": [
+    { "kind": "ball_out_goal", "at": 700.0, "team": "NBR", "crosser": "NBR-7", "scorer": "NBR-9", "over_m": 0.04, "check_s": 42 },
+    { "kind": "box_edge_foul", "at": 1500.0, "team": "ASH", "attacker": "ASH-10", "defender": "NBR-5", "outside_m": 0.14, "check_s": 50 },
+    { "kind": "goal_line_clearance", "at": 2300.0, "team": "NBR", "shooter": "NBR-10", "clearer": "ASH-3", "over_m": -0.03, "check_s": 3 },
+    { "kind": "penalty_retake", "at": 3400.0, "team": "ASH", "taker": "ASH-9", "fouler": "NBR-4", "off_m": 0.38, "check_s": 35 },
+    { "kind": "dogso_foul", "at": 4200.0, "team": "NBR", "attacker": "NBR-9", "defender": "ASH-4", "check_s": 45 },
+    { "kind": "offside_goal", "at": 4950.0, "team": "NBR", "passer": "NBR-8", "attacker": "NBR-11", "defender": "ASH-5",
+      "passer_pos": [60.0, 38.0], "attacker_y": 24.0, "defender_pos": [83.5, 28.0], "margin_m": 0.04, "check_s": 55 }
+  ]
+}

@@ -14,6 +14,7 @@ from collections.abc import Sequence
 from contracts import Incident, MatchEvent
 from contracts.replay import (
     BallSample,
+    Measurement,
     OffsideLines,
     ReplayFocus,
     ReplayFrame,
@@ -21,14 +22,14 @@ from contracts.replay import (
     ReplayPackage,
     SlowWindow,
 )
-from engine.laws import RULE_SENTENCE
+from engine.laws import LAWS, RULE_SENTENCE
 from engine.stats import distance_to_goal
 
 SPEED_HALF_WINDOW_S = 0.5
 BALL_TRACK_FPS = 100  # the sampling rate the kick point is found from
 FINAL_TEXT = {
     "no_goal": "no goal", "goal": "goal", "red_card": "red card", "yellow": "yellow card",
-    "penalty": "penalty", "no_penalty": "no penalty",
+    "penalty": "penalty", "no_penalty": "no penalty", "free_kick": "free kick", "retake": "retake",
 }  # fmt: skip
 
 
@@ -105,8 +106,10 @@ def _window(history, period, t0, t1, extra_ball=()) -> tuple[list[ReplayFrame], 
 
 
 def build_replay(
-    history: Sequence[MatchEvent], inc: Incident, phase: str, direction: dict[str, int]
+    history: Sequence[MatchEvent], inc: Incident, phase: str, direction: dict[str, int], measured=None
 ) -> ReplayPackage | None:
+    if inc.kind in MEASURED_KINDS:
+        return _measured(history, inc, phase, direction, measured)
     if inc.kind == "offside" and "kick_event" in inc.facts:
         return _offside(history, inc, phase, direction)
     if inc.kind == "goal_check":
@@ -351,3 +354,135 @@ def _challenge(history, inc: Incident, phase) -> ReplayPackage | None:
     if phase == "after" and "distance_to_goal_m" in f:
         cfacts["distance_to_goal_m"] = f["distance_to_goal_m"]
     return _package(inc, phase, foul.period, foul.clock, frames, ball, moments, focus, status, sources, facts=cfacts)
+
+
+# ── Measured checks beyond offside ───────────────────────────────────────────
+
+MEASURED_KINDS = {"ball_out", "goal_line", "penalty_location", "keeper_encroachment", "dogso"}
+KEY_LABEL = {
+    "ball_out": "The cross from {subject}: the ball's furthest point",
+    "goal_line": "The shot from {subject}, and the clearance",
+    "penalty_location": "Where the contact started",
+    "keeper_encroachment": "The moment the penalty is struck",
+    "dogso": "The foul on the breakaway",
+}
+
+
+def _measured(history, inc: Incident, phase: str, direction: dict[str, int], m) -> ReplayPackage | None:
+    f = inc.facts
+    ev = _find(history, f.get("evidence_event"))
+    if ev is None or m is None:
+        return None
+    goal = _find(history, inc.goal_event)
+    t1 = max(ev.clock + 3.0, (goal.clock + 1.5) if goal else 0.0)
+    track = [(t, x, y) for t, x, y in ev.ball_track or []]
+    frames, ball = _window(history, ev.period, ev.clock - 8.0, t1, track)
+    kind = inc.kind
+    roles: list[tuple[str | None, str]] = {
+        "ball_out": [(ev.player, "crosser"), (goal.player if goal else None, "scorer")],
+        "goal_line": [(ev.player, "shooter")]
+        + [(pid, "clearer") for pid in (ev.frame.body if ev.frame else {}) if not pid.startswith(ev.team or "")][:1],
+        "penalty_location": [(ev.player, "offender"), (ev.receiver, "fouled")],
+        "keeper_encroachment": [(m.subject, "keeper"), (ev.player, "taker")],
+        "dogso": [(ev.player, "offender"), (ev.receiver, "fouled")],
+    }[kind]
+    focus = [ReplayFocus(player=p, role=r) for p, r in roles if p]
+    mtext = margin_text(m.value_m)
+    side = {
+        "ball_out": "wholly over the line" if m.value_m > 0 else "still touching the line",
+        "goal_line": "wholly over the line" if m.value_m > 0 else "short of wholly over",
+        "penalty_location": "outside the area" if m.value_m > 0 else "inside the area",
+        "keeper_encroachment": "off the line" if m.value_m > 0 else "on the line",
+        "dogso": "from goal",
+    }[kind]
+    subj = m.subject or ""
+    moments = [ReplayMoment(t=m.at, label=KEY_LABEL[kind].format(subject=ev.player)[:80], reveal="always")]
+    if kind != "dogso":
+        moments.append(ReplayMoment(t=m.at, label=f"{mtext} {side}"[:80], reveal="after"))
+    rule = RULE_SENTENCE[kind]
+    check = f" The check took {f['check_s']:.0f} s." if "check_s" in f else ""
+    final = FINAL_TEXT.get(inc.final or "", (inc.final or "").replace("_", " "))
+
+    if phase == "during":
+        what = {
+            "ball_out": f"whether the ball went out of play before {ev.player}'s cross",
+            "goal_line": f"whether the whole of {ev.player}'s shot crossed the goal line",
+            "penalty_location": f"where {ev.player}'s challenge on {ev.receiver} started",
+            "keeper_encroachment": f"where {subj}'s feet were when {ev.player} struck the penalty",
+            "dogso": f"whether {ev.player}'s foul on {ev.receiver} denied an obvious goal-scoring opportunity",
+        }[kind]
+        status = {
+            "stadium": f"Check in progress: {kind.replace('_', ' ')}",
+            "fan": f"Checking {what}. {rule}.",
+            "analyst": f"Checking {what}. Evidence: the frame at {clock_text(ev.period, m.at)}.",
+            "officials": f"Review open: {kind.replace('_', ' ')}. On-field call: {inc.on_field.replace('_', ' ')}.",
+        }
+        facts: dict = {}
+    else:
+        clearer = next((p for p, r in roles if r == "clearer" and p), "the defender")
+        evidence = {
+            "ball_out": f"Before {ev.player} crossed it, the ball was {mtext} {side}",
+            "goal_line": f"When {clearer} cleared it, the ball was {mtext} {side}",
+            "penalty_location": f"{ev.player}'s contact on {ev.receiver} started {mtext} {side}",
+            "keeper_encroachment": f"As {ev.player} struck it, {subj}'s nearest foot was {mtext} {side}",
+            "dogso": "",
+        }[kind]
+        outcome = {
+            ("ball_out", "no_goal"): "so play had already stopped and the goal is ruled out.",
+            ("goal_line", "no_goal"): "so it is not a goal.",
+            ("goal_line", "goal"): "so it is a goal.",
+            ("penalty_location", "free_kick"): "so it is a free kick, not a penalty.",
+            ("penalty_location", "penalty"): "so the penalty stands.",
+            ("keeper_encroachment", "retake"): "and the save came from that, so the penalty is retaken.",
+        }.get((kind, inc.final or ""), f"so the decision is {final}.")
+        if kind == "dogso":
+            fx = f
+            between = fx.get("defenders_between", 0)
+            direction_txt = (
+                f", heading {fx['direction_off_goal_deg']} degrees off the line to goal"
+                if "direction_off_goal_deg" in fx else ""
+            )  # fmt: skip
+            control = "with the ball under control" if fx.get("in_control") else "without clear control"
+            fan = (
+                f"Why a red card. {rule}. {ev.receiver} was {fx['distance_to_goal_m']:.0f} m from goal{direction_txt}, "
+                f"{control}, with {between} outfield defender{'s' if between != 1 else ''} able to get back; the "
+                f"referee judged it an obvious chance denied, so the yellow card becomes a red.{check}"
+            )
+            officials = (
+                f"Judgement check under Law 12. Factors: distance {fx['distance_to_goal_m']:.0f} m; "
+                f"defenders between {between}; {control}{direction_txt}. Final after review: {final}. "
+                f"This is the referee's call; the facts inform it, they do not make it."
+            )
+            analyst = f"Distance {fx['distance_to_goal_m']:.1f} m, defenders between {between}{direction_txt}."
+            facts = {k: fx[k] for k in ("distance_to_goal_m", "defenders_between", "direction_off_goal_deg") if k in fx}
+        else:
+            why = {
+                "ball_out": "no goal", "goal_line": "no goal" if inc.final == "no_goal" else "it's a goal",
+                "penalty_location": "a free kick"
+                if inc.final == "free_kick" else "the penalty", "keeper_encroachment": "a retake",
+            }[kind]  # fmt: skip
+            fan = f"Why {why}. {rule}. {evidence}, {outcome}{check}"
+            officials = (
+                f"Factual check under {LAWS[kind]['law']}. Evidence at {clock_text(ev.period, m.at)}: "
+                f"{m.point_label} {abs(m.value_m):.2f} m {side} ({m.line_label}). Final decision: {final}."
+            )
+            analyst = f"{m.point_label.capitalize()}: {abs(m.value_m):.2f} m {side} the {m.line_label}.{check}"
+            facts = {"value_m": abs(m.value_m)}
+        if "check_s" in f:
+            facts["check_s"] = f["check_s"]
+        status = {
+            "stadium": f"{'Check complete: ' if inc.var_outcome else ''}{final}",
+            "fan": fan,
+            "analyst": analyst,
+            "officials": officials,
+        }
+    measurement = None
+    if phase == "after":
+        measurement = Measurement(
+            kind=m.kind, value_m=m.value_m, line=m.line, line_label=m.line_label, point=m.point,
+            point_label=m.point_label, subject=m.subject, focus=m.focus(), factors=m.factors,
+            sources=[m.evidence_event, inc.incident_id],
+        )  # fmt: skip
+    sources = [ev.event_id] + ([goal.event_id] if goal else []) + [inc.incident_id]
+    pkg = _package(inc, phase, ev.period, m.at, frames, ball, moments, focus, status, sources, facts=facts)
+    return pkg.model_copy(update={"measurement": measurement}) if pkg else None

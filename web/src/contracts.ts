@@ -18,7 +18,18 @@ export interface Incident {
   final?: string | null;
   goal_event?: string | null;
   incident_id: string;
-  kind: "offside" | "foul" | "penalty" | "handball" | "red_card" | "goal_check";
+  kind:
+    | "offside"
+    | "foul"
+    | "penalty"
+    | "handball"
+    | "red_card"
+    | "goal_check"
+    | "ball_out"
+    | "goal_line"
+    | "penalty_location"
+    | "keeper_encroachment"
+    | "dogso";
   on_field: string;
   opened_at: number;
   reason_codes?: (
@@ -40,6 +51,7 @@ export interface MatchEvent {
   ball_speed_kmh?: number | null;
   ball_track?: [number, number, number][] | null;
   clock: number;
+  contact?: [number, number] | null;
   end?: [number, number] | null;
   event_id: string;
   frame?: BodyFrame | null;
@@ -168,8 +180,20 @@ export interface ReplayPackage {
   frames: [ReplayFrame, ReplayFrame, ...ReplayFrame[]];
   incident_id: string;
   key_t: number;
-  kind: "offside" | "foul" | "penalty" | "handball" | "red_card" | "goal_check";
+  kind:
+    | "offside"
+    | "foul"
+    | "penalty"
+    | "handball"
+    | "red_card"
+    | "goal_check"
+    | "ball_out"
+    | "goal_line"
+    | "penalty_location"
+    | "keeper_encroachment"
+    | "dogso";
   lines?: OffsideLines | null;
+  measurement?: Measurement | null;
   moments: ReplayMoment[];
   period: 1 | 2;
   phase: "during" | "after";
@@ -205,7 +229,19 @@ export interface BallSample {
  */
 export interface ReplayFocus {
   player: string;
-  role: "attacker" | "defender" | "passer" | "scorer" | "assist" | "offender" | "fouled";
+  role:
+    | "attacker"
+    | "defender"
+    | "passer"
+    | "scorer"
+    | "assist"
+    | "offender"
+    | "fouled"
+    | "crosser"
+    | "shooter"
+    | "clearer"
+    | "keeper"
+    | "taker";
 }
 /**
  * This interface was referenced by `VarNarrativeContracts`'s JSON-Schema
@@ -252,6 +288,45 @@ export interface OffsideLines {
   defender_part: ("head" | "torso" | "foot_l" | "foot_r" | "knee_l" | "knee_r" | "arm") | "centre";
   defender_x: number;
   margin_m: number;
+}
+/**
+ * Any measured call, drawn the same way: a reference line, the measured point, the distance between.
+ *
+ * value_m is signed so the sign alone says which side: positive means the condition the check asks
+ * about is met (ball wholly out, wholly over the goal line, contact outside the area, keeper off the
+ * line). DOGSO has no single distance; its factors carry the evidence and value_m is the distance to goal.
+ *
+ * This interface was referenced by `VarNarrativeContracts`'s JSON-Schema
+ * via the `definition` "Measurement".
+ */
+export interface Measurement {
+  factors?: {
+    [k: string]: number | boolean | string;
+  };
+  /**
+   * @minItems 4
+   * @maxItems 4
+   */
+  focus: [number, number, number, number];
+  kind: "ball_out" | "goal_line" | "box_edge" | "keeper_line" | "dogso";
+  /**
+   * @minItems 2
+   * @maxItems 2
+   */
+  line: [[number, number], [number, number]];
+  line_label: string;
+  /**
+   * @minItems 2
+   * @maxItems 2
+   */
+  point: [number, number];
+  point_label: string;
+  /**
+   * @minItems 1
+   */
+  sources: [string, ...string[]];
+  subject?: string | null;
+  value_m: number;
 }
 /**
  * This interface was referenced by `VarNarrativeContracts`'s JSON-Schema

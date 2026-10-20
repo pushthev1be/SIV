@@ -80,7 +80,11 @@ def test_engine_templates_pass_the_validator():
     }
     for audience, text in packet["replay"]["status"].items():
         assert validate_text(text, packet, "reviewing") == [], audience
-    full = golden_full()
+    for full in (golden_full(), MatchStore.from_scenario("var_showcase")):
+        check_templates(full)
+
+
+def check_templates(full: MatchStore) -> None:
     for inc in full.engine.desk.incidents.values():
         if inc.state not in ("decided", "restarted") or inc.incident_id not in full.engine.replays:
             continue

@@ -16,11 +16,27 @@ from contracts import BodyFrame, MatchEvent
 from contracts.common import PITCH_LENGTH_M as L
 from contracts.common import PITCH_WIDTH_M as W
 from sim.match import DT, HALFWAY, Match, Player, clamp, dist, seg_dist
-from sim.scenario import Goal, OffsideGoal, PenaltyReview, RedCard, Scenario
+from sim.scenario import (
+    BallOutGoal,
+    BoxEdgeFoul,
+    DogsoFoul,
+    Goal,
+    GoalLineClearance,
+    OffsideGoal,
+    PenaltyRetake,
+    PenaltyReview,
+    RedCard,
+    Scenario,
+)
 from sim.teams import TEAMS
 
 PERIOD_START = {1: 0.0, 2: 2700.0}
-LEAD_S = {"offside_goal": 30.0, "red_card": 20.0, "goal": 0.0, "penalty_review": 30.0}
+LEAD_S = {
+    "offside_goal": 30.0, "red_card": 20.0, "goal": 0.0, "penalty_review": 30.0, "ball_out_goal": 30.0,
+    "box_edge_foul": 30.0, "goal_line_clearance": 30.0, "penalty_retake": 30.0, "dogso_foul": 30.0,
+}  # fmt: skip
+BALL_RADIUS_M = 0.11
+LINE_WIDTH_M = 0.12
 
 # Body-part offsets (along the attacking direction, lateral), metres from the player's centre.
 # Arms are deliberately the most forward part: Law 11 excludes them, and the engine must too.
@@ -44,6 +60,12 @@ DEFENDER_BODY = {
 }
 ATTACKER_FRONT = max(v[0] for k, v in ATTACKER_BODY.items() if k != "arm")
 DEFENDER_FRONT = max(v[0] for k, v in DEFENDER_BODY.items() if k != "arm")
+# A keeper facing out: "along" points at his own goal line, so the rear foot is the one nearest it.
+KEEPER_BODY = {
+    "head": (0.0, 0.0), "torso": (0.0, 0.0), "knee_l": (0.08, 0.12), "foot_l": (0.15, 0.16),
+    "knee_r": (0.02, -0.12), "foot_r": (0.04, -0.16), "arm": (-0.10, 0.45),
+}  # fmt: skip
+KEEPER_REAR_FOOT = max(v[0] for k, v in KEEPER_BODY.items() if k.startswith("foot"))
 
 
 def _r(p: tuple[float, float]) -> tuple[float, float]:
@@ -64,6 +86,7 @@ class Simulator:
         self.safe_team: str | None = None  # never loses the ball, never shoots unless allowed
         self.force_receiver: str | None = None
         self.goal_team: str | None = None  # every shot by this team scores
+        self.suppress_after_goal = False  # a script handles what happens after its goal (a VAR check)
 
     # ── Public ───────────────────────────────────────────────────────────────
 
@@ -167,7 +190,7 @@ class Simulator:
     def _challenge(self, c: Player, tackler: Player) -> bool:
         """Returns True when the challenge ends the carrier's action."""
         rng = self.rng
-        if rng.random() < 0.13:
+        if rng.random() < 0.16:
             self._emit("foul", team=tackler.team, player=tackler.pid, receiver=c.pid, start=_r(c.pos))
             if rng.random() < 0.14 and tackler.yellows == 0:
                 tackler.yellows = 1
@@ -195,8 +218,11 @@ class Simulator:
             length = dist(c.pos, p.pos)
             if length < 4 or length > 55 or (p.is_gk and rng.random() > 0.12):
                 continue
-            if m.offside_position(p) and rng.random() > 0.04:
-                continue
+            if m.offside_position(p):
+                # A mistimed run happens, but near the line: nobody plays a ball 15 m offside.
+                beyond = m.af(p.team, p.x, p.y)[0] - m.second_last_af_x(p.team)
+                if beyond > 3.0 or rng.random() > 0.04:
+                    continue
             space = min(dist(p.pos, o.pos) for o in opps)
             progress = m.af(p.team, p.x, p.y)[0] - cx
             gumbel = -math.log(-math.log(rng.uniform(1e-9, 1 - 1e-9)))
@@ -323,7 +349,7 @@ class Simulator:
         keeper = next(p for p in m.on_pitch(opp) if p.is_gk)
         if outcome == "goal":
             self._emit("goal", team=team, player=c.pid, start=_r(end))
-            if not isinstance(self.active, OffsideGoal):
+            if not isinstance(self.active, OffsideGoal) and not self.suppress_after_goal:
                 self._after_goal(team)
         elif outcome == "saved":
             self._give(keeper)
@@ -389,7 +415,7 @@ class Simulator:
         if self.active is None and self.pending and m.clock >= self.pending[0].at - LEAD_S[self.pending[0].kind]:
             self.active = self.pending.pop(0)
             s = self.active
-            team_led = isinstance(s, OffsideGoal | Goal | PenaltyReview)
+            team_led = not isinstance(s, RedCard)
             self.force_ball_to = s.team if team_led else m.other(m.players[s.player].team)
         s = self.active
         if s is None:
@@ -402,6 +428,13 @@ class Simulator:
             return self._script_red_card(s)
         if isinstance(s, PenaltyReview):
             return self._script_penalty(s)
+        handlers = {
+            BallOutGoal: self._script_ball_out, BoxEdgeFoul: self._script_box_edge,
+            GoalLineClearance: self._script_goal_line, PenaltyRetake: self._script_penalty_retake,
+            DogsoFoul: self._script_dogso,
+        }  # fmt: skip
+        if type(s) in handlers:
+            return handlers[type(s)](s)
         self.safe_team = self.goal_team = s.team  # Goal: keep the ball and score from the next shot
         return False
 
@@ -409,6 +442,7 @@ class Simulator:
         for p in self.m.players.values():
             p.override, p.urgency, p.chase, p.max_af_x, p.run_until = None, None, False, None, None
         self.active = self.force_ball_to = self.safe_team = self.force_receiver = self.goal_team = None
+        self.suppress_after_goal = False
 
     def _script_offside(self, s: OffsideGoal) -> bool:
         m, rng = self.m, self.rng
@@ -591,4 +625,230 @@ class Simulator:
         outcome = self._shot(attacker)
         if outcome != "goal":
             self._finish_script()
+        return True
+
+    # ── Measured VAR calls beyond offside ────────────────────────────────────
+
+    def _kick_evidence(self, kicker: Player, ball_from, ball_to, speed_kmh: float, bodies):
+        """Body frame at the kick plus a 100 fps ball track: still until the kick, then moving to ball_to."""
+        m = self.m
+        d = m.direction(kicker.team)
+        tk = m.clock
+        frame = BodyFrame(clock=tk, body={p.pid: self._body(p, offsets, d, False) for p, offsets in bodies})
+        ux, uy = ball_to[0] - ball_from[0], ball_to[1] - ball_from[1]
+        n = math.hypot(ux, uy) or 1.0
+        v = speed_kmh / 3.6
+        steps = min(120, int(n / v / 0.01) + 1)
+        track = []
+        for i in range(-15, steps + 6):
+            s = min(n, max(0, i) * 0.01 * v)
+            track.append(
+                (round(tk + i * 0.01, 2), round(ball_from[0] + ux / n * s, 3), round(ball_from[1] + uy / n * s, 3))
+            )
+        return frame, track, tk
+
+    def _have_ball(self, s_team: str, pid: str) -> bool:
+        """True once `pid` has the ball; until then free play is steered to give it to them."""
+        self.safe_team = s_team
+        if self.m.carrier != pid:
+            self.force_receiver = pid
+            return False
+        self.force_receiver = None
+        return True
+
+    def _go(self, p: Player, team: str, af_xy, urgency: float = 0.9) -> tuple[float, float]:
+        target = self.m.af(team, *af_xy)
+        p.override, p.urgency = target, urgency
+        return target
+
+    def _var(self, team: str, player: str, check: str, decision: str, check_s: float, receiver=None, lead=(4, 7)):
+        self.m.carrier = None
+        for p in self.m.on_pitch():
+            p.override, p.urgency, p.max_af_x, p.chase = None, None, None, False
+        self._wait(self.rng.uniform(*lead))
+        self._emit("var_check", team=team, player=player, receiver=receiver, outcome=check, positions=False)
+        self._wait(check_s)
+        self._emit("var_decision", team=team, player=player, outcome=decision, positions=False)
+
+    def _restart_with(self, p: Player, wait=(15, 25)) -> None:
+        self._wait(self.rng.uniform(*wait))
+        self._finish_script()
+        self._give(p)
+
+    def _script_ball_out(self, s) -> bool:
+        m, rng = self.m, self.rng
+        crosser, scorer = m.players[s.crosser], m.players[s.scorer]
+        if not self._have_ball(s.team, crosser.pid):
+            return False
+        side = 1 if m.af(s.team, crosser.x, crosser.y)[1] > W / 2 else -1
+        byline = self._go(crosser, s.team, (L - 1.2, W / 2 + side * 20), 0.85)
+        self._go(scorer, s.team, (L - 11.5, W / 2 - side * 2.5), 0.9)
+        if (dist(crosser.pos, byline) > 1.0 or m.clock < s.at) and m.clock < s.at + 90:
+            self._wait(0.5)
+            return True
+        # The ball runs on over the byline, wholly out, and is pulled back anyway.
+        ball = m.af(s.team, L + BALL_RADIUS_M + s.over_m, W / 2 + side * 20.4)
+        to = (scorer.x, scorer.y)
+        frame, track, tk = self._kick_evidence(crosser, ball, to, 55.0, [(crosser, ATTACKER_BODY)])
+        self._emit(
+            "pass", clock=tk + rng.uniform(0.02, 0.09), team=s.team, player=crosser.pid, receiver=scorer.pid,
+            outcome="complete", start=_r(ball), end=_r(to), ball_speed_kmh=55.0, frame=frame, ball_track=track,
+        )  # fmt: skip
+        self._fly(ball, to, dist(ball, to) / (55 / 3.6 * 0.8), runner=scorer)
+        self._give(scorer)
+        self.goal_team, self.suppress_after_goal = s.team, True
+        self._shot(scorer)
+        self._var(s.team, crosser.pid, "ball_out", "no_goal", s.check_s)
+        keeper = next(p for p in m.on_pitch(m.other(s.team)) if p.is_gk)
+        self._restart_with(keeper)
+        return True
+
+    def _script_box_edge(self, s) -> bool:
+        m, rng = self.m, self.rng
+        att, deff = m.players[s.attacker], m.players[s.defender]
+        if not self._have_ball(s.team, att.pid):
+            return False
+        ay = m.af(s.team, att.x, att.y)[1]
+        lane_y = min(max(ay, W / 2 - 12), W / 2 + 12)
+        contact_x = L - 16.5 - s.outside_m
+        self._go(att, s.team, (contact_x + 3.0, lane_y), 0.8)
+        deff.chase = True
+        ax = m.af(s.team, att.x, att.y)[0]
+        if (ax < contact_x - 0.6 or m.clock < s.at) and m.clock < s.at + 90:
+            self._wait(0.3)
+            return True
+        # The challenge: contact starts exactly at the scripted spot.
+        contact = m.af(s.team, contact_x, lane_y)
+        att.x, att.y = m.af(s.team, contact_x - 0.35, lane_y)
+        deff.x, deff.y = m.af(s.team, contact_x - 0.9, lane_y + 0.6)
+        d = m.direction(s.team)
+        frame = BodyFrame(clock=m.clock, body={att.pid: self._body(att, ATTACKER_BODY, d, False),
+                                               deff.pid: self._body(deff, DEFENDER_BODY, d, False)})  # fmt: skip
+        self._emit(
+            "foul", team=deff.team, player=deff.pid, receiver=att.pid, outcome="penalty", start=_r(contact),
+            contact=_r(contact), frame=frame,
+        )  # fmt: skip
+        decision = "free_kick" if s.outside_m > 0 else "penalty_confirmed"
+        self._var(deff.team, deff.pid, "penalty_location", decision, s.check_s, receiver=att.pid, lead=(6, 9))
+        if decision == "free_kick":
+            self._restart_with(att, (20, 30))
+            return True
+        self._wait(rng.uniform(30, 40))
+        m.ball = m.af(s.team, L - 11.0, W / 2)
+        att.x, att.y = m.af(s.team, L - 11.6, W / 2)
+        self._give(att)
+        self.safe_team = self.force_ball_to = None
+        self.goal_team = s.team
+        self._shot(att)
+        return True
+
+    def _script_goal_line(self, s) -> bool:
+        m, rng = self.m, self.rng
+        shooter, clearer = m.players[s.shooter], m.players[s.clearer]
+        if not self._have_ball(s.team, shooter.pid):
+            return False
+        spot = self._go(shooter, s.team, (L - 12.0, W / 2 - 6.0), 0.8)
+        self._go(clearer, s.team, (L - 0.3, W / 2 + 2.2), 1.0)
+        if (dist(shooter.pos, spot) > 1.0 or m.clock < s.at) and m.clock < s.at + 90:
+            self._wait(0.5)
+            return True
+        end = m.af(s.team, L + BALL_RADIUS_M + s.over_m, W / 2 + 2.2)
+        foot = m.af(s.team, *m.af(s.team, shooter.x + m.direction(s.team) * 0.3, shooter.y))
+        keeper = next(p for p in m.on_pitch(m.other(s.team)) if p.is_gk)
+        frame, track, tk = self._kick_evidence(
+            shooter, foot, end, 88.0, [(shooter, ATTACKER_BODY), (clearer, DEFENDER_BODY), (keeper, DEFENDER_BODY)]
+        )
+        self._emit(
+            "shot", clock=tk + rng.uniform(0.02, 0.09), team=s.team, player=shooter.pid, outcome="cleared",
+            start=_r(foot), end=_r(end), ball_speed_kmh=88.0, frame=frame, ball_track=track,
+        )  # fmt: skip
+        self._fly(foot, end, dist(foot, end) / (88 / 3.6))
+        self._give(clearer)
+        out = m.af(s.team, L - 20, W + 0.5)
+        self._emit("pass", team=clearer.team, player=clearer.pid, outcome="incomplete", start=_r(clearer.pos),
+                   end=_r(out), ball_speed_kmh=82.0)  # fmt: skip
+        self._fly(clearer.pos, out, 1.2)
+        decision = "goal" if s.over_m > 0 else "no_goal"
+        self._var(s.team, shooter.pid, "goal_line", decision, s.check_s, lead=(0.8, 1.2))
+        self._restart_with(m.nearest(s.team, m.af(s.team, L - 20, W)), (12, 20))
+        return True
+
+    def _script_penalty_retake(self, s) -> bool:
+        m, rng = self.m, self.rng
+        taker, fouler = m.players[s.taker], m.players[s.fouler]
+        keeper = next(p for p in m.on_pitch(m.other(s.team)) if p.is_gk)
+        if not self._have_ball(s.team, taker.pid):
+            return False
+        self._go(taker, s.team, (L - 8.5, W / 2 - 5.0), 0.85)
+        fouler.chase = True
+        tx, ty = m.af(s.team, taker.x, taker.y)
+        in_box = tx > L - 16.5 and abs(ty - W / 2) < 20.16
+        if (not in_box or m.clock < s.at or dist(fouler.pos, taker.pos) > 2.0) and m.clock < s.at + 90:
+            self._wait(0.3)
+            return True
+        self._emit("foul", team=fouler.team, player=fouler.pid, receiver=taker.pid, outcome="penalty",
+                   start=_r(taker.pos), contact=_r(taker.pos))  # fmt: skip
+        m.carrier, fouler.chase = None, False
+        self._go(taker, s.team, (L - 11.8, W / 2), 0.5)
+        self._go(keeper, s.team, (L - 0.4, W / 2), 0.5)
+        self._wait(rng.uniform(35, 45))
+
+        def kick(off_m: float, outcome: str) -> None:
+            spot = m.af(s.team, L - 11.0, W / 2)
+            taker.x, taker.y = m.af(s.team, L - 11.6, W / 2)
+            keeper.x, keeper.y = m.af(s.team, L - LINE_WIDTH_M - off_m - KEEPER_REAR_FOOT, W / 2)
+            m.ball = spot
+            aim = m.af(s.team, L - 0.25, W / 2 + 1.6)
+            frame, track, tk = self._kick_evidence(
+                taker, spot, aim, 96.0, [(taker, ATTACKER_BODY), (keeper, KEEPER_BODY)]
+            )
+            self._emit(
+                "shot", clock=tk + rng.uniform(0.02, 0.09), team=s.team, player=taker.pid, outcome=outcome,
+                start=_r(spot), end=_r(aim), ball_speed_kmh=96.0, frame=frame, ball_track=track,
+            )  # fmt: skip
+            self._fly(spot, aim, dist(spot, aim) / (96 / 3.6))
+
+        kick(s.off_m, "saved")
+        self._give(keeper)
+        self._wait(rng.uniform(2, 4))
+        self._var(keeper.team, keeper.pid, "keeper_encroachment", "retake", s.check_s, lead=(1.5, 3))
+        self._go(taker, s.team, (L - 11.8, W / 2), 0.5)  # walk back for the retake, no teleporting
+        self._go(keeper, s.team, (L - 0.3, W / 2), 0.5)
+        self._wait(rng.uniform(25, 35))
+        kick(-0.05, "goal")  # on the line this time
+        self._emit("goal", team=s.team, player=taker.pid, start=_r(m.ball))
+        self.goal_team = s.team
+        self._after_goal(s.team)
+        return True
+
+    def _script_dogso(self, s) -> bool:
+        m, rng = self.m, self.rng
+        att, deff = m.players[s.attacker], m.players[s.defender]
+        if not self._have_ball(s.team, att.pid):
+            return False
+        ax = m.af(s.team, att.x, att.y)[0]
+        for p in m.on_pitch(m.other(s.team)):
+            if p.pid != deff.pid and not p.is_gk:
+                p.max_af_x = ax - 6  # everyone else is caught upfield: the defender is the last man
+        if m.clock < s.at:
+            self._wait(0.3)
+            return True
+        if att.override is None or not getattr(self, "_dogso_run", False):
+            # The breakaway: one carry at goal, at a pace the last defender can just catch.
+            goal_run = self._go(att, s.team, (L - 7, W / 2 + 2), 0.66)
+            self._emit("carry", team=att.team, player=att.pid, start=_r(att.pos), end=_r(goal_run))
+            self._dogso_run = True
+        deff.chase, deff.urgency = True, 1.0
+        caught = dist(deff.pos, att.pos) <= 1.4 and ax >= L - 32
+        if not caught and ax < L - 20.5 and m.clock < s.at + 60:  # never let it reach the area
+            self._wait(0.1)
+            return True
+        self._dogso_run = False
+        self._emit("foul", team=deff.team, player=deff.pid, receiver=att.pid, start=_r(att.pos), contact=_r(att.pos))
+        m.carrier, deff.chase = None, False
+        self._wait(rng.uniform(12, 18))
+        self._emit("card", team=deff.team, player=deff.pid, outcome="yellow")
+        self._var(deff.team, deff.pid, "dogso", "red_card_dogso", s.check_s, receiver=att.pid, lead=(5, 8))
+        deff.on_pitch = False
+        self._restart_with(att, (18, 28))
         return True

@@ -19,7 +19,7 @@ NEXT = {
 }
 TIGHT_MARGIN_M = 0.5
 SLOW_CHECK_S = 30.0
-SUBJECTIVE_KINDS = {"penalty", "red_card", "handball"}
+SUBJECTIVE_KINDS = {"penalty", "red_card", "handball", "dogso"}
 
 
 class IllegalTransition(ValueError):

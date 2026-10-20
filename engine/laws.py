@@ -51,6 +51,50 @@ LAWS: dict[str, dict[str, str]] = {
         ),
         "how_checked": "Mostly a judgement check on arm position and movement.",
     },
+    "ball_out": {
+        "law": "Law 9",
+        "summary": (
+            "The ball is out of play once the whole ball has passed over the goal line or the touchline, on "
+            "the ground or in the air. While any part of it is still on the line, it is in play. A goal "
+            "scored after the ball went out cannot stand."
+        ),
+        "how_checked": "A factual check: find the frame where the ball was furthest over the line.",
+    },
+    "goal_line": {
+        "law": "Law 10",
+        "summary": (
+            "A goal is scored only when the whole ball passes over the goal line, between the posts and "
+            "under the crossbar. If any part of the ball is still on the line, it is not a goal."
+        ),
+        "how_checked": "A factual check, usually settled by goal-line technology within a second.",
+    },
+    "penalty_location": {
+        "law": "Laws 12 and 14",
+        "summary": (
+            "A foul that would give a direct free kick becomes a penalty only if it happens inside the "
+            "penalty area. The lines are part of the area they mark, and what counts is where the contact "
+            "started."
+        ),
+        "how_checked": "A factual check on location: where the first contact was, against the edge of the area.",
+    },
+    "keeper_encroachment": {
+        "law": "Law 14",
+        "summary": (
+            "When a penalty is taken, the defending goalkeeper must have at least part of one foot touching, "
+            "in line with, or behind the goal line. If the keeper is off the line and that affects the kick, "
+            "for example by saving it, the penalty is retaken."
+        ),
+        "how_checked": "A factual check: the keeper's feet at the moment the ball is kicked.",
+    },
+    "dogso": {
+        "law": "Law 12",
+        "summary": (
+            "Denying an obvious goal-scoring opportunity with a foul is a sending-off offence. The officials "
+            "weigh four things: the distance to goal, the general direction of play, how many defenders "
+            "could still get back, and whether the attacker had control of the ball."
+        ),
+        "how_checked": "A judgement check, informed by measured distance, direction and defender positions.",
+    },
     "var_protocol": {
         "law": "VAR protocol",
         "summary": (
@@ -67,6 +111,8 @@ LAWS: dict[str, dict[str, str]] = {
 ALIASES = {
     "law 11": "offside", "onside": "offside", "penalty kick": "penalty", "foul": "penalty",
     "serious foul play": "red_card", "red card": "red_card", "sending off": "red_card",
+    "out of play": "ball_out", "goal line": "goal_line", "goal-line": "goal_line",
+    "encroachment": "keeper_encroachment", "denying an obvious goal-scoring opportunity": "dogso",
     "hand ball": "handball", "var": "var_protocol", "review": "var_protocol",
 }  # fmt: skip
 
@@ -93,4 +139,21 @@ RULE_SENTENCE: dict[str, str] = {
     "foul": "Under Law 12, a reckless challenge is a foul and a yellow card",
     "handball": "Under Law 12, deliberately handling the ball or making the body unnaturally bigger is handball",
 }
-FACTUAL_KINDS = {"offside"}  # settled by measurement; the rest are judgement calls
+RULE_SENTENCE |= {
+    "ball_out": "Under Law 9, the ball is out of play once the whole ball has crossed the goal line or touchline",
+    "goal_line": "Under Law 10, it's a goal only when the whole ball crosses the goal line between the posts",
+    "penalty_location": (
+        "Under Laws 12 and 14, a foul is a penalty only if it starts inside the area, "
+        "and the lines are part of the area"
+    ),
+    "keeper_encroachment": (
+        "Under Law 14, the keeper must have at least part of one foot on or behind the goal line "
+        "when a penalty is taken"
+    ),
+    "dogso": (
+        "Under Law 12, denying an obvious goal-scoring opportunity with a foul is a red card; the officials weigh "
+        "distance to goal, direction, defenders and control"
+    ),
+}
+# settled by measurement; the rest are judgement calls
+FACTUAL_KINDS = {"offside", "ball_out", "goal_line", "penalty_location", "keeper_encroachment"}

@@ -10,7 +10,11 @@ from pydantic import model_validator
 
 from contracts.common import Clock, Contract, EventId, IncidentId
 
-IncidentKind = Literal["offside", "foul", "penalty", "handball", "red_card", "goal_check"]
+IncidentKind = Literal[
+    "offside", "foul", "penalty", "handball", "red_card", "goal_check",
+    # measured checks beyond offside
+    "ball_out", "goal_line", "penalty_location", "keeper_encroachment", "dogso",
+]  # fmt: skip
 IncidentStatus = Literal["open", "reviewing", "decided", "restarted"]
 ReasonCode = Literal[
     "tight_margin",

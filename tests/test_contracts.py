@@ -92,14 +92,18 @@ def test_event_needs_every_on_pitch_position():
         MatchEvent.model_validate(event(positions={"NBR-9": [84.91, 26.0]}))
 
 
-def test_frame_and_ball_track_come_together_on_passes_only():
+def test_evidence_fields_appear_only_where_a_check_can_use_them():
     frame = {"clock": 4679.4, "body": {"NBR-9": {"foot_l": [85.21, 25.9], "arm": [85.36, 26.25]}}}
     track = [[4679.25, 59.99, 40.0]]
     MatchEvent.model_validate(event(frame=frame, ball_track=track))
-    with pytest.raises(ValidationError, match="together"):
-        MatchEvent.model_validate(event(frame=frame))
-    with pytest.raises(ValidationError, match="only on passes"):
-        MatchEvent.model_validate(event(type="shot", frame=frame, ball_track=track))
+    MatchEvent.model_validate(event(type="shot", frame=frame, ball_track=track))  # goal-line, penalty kicks
+    MatchEvent.model_validate(event(type="foul", frame=frame, contact=[88.4, 30.0]))  # penalty or free kick
+    with pytest.raises(ValidationError, match="needs a body frame"):
+        MatchEvent.model_validate(event(ball_track=track))
+    with pytest.raises(ValidationError, match="only on passes and shots"):
+        MatchEvent.model_validate(event(type="foul", frame=frame, ball_track=track))
+    with pytest.raises(ValidationError, match="contact appears only"):
+        MatchEvent.model_validate(event(contact=[88.4, 30.0]))
 
 
 def test_event_id_must_match_match_id():

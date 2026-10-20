@@ -16,6 +16,7 @@ from typing import Any
 
 from contracts import Incident, MatchEvent, ReplayPackage
 from contracts.common import PITCH_LENGTH_M
+from engine import measure as measured_checks
 from engine.decisions import DecisionDesk
 from engine.offside import measure
 from engine.replay import build_replay
@@ -25,6 +26,7 @@ PASS_QUALITY_MIN = 0.55  # completed passes at or above this difficulty become f
 PRESSURE_SWING_UP, PRESSURE_SWING_RESET = 60, 45
 METRICS_EVERY_S = 60.0
 MULTIPLE_PHASES = 4  # on-ball events between the kick and the goal that make a check slow
+MEASURED_KINDS = {"ball_out", "goal_line", "penalty_location", "keeper_encroachment", "dogso"}
 HISTORY_EVENTS = 1500  # about five minutes of feed, enough for any replay window
 # Per-player action log: event type -> what it means for the player in `player` (and `receiver`)
 ACTION_OF = {
@@ -42,17 +44,29 @@ ACTION_OF = {
 RECEIVER_ACTION = {"pass": "received", "foul": "fouled", "tackle": "tackled", "pressure": "pressed"}
 
 RESTARTS = {"kickoff", "pass", "carry", "shot", "tackle", "interception"}
-VAR_KIND = {"offside": "offside", "red_card": "red_card", "penalty": "penalty", "handball": "handball"}
+VAR_KIND = {
+    "offside": "offside", "red_card": "red_card", "penalty": "penalty", "handball": "handball",
+    "ball_out": "ball_out", "goal_line": "goal_line", "penalty_location": "penalty_location",
+    "keeper_encroachment": "keeper_encroachment", "dogso": "dogso",
+}  # fmt: skip
 VAR_DECISION = {  # var_decision outcome -> (final, var_outcome)
     "no_goal": ("no_goal", None),
     "goal_stands": ("goal", "no_offence"),
     "red_card_upheld": ("red_card", "upheld"),
     "red_card_overturned": ("yellow", "overturned"),  # downgraded after review
     "penalty_awarded": ("penalty", "penalty"),
+    "free_kick": ("free_kick", "outside_area"),
+    "penalty_confirmed": ("penalty", "inside_area"),
+    "retake": ("retake", "encroachment"),
+    "red_card_dogso": ("red_card", "dogso"),
+    "goal": ("goal", "goal_line"),
     "no_penalty": ("no_penalty", "no_change"),
 }
 # A check with no on-field call to review (e.g. play was waved on): what the referee had given
-ON_FIELD_WHEN_UNCALLED = {"penalty": "no_penalty", "handball": "play_on", "red_card": "no_card"}
+ON_FIELD_WHEN_UNCALLED = {
+    "penalty": "no_penalty", "handball": "play_on", "red_card": "no_card",
+    "goal_line": "play_on", "keeper_encroachment": "save_stands",
+}  # fmt: skip
 
 
 @dataclass(frozen=True)
@@ -96,6 +110,7 @@ class Engine:
         self.history: deque[MatchEvent] = deque(maxlen=HISTORY_EVENTS)
         self.replays: dict[str, dict[str, ReplayPackage]] = {}
         self.player_log: dict[str, list[dict[str, Any]]] = {}
+        self.measurements: dict[str, measured_checks.Measured] = {}
 
     # ── Public ───────────────────────────────────────────────────────────────
 
@@ -130,7 +145,7 @@ class Engine:
                 continue
             phase = "during" if f.values["state"] == "reviewing" else "after"
             inc = self.desk.incidents[f.values["incident_id"]]
-            pkg = build_replay(self.history, inc, phase, self.direction)
+            pkg = build_replay(self.history, inc, phase, self.direction, self.measurements.get(inc.incident_id))
             if pkg is None:
                 continue
             self.replays.setdefault(inc.incident_id, {})[phase] = pkg
@@ -264,7 +279,20 @@ class Engine:
 
     def _on_foul(self, e: MatchEvent) -> list[Fact]:
         self._ctx.last_foul = e
-        return []
+        if e.outcome != "penalty":
+            return []
+        inc = self.desk.open("penalty", "penalty", e.clock)
+        facts = {
+            "offender": e.player or "",
+            "fouled": e.receiver or "",
+            "foul_event": e.event_id,
+            "foul_clock": e.clock,
+        }
+        where = e.contact or e.start
+        if where is not None:
+            facts["distance_to_goal_m"] = round(distance_to_goal(where, -self.direction.get(e.team, 1)), 1)
+        inc = self.desk.add_facts(inc.incident_id, facts)
+        return [self._incident_fact(inc, e)]
 
     def _on_card(self, e: MatchEvent) -> list[Fact]:
         kind = "red_card" if e.outcome in ("red", "second_yellow") else "foul"
@@ -304,7 +332,67 @@ class Engine:
             if kick is not None:
                 codes = ["multiple_phases"] if self._ctx.on_ball_since_frame.get(e.team, 0) > MULTIPLE_PHASES else []
                 inc = self.desk.add_facts(inc.incident_id, self._offside_facts(kick), codes)
+        elif kind in MEASURED_KINDS:
+            m = self._measure(kind, e)
+            if m is not None:
+                self.measurements[inc.incident_id] = m
+                facts = {"value_m": m.value_m, "evidence_event": m.evidence_event, "measure": m.kind,
+                         "subject": m.subject or "", **m.factors}  # fmt: skip
+                inc = self.desk.add_facts(inc.incident_id, facts)
         return [self._incident_fact(inc, e)]
+
+    def _last(self, pred, within_s: float = 120.0) -> MatchEvent | None:
+        for x in reversed(self.history):
+            if x.period != self.period or x.clock < self.clock - within_s:
+                return None
+            if pred(x):
+                return x
+        return None
+
+    def _measure(self, kind: str, e: MatchEvent):
+        """Take the measurement a check needs from the evidence already in the feed."""
+        mc = measured_checks
+        if kind == "ball_out":
+            ev = self._last(lambda x: x.type == "pass" and x.team == e.team and x.ball_track is not None)
+            return mc.ball_out(ev) if ev else None
+        if kind == "goal_line":
+            ev = self._last(lambda x: x.type == "shot" and x.team == e.team and x.ball_track is not None)
+            return mc.goal_line(ev, self.direction.get(e.team, 1)) if ev else None
+        if kind == "penalty_location":
+            ev = self._last(lambda x: x.type == "foul" and x.player == e.player and x.contact is not None)
+            if ev is None:
+                return None
+            return mc.box_edge(ev, -self.direction.get(e.team, 1))
+        if kind == "keeper_encroachment":
+            ev = self._last(lambda x: x.type == "shot" and x.team != e.team and x.frame is not None)
+            return mc.keeper_line(ev, e.player, self.direction.get(ev.team, 1)) if ev else None
+        if kind == "dogso":
+            foul = self._last(lambda x: x.type == "foul" and x.player == e.player)
+            if foul is None or not foul.receiver:
+                return None
+            attacker = foul.receiver
+            since_foul = self.clock - foul.clock  # the check opens a while after the foul: look back from the foul
+            before = self._last(
+                lambda x: x.type == "tracking" and x.clock <= foul.clock - 0.4 and attacker in x.positions,
+                since_foul + 5.0,
+            )
+            velocity = None
+            if before is not None and attacker in foul.positions:
+                dt = foul.clock - before.clock
+                (x0, y0), (x1, y1) = before.positions[attacker], foul.positions[attacker]
+                velocity = ((x1 - x0) / dt, (y1 - y0) / dt)
+            # Control: the attacker was the last player to have the ball before the foul.
+            last_touch = self._last(
+                lambda x: x.clock <= foul.clock and x.type in ("pass", "carry", "shot", "interception", "tackle"),
+                since_foul + 30.0,
+            )
+            in_control = last_touch is not None and (
+                (last_touch.type == "pass" and last_touch.outcome == "complete" and last_touch.receiver == attacker)
+                or (last_touch.player == attacker and last_touch.type in ("carry", "interception"))
+                or (last_touch.type == "tackle" and last_touch.player == attacker and last_touch.outcome == "won")
+            )
+            return mc.dogso(foul, attacker, -self.direction.get(e.team, 1), velocity, in_control)
+        return None
 
     def _on_var_decision(self, e: MatchEvent) -> list[Fact]:
         reviewing = [i for i in self.desk.unresolved() if i.state == "reviewing"]
@@ -317,7 +405,7 @@ class Engine:
         self.desk.add_facts(inc.incident_id, {"check_s": round(e.clock - opened, 1)})
         inc = self.desk.decide(inc.incident_id, final, e.clock, var_outcome=var_outcome)
         out = []
-        if inc.kind in ("offside", "goal_check", "penalty", "handball") and final == "no_goal":
+        if inc.goal_event is not None and final == "no_goal":  # a goal given on the field is taken off
             team = self.desk.incidents[inc.incident_id].facts.get("attacking_team") or e.team
             self.score[team] = max(0, self.score.get(team, 0) - 1)
             out.append(self._fact("goal", e, [e.event_id, inc.incident_id], team=team, disallowed=True,

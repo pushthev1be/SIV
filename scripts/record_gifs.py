@@ -36,7 +36,7 @@ def serve() -> tuple[http.server.ThreadingHTTPServer, str]:
     handler = functools.partial(Quiet, directory=str(SITE))
     httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
-    return httpd, f"http://127.0.0.1:{httpd.server_address[1]}/?s=golden"
+    return httpd, f"http://127.0.0.1:{httpd.server_address[1]}/?s="
 
 
 OFFSIDE = "c => c.kind === 'offside' && c.final === 'no_goal'"
@@ -76,22 +76,35 @@ def scene_calls(page) -> None:
     page.evaluate("() => { const V = window.__varNarrative; V.seek(1400); V.showPane('calls'); V.play(true, 60); }")
 
 
+def scene_measured(page) -> None:
+    """Cycle through the measured calls in the showcase match, each frozen on its measurement."""
+    page.evaluate(
+        """() => { const V = window.__varNarrative;
+                   const kinds = ["ball_out", "penalty_location", "goal_line", "keeper_encroachment", "dogso"];
+                   kinds.forEach((k, i) => setTimeout(() => {
+                     const c = V.calls.find(c => c.kind === k); V.seek(c.decided + 0.2); V.openReplay(c.iid);
+                     V.R.rt = V.R.pkg.key_t - 0.4; V.showPane("buddy");
+                   }, i * 3400)); }"""
+    )
+
+
 SCENES = [
     ("offside-replay", ".stage", scene_offside, 14.0),
     ("hud-callouts", ".stage", scene_callouts, 7.0),
     ("live-var-check", ".app", scene_live_var, 11.0),
     ("player-card", ".app", scene_player, 8.0),
     ("calls-timeline", ".app", scene_calls, 9.0),
+    ("measured-calls", ".app", scene_measured, 17.0, "var_showcase"),
 ]
 
 
-def record(url: str, name: str, selector: str, setup, seconds: float, tmp: Path) -> Path:
+def record(url: str, name: str, selector: str, setup, seconds: float, tmp: Path, scenario: str = "golden") -> Path:
     with sync_playwright() as pw:
         browser = pw.chromium.launch()
         ctx = browser.new_context(viewport=VIEWPORT, record_video_dir=str(tmp), record_video_size=VIEWPORT)
         page = ctx.new_page()
         t0 = time.monotonic()
-        page.goto(url)
+        page.goto(url + scenario)
         page.wait_for_function("() => window.__varNarrative && window.__varNarrative.ready", timeout=60_000)
         page.wait_for_timeout(800)  # fonts and first frame
         box = page.locator(selector).first.bounding_box()
@@ -126,8 +139,8 @@ def main() -> None:
     httpd, url = serve()
     try:
         with tempfile.TemporaryDirectory() as tmp:
-            for name, selector, setup, seconds in SCENES:
-                out = record(url, name, selector, setup, seconds, Path(tmp))
+            for name, selector, setup, seconds, *rest in SCENES:
+                out = record(url, name, selector, setup, seconds, Path(tmp), *rest)
                 print(f"wrote {out.relative_to(ROOT)} ({out.stat().st_size / 1e6:.1f} MB)")
     finally:
         httpd.shutdown()

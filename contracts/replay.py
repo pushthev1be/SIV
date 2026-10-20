@@ -14,7 +14,10 @@ from contracts.event import BodyPart
 from contracts.incident import IncidentKind
 
 ReplayAudience = Literal["stadium", "fan", "analyst", "officials"]
-FocusRole = Literal["attacker", "defender", "passer", "scorer", "assist", "offender", "fouled"]
+FocusRole = Literal[
+    "attacker", "defender", "passer", "scorer", "assist", "offender", "fouled", "crosser", "shooter",
+    "clearer", "keeper", "taker",
+]  # fmt: skip
 
 
 class ReplayFrame(Contract):
@@ -61,6 +64,29 @@ class OffsideLines(Contract):
     body: dict[PlayerId, dict[BodyPart, Point]]
 
 
+MeasurementKind = Literal["ball_out", "goal_line", "box_edge", "keeper_line", "dogso"]
+
+
+class Measurement(Contract):
+    """Any measured call, drawn the same way: a reference line, the measured point, the distance between.
+
+    value_m is signed so the sign alone says which side: positive means the condition the check asks
+    about is met (ball wholly out, wholly over the goal line, contact outside the area, keeper off the
+    line). DOGSO has no single distance; its factors carry the evidence and value_m is the distance to goal.
+    """
+
+    kind: MeasurementKind
+    value_m: float
+    line: tuple[Point, Point]  # the reference: goal line, touchline, edge of the area, or attacker to goal
+    line_label: str
+    point: Point  # what was measured: ball edge, contact, keeper's foot, the attacker
+    point_label: str
+    subject: PlayerId | None = None
+    focus: tuple[float, float, float, float]  # x, y, width, height to zoom to
+    factors: dict[str, float | int | bool | str] = {}
+    sources: list[str] = Field(min_length=1)
+
+
 class ReplayPackage(Contract):
     incident_id: IncidentId
     kind: IncidentKind
@@ -75,6 +101,7 @@ class ReplayPackage(Contract):
     # km/h per frame for each focus player, derived from positions; None where it cannot be measured
     speeds: dict[PlayerId, list[float | None]]
     lines: OffsideLines | None = None
+    measurement: Measurement | None = None
     status: dict[ReplayAudience, str]
     # every number the status text and moments use, so agents and the validator can see them
     facts: dict[str, float | int | str | bool] = {}
@@ -91,7 +118,12 @@ class ReplayPackage(Contract):
             raise ValueError("key moment must sit inside the replay")
         if any(len(v) != len(self.frames) for v in self.speeds.values()):
             raise ValueError("speeds must align with frames")
-        leaks = self.lines is not None or "margin_m" in self.facts or any(m.reveal == "after" for m in self.moments)
+        leaks = (
+            self.lines is not None
+            or self.measurement is not None
+            or "margin_m" in self.facts
+            or any(m.reveal == "after" for m in self.moments)
+        )
         if self.phase == "during" and leaks:
             raise ValueError("a during replay cannot carry the measurement (N4)")
         return self

@@ -34,6 +34,20 @@ rule and shows how the evidence leads to the call. Loops until you close it.
 
 ![Offside replay: rule and evidence explained, freeze and zoom showing a 12.2 in (31 cm) margin](docs/media/offside-replay.gif)
 
+**Every VAR call that can be measured, measured.** Offside is one of six. Each is simulated, measured
+from positions and the ball track, and explained with the rule and the evidence:
+
+| Call | What is measured | Law |
+|---|---|---|
+| Offside | front playable part against the second-last defender | 11 |
+| Ball out of play before a goal | how far the whole ball was over the goal line or touchline | 9 |
+| Goal-line | whether the whole ball crossed, by how much | 10 |
+| Penalty or free kick | where contact started against the edge of the area (the line counts as the area) | 12, 14 |
+| Keeper off the line at a penalty | the keeper's nearest foot against the goal line at the kick | 14 |
+| Denying an obvious goal-scoring opportunity | distance, direction, defenders between, control | 12 |
+
+![Measured calls: ball out, penalty or free kick, goal-line, keeper off the line, DOGSO](docs/media/measured-calls.gif)
+
 **Who was involved, and how fast.** A toggleable HUD follows the players in the call, with speeds
 derived from tracking positions, never stated by the feed.
 
