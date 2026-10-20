@@ -117,9 +117,7 @@ def test_agent_framework_client_over_http():
     s.bind(("127.0.0.1", 0))
     port = s.getsockname()[1]
     s.close()
-    server = uvicorn.Server(
-        uvicorn.Config(build_server(store).streamable_http_app(), port=port, log_level="error")
-    )
+    server = uvicorn.Server(uvicorn.Config(build_server(store).streamable_http_app(), port=port, log_level="error"))
     threading.Thread(target=server.run, daemon=True).start()
     for _ in range(50):
         if server.started:

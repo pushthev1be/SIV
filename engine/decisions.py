@@ -59,9 +59,7 @@ class DecisionDesk:
         changes = {"kind": kind} if kind else {}
         return self._move(incident_id, "reviewing", **changes)
 
-    def add_facts(
-        self, incident_id: str, facts: dict, reason_codes: list[ReasonCode] | None = None
-    ) -> Incident:
+    def add_facts(self, incident_id: str, facts: dict, reason_codes: list[ReasonCode] | None = None) -> Incident:
         inc = self.incidents[incident_id]
         merged = {**inc.facts, **facts}
         codes = sorted(set(inc.reason_codes) | set(reason_codes or []))

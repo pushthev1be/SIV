@@ -68,9 +68,7 @@ def serve(store: MatchStore) -> tuple[uvicorn.Server, int]:
     s.bind(("127.0.0.1", 0))
     port = s.getsockname()[1]
     s.close()
-    server = uvicorn.Server(
-        uvicorn.Config(build_server(store).streamable_http_app(), port=port, log_level="error")
-    )
+    server = uvicorn.Server(uvicorn.Config(build_server(store).streamable_http_app(), port=port, log_level="error"))
     threading.Thread(target=server.run, daemon=True).start()
     while not server.started:
         time.sleep(0.05)
@@ -97,12 +95,7 @@ async def ask(store: RecordingStore, prompt: str) -> tuple[str, float, list[str]
             )
             t0 = time.perf_counter()
             result = await agent.run(prompt)
-            calls = [
-                c.name
-                for m in result.messages
-                for c in m.contents
-                if getattr(c, "type", "") == "function_call"
-            ]
+            calls = [c.name for m in result.messages for c in m.contents if getattr(c, "type", "") == "function_call"]
             return result.text, time.perf_counter() - t0, calls
     finally:
         server.should_exit = True
@@ -126,9 +119,7 @@ async def main() -> None:
     text, secs, calls = await ask(after, f"Explain the decision on {inc.incident_id} to a casual fan.")
     report("After the decision", text, secs, calls, after, "decided")
 
-    planted = (
-        re.sub(r"\b31\b", "33", text, count=1) if re.search(r"\b31\b", text) else text + " The gap was 33 cm."
-    )
+    planted = re.sub(r"\b31\b", "33", text, count=1) if re.search(r"\b31\b", text) else text + " The gap was 33 cm."
     v = validate_text(planted, after.packet, "decided")
     print(f"\n== Planted wrong number\n{planted}\nvalidator:", "; ".join(map(str, v)) or "PASS (unexpected)")
 

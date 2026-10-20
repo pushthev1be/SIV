@@ -63,9 +63,6 @@ class MatchEvent(Contract):
             raise ValueError("frame and ball_track must appear together")
         if self.frame is not None and self.type != "pass":
             raise ValueError("frame and ball_track appear only on passes")
-        if (
-            self.type not in ("period_end", "var_check", "var_decision")
-            and not 14 <= len(self.positions) <= 22
-        ):
+        if self.type not in ("period_end", "var_check", "var_decision") and not 14 <= len(self.positions) <= 22:
             raise ValueError("on-ball events must carry every on-pitch position (14 to 22)")
         return self

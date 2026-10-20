@@ -143,15 +143,11 @@ def test_tight_onside_goal_stands():
     events, i, kick = offside_sequence("goal_stands")
     playable = [k for k in ATTACKER_BODY if k != "arm"]
     att = max(kick.frame.body[kick.receiver][k][0] for k in playable)
-    deff = max(
-        v[k][0] for pid, v in kick.frame.body.items() if pid.startswith("ASH") for k in playable if k in v
-    )
+    deff = max(v[k][0] for pid, v in kick.frame.body.items() if pid.startswith("ASH") for k in playable if k in v)
     assert att - deff == pytest.approx(-0.06, abs=0.002)  # 6 cm behind the line: onside
     after = events[i:]
     assert next(e for e in after if e.type == "var_decision").outcome == "goal_stands"
-    assert (
-        next(e for e in after if e.type in ("kickoff", "pass")).type == "kickoff"
-    )  # play restarts from the centre
+    assert next(e for e in after if e.type in ("kickoff", "pass")).type == "kickoff"  # play restarts from the centre
 
 
 def test_penalty_review_from_play_waved_on():

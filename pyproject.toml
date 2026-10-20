@@ -33,7 +33,7 @@ packages = ["config", "contracts", "sim", "engine", "agents", "mcp_server", "orc
 testpaths = ["tests"]
 
 [tool.ruff]
-line-length = 110
+line-length = 120  # explanation templates are long English sentences
 target-version = "py312"
 
 [tool.ruff.lint]

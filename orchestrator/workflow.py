@@ -141,9 +141,7 @@ class Validate(Executor):
             draft = await writer._write(draft.moment, violations, attempts=2)
             violations = validate_text(draft.text, draft.moment.fact_packet, draft.moment.incident_state)
         if violations:
-            draft = Draft(
-                draft.moment, template_text(draft.moment.kind, draft.moment.fact_packet), "template"
-            )
+            draft = Draft(draft.moment, template_text(draft.moment.kind, draft.moment.fact_packet), "template")
         await ctx.send_message(Validated(draft.moment, draft.text, draft.origin))
 
 
@@ -204,9 +202,7 @@ def build_workflow(client: FoundryChatClient, strong_model: str, mcp: MCPStreama
         tools=[mcp],
         # model override per agent: strong model for explainer / decision desk
     )
-    decision_desk = client.as_agent(
-        name="DecisionDesk", instructions=_load_prompt("decision_desk"), tools=[mcp]
-    )
+    decision_desk = client.as_agent(name="DecisionDesk", instructions=_load_prompt("decision_desk"), tools=[mcp])
     persona_agent = client.as_agent(name="Persona", instructions=_load_prompt("persona"))
 
     route = Route()
@@ -273,17 +269,11 @@ def _writer_for(moment: Moment) -> str:
 
 
 def _prompt(moment: Moment, violations: list[str] | None) -> str:
-    fix = (
-        f"\nYour last draft was rejected: {'; '.join(violations)}. Use only the facts given."
-        if violations
-        else ""
-    )
+    fix = f"\nYour last draft was rejected: {'; '.join(violations)}. Use only the facts given." if violations else ""
     head = f"Moment {moment.moment_id} ({moment.kind})."
     return f"{head} Facts: {moment.fact_packet}. Cite: {moment.sources}.{fix}"
 
 
 def _load_prompt(name: str) -> str:
-    with open(
-        os.path.join(os.path.dirname(__file__), "..", "agents", "prompts", f"{name}.md"), encoding="utf-8"
-    ) as f:
+    with open(os.path.join(os.path.dirname(__file__), "..", "agents", "prompts", f"{name}.md"), encoding="utf-8") as f:
         return f.read()

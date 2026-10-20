@@ -183,9 +183,7 @@ class Engine:
 
     # ── Helpers ──────────────────────────────────────────────────────────────
 
-    def _fact(
-        self, fact_kind: str, e: MatchEvent, sources: list[str], /, team=None, player=None, **values
-    ) -> Fact:
+    def _fact(self, fact_kind: str, e: MatchEvent, sources: list[str], /, team=None, player=None, **values) -> Fact:
         # positional-only, so a value named `kind` (an incident's kind) lands in values
         return Fact(fact_kind, e.period, e.clock, values, sources, team=team, player=player)
 
@@ -290,11 +288,7 @@ class Engine:
             inc = self.desk.open(VAR_KIND[e.outcome], ON_FIELD_WHEN_UNCALLED[e.outcome], e.clock)
             challenge = self._last_challenge(e.player)
             if challenge is not None:
-                d = (
-                    distance_to_goal(challenge.start, -self.direction.get(e.team, 1))
-                    if challenge.start
-                    else None
-                )
+                d = distance_to_goal(challenge.start, -self.direction.get(e.team, 1)) if challenge.start else None
                 facts = {"offender": e.player, "fouled": e.receiver or challenge.receiver or "",
                          "foul_event": challenge.event_id, "foul_clock": challenge.clock}  # fmt: skip
                 if d is not None:
@@ -308,11 +302,7 @@ class Engine:
         if kind == "offside":
             kick = self._ctx.last_frame_pass.get(e.team)
             if kick is not None:
-                codes = (
-                    ["multiple_phases"]
-                    if self._ctx.on_ball_since_frame.get(e.team, 0) > MULTIPLE_PHASES
-                    else []
-                )
+                codes = ["multiple_phases"] if self._ctx.on_ball_since_frame.get(e.team, 0) > MULTIPLE_PHASES else []
                 inc = self.desk.add_facts(inc.incident_id, self._offside_facts(kick), codes)
         return [self._incident_fact(inc, e)]
 

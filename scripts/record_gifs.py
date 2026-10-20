@@ -39,41 +39,49 @@ def serve() -> tuple[http.server.ThreadingHTTPServer, str]:
     return httpd, f"http://127.0.0.1:{httpd.server_address[1]}/?s=golden"
 
 
-def open_call(page, label: str) -> None:
-    js = "(l) => [...document.querySelectorAll('#jumps button')].find(b => b.textContent.includes(l)).click()"
-    page.evaluate(js, label)
+OFFSIDE = "c => c.kind === 'offside' && c.final === 'no_goal'"
+
+
+def open_call(page, at: str = "decided") -> None:
+    """Jump to the golden match's ruled-out offside and open its replay."""
+    page.evaluate(
+        f"""() => {{ const V = window.__varNarrative, c = V.calls.find({OFFSIDE});
+                    V.seek(c.{at} + 0.1); V.openReplay(c.iid); }}"""
+    )
 
 
 # Each scene: (name, selector to crop to, setup(page), seconds to record after setup)
 def scene_offside(page) -> None:
-    open_call(page, "VAR offside")
+    open_call(page)
     page.evaluate("() => { const R = window.__varNarrative.R; R.rt = R.pkg.key_t - 3.0; }")
 
 
 def scene_callouts(page) -> None:
-    open_call(page, "VAR offside")
+    open_call(page)
     page.evaluate("() => { const R = window.__varNarrative.R; R.rt = R.pkg.frames[0].t + 1.0; }")
 
 
 def scene_live_var(page) -> None:
     page.evaluate(
-        """() => { const T = window.__varNarrative, at = T.replayAt;
-                   const iid = Object.keys(at).find(k => at[k].during != null);
-                   T.seek(at[iid].during - 13); T.play(true, 10); }"""
+        f"""() => {{ const V = window.__varNarrative, c = V.calls.find({OFFSIDE});
+                    V.showPane('buddy'); V.seek(c.review - 13); V.play(true, 10); }}"""
     )
 
 
 def scene_player(page) -> None:
-    page.evaluate(
-        "() => { const T = window.__varNarrative; T.seek(3700); T.selectPlayer('NBR-9'); T.play(true, 5); }"
-    )
+    page.evaluate("() => { const V = window.__varNarrative; V.seek(3700); V.selectPlayer('NBR-9'); V.play(true, 5); }")
+
+
+def scene_calls(page) -> None:
+    page.evaluate("() => { const V = window.__varNarrative; V.seek(1400); V.showPane('calls'); V.play(true, 60); }")
 
 
 SCENES = [
     ("offside-replay", ".stage", scene_offside, 14.0),
     ("hud-callouts", ".stage", scene_callouts, 7.0),
-    ("live-var-check", ".stage", scene_live_var, 10.0),
-    ("player-card", ".wrap", scene_player, 8.0),
+    ("live-var-check", ".app", scene_live_var, 11.0),
+    ("player-card", ".app", scene_player, 8.0),
+    ("calls-timeline", ".app", scene_calls, 9.0),
 ]
 
 

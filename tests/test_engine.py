@@ -111,9 +111,7 @@ def test_speed_and_sprint_from_positions():
 
 def test_long_pass_through_defenders_is_harder():
     base = offside_pass({"foot_l": [85.4, 26.0]}, {"foot_l": [85.0, 30.0]})
-    short = base.model_copy(
-        update={"start": (50.0, 30.0), "end": (58.0, 30.0), "frame": None, "ball_track": None}
-    )
+    short = base.model_copy(update={"start": (50.0, 30.0), "end": (58.0, 30.0), "frame": None, "ball_track": None})
     lane = positions(**{"ASH-6": [70.0, 33.0], "ASH-7": [80.0, 30.5], "NBR-9": [90.0, 30.0]})
     long_ = short.model_copy(update={"start": (55.0, 34.0), "end": (90.0, 30.0), "positions": lane})
     easy, hard = pass_quality(short, 1), pass_quality(long_, 1)
@@ -206,9 +204,7 @@ def test_golden_score_counts_the_disallowed_goal_out():
 
 def test_red_card_incident_is_upheld_with_foul_facts():
     _, facts = facts_for("red_card")
-    first = next(
-        f.values["incident_id"] for f in facts if f.kind == "incident" and f.values["kind"] == "red_card"
-    )
+    first = next(f.values["incident_id"] for f in facts if f.kind == "incident" and f.values["kind"] == "red_card")
     red = [f for f in facts if f.kind == "incident" and f.values["incident_id"] == first]
     assert [f.values["state"] for f in red] == ["open", "reviewing", "decided", "restarted"]
     v = red[2].values
@@ -226,11 +222,7 @@ def test_every_fact_cites_its_events():
 
 def golden_offside_replays():
     engine, facts = facts_for("golden")
-    iid = next(
-        f.values["incident_id"]
-        for f in facts
-        if f.kind == "incident" and f.values["var_outcome"] == "offside"
-    )
+    iid = next(f.values["incident_id"] for f in facts if f.kind == "incident" and f.values["var_outcome"] == "offside")
     return engine.replays[iid]
 
 
@@ -260,9 +252,7 @@ def test_replay_speeds_are_derived_and_plausible():
 
 def test_every_call_gets_a_replay():
     engine, facts = facts_for("golden")
-    decided = {
-        f.values["incident_id"] for f in facts if f.kind == "incident" and f.values["state"] == "decided"
-    }
+    decided = {f.values["incident_id"] for f in facts if f.kind == "incident" and f.values["state"] == "decided"}
     assert decided == {iid for iid, phases in engine.replays.items() if "after" in phases}
 
 
@@ -290,7 +280,7 @@ def test_penalty_review_opens_its_own_incident():
     assert (inc.on_field, inc.final, inc.var_outcome) == ("no_penalty", "penalty", "penalty")
     assert inc.reason_codes == ["subjective_judgement"]
     assert inc.facts["offender"].startswith("NBR") and inc.facts["fouled"].startswith("ASH")
-    assert "Penalty" in engine.replays[inc.incident_id]["after"].status["fan"]
+    assert "Why a penalty" in engine.replays[inc.incident_id]["after"].status["fan"]
 
 
 def test_red_card_overturned_is_downgraded():

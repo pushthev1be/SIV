@@ -32,9 +32,7 @@ def main() -> None:
     args = ap.parse_args()
     store = MatchStore.from_scenario(args.scenario, parse_until(args.until))
     print(f"{args.scenario} at {store.now()['clock_text']}: {len(store.engine.desk.incidents)} incidents")
-    uvicorn.run(
-        build_server(store).streamable_http_app(), host=args.host, port=args.port, log_level="warning"
-    )
+    uvicorn.run(build_server(store).streamable_http_app(), host=args.host, port=args.port, log_level="warning")
 
 
 if __name__ == "__main__":

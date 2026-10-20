@@ -95,9 +95,7 @@ def check(s: Summary) -> list[str]:
         within("pass_completion", s.completed[team] / s.passes[team], f"{team} pass completion")
         within("shots", s.shots[team], f"{team} shots")
         within("fouls", s.fouls[team], f"{team} fouls")
-        within(
-            "top_speed_kmh", max(v for k, v in s.top_kmh.items() if k.startswith(team)), f"{team} top speed"
-        )
+        within("top_speed_kmh", max(v for k, v in s.top_kmh.items() if k.startswith(team)), f"{team} top speed")
     outfield = {k: v for k, v in s.km.items() if not k.endswith("-1") and k in s.finished}
     within("outfield_km_median", statistics.median(outfield.values()), "outfield distance median")
     for pid, v in sorted(outfield.items()):
@@ -122,9 +120,7 @@ def report(name: str, events: list[MatchEvent]) -> tuple[str, list[str]]:
             f"top {max(v for k, v in s.top_kmh.items() if k.startswith(t)):.1f} km/h"
         )
     outfield = [v for k, v in s.km.items() if not k.endswith("-1")]
-    lines.append(
-        f"  outfield km: median {statistics.median(outfield):.1f}, {min(outfield):.1f}..{max(outfield):.1f}"
-    )
+    lines.append(f"  outfield km: median {statistics.median(outfield):.1f}, {min(outfield):.1f}..{max(outfield):.1f}")
     return "\n".join(lines), check(s)
 
 

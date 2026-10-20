@@ -74,9 +74,7 @@ class Simulator:
             kicking = m.home if period == 1 else m.away
             m.place(m.kickoff_slots(kicking))
             self._kickoff(kicking)
-            end = (
-                PERIOD_START[period] + 2700 + (rng.uniform(60, 180) if period == 1 else rng.uniform(180, 330))
-            )
+            end = PERIOD_START[period] + 2700 + (rng.uniform(60, 180) if period == 1 else rng.uniform(180, 330))
             while m.clock < end or (self.active is not None and m.clock < end + 120):
                 self._step()
             m.carrier, m.flight = None, None
@@ -85,9 +83,7 @@ class Simulator:
 
     # ── Emission and time ────────────────────────────────────────────────────
 
-    def _emit(
-        self, type_: str, *, clock: float | None = None, positions: bool = True, **fields
-    ) -> MatchEvent:
+    def _emit(self, type_: str, *, clock: float | None = None, positions: bool = True, **fields) -> MatchEvent:
         m = self.m
         ev = MatchEvent(
             event_id=f"{self.sc.match_id}-e{len(self.events) + 1}",
@@ -180,9 +176,7 @@ class Simulator:
             self._wait(rng.uniform(10, 22))  # free kick
             return False
         won = rng.random() < 0.55 or self.force_ball_to == tackler.team
-        self._emit(
-            "tackle", team=tackler.team, player=tackler.pid, receiver=c.pid, outcome="won" if won else "lost"
-        )
+        self._emit("tackle", team=tackler.team, player=tackler.pid, receiver=c.pid, outcome="won" if won else "lost")
         if won:
             self._give(tackler)
             return True
@@ -243,10 +237,7 @@ class Simulator:
             flight *= max(t, 0.15)
 
         frame, track = None, None
-        near_line = (
-            m.af(team, r.x, r.y)[0] > HALFWAY
-            and abs(m.af(team, r.x, r.y)[0] - m.second_last_af_x(team)) < 2.5
-        )
+        near_line = m.af(team, r.x, r.y)[0] > HALFWAY and abs(m.af(team, r.x, r.y)[0] - m.second_last_af_x(team)) < 2.5
         if offside or near_line:
             frame, track, kick_clock = self._offside_evidence(c, r, end, speed, jitter=True)
         else:
@@ -366,9 +357,7 @@ class Simulator:
         m = self.m
         d = m.direction(attacker.team)
         line_x = m.second_last_af_x(attacker.team)
-        body: dict[str, dict[str, tuple[float, float]]] = {
-            attacker.pid: self._body(attacker, ATTACKER_BODY, d, jitter)
-        }
+        body: dict[str, dict[str, tuple[float, float]]] = {attacker.pid: self._body(attacker, ATTACKER_BODY, d, jitter)}
         for p in m.on_pitch(m.other(attacker.team)):
             if abs(m.af(attacker.team, p.x, p.y)[0] - line_x) < 10:
                 body[p.pid] = self._body(p, DEFENDER_BODY, d, jitter)
@@ -383,9 +372,7 @@ class Simulator:
         track = []
         for i in range(-15, 16):
             s = max(0, i) * 0.01 * v
-            track.append(
-                (round(tk + i * 0.01, 2), round(foot[0] + ux / n * s, 3), round(foot[1] + uy / n * s, 3))
-            )
+            track.append((round(tk + i * 0.01, 2), round(foot[0] + ux / n * s, 3), round(foot[1] + uy / n * s, 3)))
         return frame, track, tk
 
     def _body(self, p: Player, offsets, d: int, jitter: bool) -> dict[str, tuple[float, float]]:
@@ -399,11 +386,7 @@ class Simulator:
 
     def _run_script(self) -> bool:
         m = self.m
-        if (
-            self.active is None
-            and self.pending
-            and m.clock >= self.pending[0].at - LEAD_S[self.pending[0].kind]
-        ):
+        if self.active is None and self.pending and m.clock >= self.pending[0].at - LEAD_S[self.pending[0].kind]:
             self.active = self.pending.pop(0)
             s = self.active
             team_led = isinstance(s, OffsideGoal | Goal | PenaltyReview)
@@ -484,9 +467,7 @@ class Simulator:
         self._fly(passer.pos, run_to, length / (speed / 3.6 * 0.8), runner=attacker)
         self._give(attacker)
         gx = L if d == 1 else 0.0
-        self._carry(
-            attacker, end=(attacker.x + (gx - attacker.x) * 0.35, attacker.y + (W / 2 - attacker.y) * 0.3)
-        )
+        self._carry(attacker, end=(attacker.x + (gx - attacker.x) * 0.35, attacker.y + (W / 2 - attacker.y) * 0.3))
         self.goal_team = s.team
         self._shot(attacker)
 
@@ -526,9 +507,7 @@ class Simulator:
         self._emit("card", team=offender.team, player=offender.pid, outcome="red")
         if s.var:
             self._wait(rng.uniform(4, 7))
-            self._emit(
-                "var_check", team=offender.team, player=offender.pid, outcome="red_card", positions=False
-            )
+            self._emit("var_check", team=offender.team, player=offender.pid, outcome="red_card", positions=False)
             self._wait(s.check_s)
             overturned = s.var_result == "overturned"
             self._emit(

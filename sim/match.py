@@ -110,9 +110,7 @@ class Match:
 
     def second_last_af_x(self, attacking: str) -> float:
         """Second-deepest defender, in the attacking team's frame (Law 11 uses this line)."""
-        xs = sorted(
-            (self.af(attacking, p.x, p.y)[0] for p in self.on_pitch(self.other(attacking))), reverse=True
-        )
+        xs = sorted((self.af(attacking, p.x, p.y)[0] for p in self.on_pitch(self.other(attacking))), reverse=True)
         return xs[1]
 
     def offside_position(self, p: Player) -> bool:
@@ -169,9 +167,7 @@ class Match:
         defending = self.other(self.possession)
         chasers: list[str] = []
         if self.carrier and self.flight is None:
-            near = sorted(
-                (p for p in self.on_pitch(defending) if not p.is_gk), key=lambda p: dist(p.pos, self.ball)
-            )
+            near = sorted((p for p in self.on_pitch(defending) if not p.is_gk), key=lambda p: dist(p.pos, self.ball))
             chasers = [p.pid for p in near[:2]]
 
         for p in self.on_pitch():

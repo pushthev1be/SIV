@@ -21,6 +21,7 @@ from contracts.replay import (
     ReplayPackage,
     SlowWindow,
 )
+from engine.laws import RULE_SENTENCE
 from engine.stats import distance_to_goal
 
 SPEED_HALF_WINDOW_S = 0.5
@@ -28,6 +29,12 @@ BALL_TRACK_FPS = 100  # the sampling rate the kick point is found from
 FINAL_TEXT = {
     "no_goal": "no goal", "goal": "goal", "red_card": "red card", "yellow": "yellow card",
     "penalty": "penalty", "no_penalty": "no penalty",
+}  # fmt: skip
+
+
+PART_TEXT = {
+    "foot_l": "left foot", "foot_r": "right foot", "knee_l": "left knee", "knee_r": "right knee",
+    "head": "head", "torso": "body", "centre": "body", "arm": "arm",
 }  # fmt: skip
 
 
@@ -109,9 +116,7 @@ def build_replay(
     return None
 
 
-def _package(
-    inc, phase, period, key_t, frames, ball, moments, focus, status, sources, lines=None, facts=None
-):
+def _package(inc, phase, period, key_t, frames, ball, moments, focus, status, sources, lines=None, facts=None):
     if len(frames) < 2 or len(ball) < 2:
         return None
     t_first, t_last = frames[0].t, frames[-1].t
@@ -164,25 +169,37 @@ def _offside(history, inc: Incident, phase, direction) -> ReplayPackage | None:
     if phase == "during":
         status = {
             "stadium": "Check in progress: possible offside",
-            "fan": f"The officials are checking whether {att} was offside when {passer} played the pass.",
-            "analyst": (
-                f"Measuring {att}'s most forward playable part against the second-last defender at the pass."
+            "fan": (
+                f"Checking for offside. {RULE_SENTENCE['offside']}. The officials are finding the exact frame "
+                f"where {passer} played the pass, to see whether {att} was beyond the second-last defender."
             ),
+            "analyst": (f"Measuring {att}'s most forward playable part against the second-last defender at the pass."),
             "officials": f"Review open: offside. On-field call: {inc.on_field}.",
         }
     else:
         final = FINAL_TEXT.get(inc.final or "", inc.final or "")
         check = f" The check took {f['check_s']:.0f} s." if "check_s" in f else ""
         stands = inc.final == "goal"
+        a_part = PART_TEXT.get(f["attacker_part"], f["attacker_part"])
+        d_part = PART_TEXT.get(f["defender_part"], f["defender_part"])
+        side = "beyond" if margin > 0 else "behind"
+        evidence = (
+            f"At the moment {passer} played it, {att}'s {a_part} was {margin_text(margin)} {side} {deff}'s {d_part}"
+        )
+        agrees = (margin > 0) != stands  # the measurement and the decision point the same way
         if stands:
             stadium = "Check complete: goal stands, onside"
-            fan = (
-                f"Goal stands. {att} was {margin_text(margin)} behind {deff} when the pass was played: "
-                f"onside.{check}"
-            )
+            why = ": level or behind is onside, so the goal stands." if agrees else "."
+            fan = f"Why the goal stands. {RULE_SENTENCE['offside']}. {evidence}{why}{check}"
         else:
             stadium = f"{'Check complete: ' if reviewed else ''}{final.capitalize()}, offside"
-            fan = f"Offside. {att} was {margin_text(margin)} ahead of {deff} when the pass was played.{check}"
+            ruled_out = (
+                ", so the goal is ruled out for offside." if goal else ", so it's offside: a free kick to the defence."
+            )
+            why = ruled_out if agrees else "."
+            fan = f"Why it's offside. {RULE_SENTENCE['offside']}. {evidence}{why}{check}"
+        if not agrees:  # never defend a call the measurement does not support
+            fan += " The measurement alone does not explain this decision; the officials' notes will say why."
         status = {
             "stadium": stadium,
             "fan": fan,
@@ -191,9 +208,10 @@ def _offside(history, inc: Incident, phase, direction) -> ReplayPackage | None:
                 f"Kick at {clock_text(kick.period, kick_t)} from the {BALL_TRACK_FPS} fps ball track.{check}"
             ),
             "officials": (
-                f"Facts only. Measured on playable parts (Law 11) against the second-last opponent ({deff}): "
-                f"{margin:.2f} m. On-field: {inc.on_field}. VAR: {inc.var_outcome or 'no review'}. "
-                f"Final: {final}."
+                f"Factual check under Law 11. Kick frame {clock_text(kick.period, kick_t)} from the "
+                f"{BALL_TRACK_FPS} fps ball track: {att} {a_part} {abs(margin):.2f} m {side} the "
+                f"second-last defender {deff} ({d_part}). The evidence supports "
+                f"{'offside, no goal' if margin > 0 else 'onside, goal stands'}. Final decision: {final}."
             ),
         }
     lines = OffsideLines(
@@ -211,9 +229,7 @@ def _offside(history, inc: Incident, phase, direction) -> ReplayPackage | None:
     facts = {} if phase == "during" else {k: f[k] for k in ("margin_m", "check_s") if k in f}
     if phase == "after":
         facts["ball_track_fps"] = BALL_TRACK_FPS
-    return _package(
-        inc, phase, kick.period, kick_t, frames, ball, moments, focus, status, sources, lines, facts
-    )
+    return _package(inc, phase, kick.period, kick_t, frames, ball, moments, focus, status, sources, lines, facts)
 
 
 def _goal(history, inc: Incident, phase, direction) -> ReplayPackage | None:
@@ -223,9 +239,7 @@ def _goal(history, inc: Incident, phase, direction) -> ReplayPackage | None:
     before = [e for e in history if e.period == goal.period and goal.clock - 15 <= e.clock <= goal.clock]
     shot = next((e for e in reversed(before) if e.type == "shot" and e.player == goal.player), None)
     key = shot or goal
-    passes_in = [
-        e for e in before if e.type == "pass" and e.outcome == "complete" and e.receiver == goal.player
-    ]
+    passes_in = [e for e in before if e.type == "pass" and e.outcome == "complete" and e.receiver == goal.player]
     assist = next((e for e in reversed(passes_in) if e.clock <= key.clock), None)
     frames, ball = _window(history, goal.period, goal.clock - 12.0, goal.clock + 2.0)
     focus = [ReplayFocus(player=goal.player, role="scorer")]
@@ -275,17 +289,19 @@ def _challenge(history, inc: Incident, phase) -> ReplayPackage | None:
     closing_text = f", arriving at {closing:.0f} km/h" if closing else ""
     red = inc.kind == "red_card"
     penalty = inc.kind == "penalty"
-    where = f" {f['distance_to_goal_m']:.0f} m from goal" if "distance_to_goal_m" in f else ""
-    moments = [
-        ReplayMoment(t=foul.clock, label=f"The challenge by {offender}{closing_text}"[:80], reveal="always")
-    ]
+    where = f" {f['distance_to_goal_m']:.0f} m from goal" if "distance_to_goal_m" in f and phase == "after" else ""
+    moments = [ReplayMoment(t=foul.clock, label=f"The challenge by {offender}{closing_text}"[:80], reveal="always")]
+    rule = RULE_SENTENCE["penalty" if penalty else "red_card"]
+    arriving = f" at {closing:.0f} km/h" if closing else ""
     if phase == "during":
         status = {
             "stadium": f"Check in progress: possible {'penalty' if penalty else 'red card'}",
             "fan": (
-                f"The officials are checking a possible penalty: {offender}'s challenge on {fouled}."
+                f"Checking a possible penalty. {rule}. The officials are looking at {offender}'s challenge "
+                f"on {fouled}; whether it was a foul is the referee's judgement."
                 if penalty
-                else f"The officials are reviewing {offender}'s challenge on {fouled}."
+                else f"Checking a possible red card. {rule}. The officials are reviewing {offender}'s "
+                f"challenge on {fouled}."
             ),
             "analyst": f"Challenge by {offender}{closing_text}. Review open.",
             "officials": f"Review open: {inc.kind.replace('_', ' ')}. On-field call: {inc.on_field}.",
@@ -293,30 +309,45 @@ def _challenge(history, inc: Incident, phase) -> ReplayPackage | None:
     else:
         final = FINAL_TEXT.get(inc.final or "", inc.final or "")
         if penalty:
+            given = inc.final == "penalty"
+            outcome = (
+                "referee judged the contact a foul, so it's a penalty."
+                if given
+                else "referee judged there was not enough for a foul, so play goes on."
+            )
             fan = (
-                f"Penalty. After review, {offender}'s challenge on {fouled}{where} is a foul in the box."
-                if inc.final == "penalty"
-                else f"No penalty. The contact by {offender} on {fouled} was not a foul."
+                f"Why {'a penalty' if given else 'no penalty'}. {RULE_SENTENCE['penalty']}. {offender} went "
+                f"into the challenge on {fouled}{arriving} inside the area{',' if where else ''}{where}; "
+                f"on review the {outcome}"
             )
         elif red and inc.var_outcome == "overturned":
-            fan = f"The red card for {offender} is downgraded to a yellow after review."
+            fan = (
+                f"Why it's now a yellow. {RULE_SENTENCE['red_card']}. {offender} arrived{arriving} on "
+                f"{fouled}; on review the referee judged it reckless rather than dangerous, so the red card "
+                f"is downgraded to a yellow."
+            )
         elif red:
-            fan = f"{offender} is sent off for the challenge on {fouled}."
+            fan = (
+                f"Why a red card. {RULE_SENTENCE['red_card']}. {offender} arrived{arriving} on {fouled}; "
+                f"the referee judged the challenge endangered the opponent's safety, so {offender} is sent off."
+            )
         else:
-            fan = f"Yellow card for {offender} for the challenge on {fouled}."
+            fan = (
+                f"Why a yellow card. {RULE_SENTENCE['foul']}. {offender}'s challenge on {fouled}{arriving} "
+                f"was judged reckless."
+            )
         status = {
             "stadium": f"{final.capitalize()}: {offender}" if not penalty else f"Check complete: {final}",
             "fan": fan,
             "analyst": f"Challenge by {offender}{closing_text}.",
             "officials": (
-                f"Facts only. On-field: {inc.on_field}. VAR: {inc.var_outcome or 'no review'}. "
-                f"Final: {final}."
+                f"Judgement check. Factors: {offender}{' arriving' + arriving if arriving else ''} on "
+                f"{fouled}{where}. On-field: {inc.on_field.replace('_', ' ')}. Final after review: {final}. "
+                f"This is the referee's call; the facts inform it, they do not make it."
             ),
         }  # fmt: skip
     sources = [foul.event_id, inc.incident_id]
     cfacts = {"closing_speed_kmh": closing} if closing else {}
     if phase == "after" and "distance_to_goal_m" in f:
         cfacts["distance_to_goal_m"] = f["distance_to_goal_m"]
-    return _package(
-        inc, phase, foul.period, foul.clock, frames, ball, moments, focus, status, sources, facts=cfacts
-    )
+    return _package(inc, phase, foul.period, foul.clock, frames, ball, moments, focus, status, sources, facts=cfacts)

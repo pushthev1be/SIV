@@ -181,9 +181,7 @@ class Rolling:
         while self._items and (self._items[0][0] != period or self._items[0][1] < clock - self.window):
             self._items.popleft()
         span_min = max(1.0, min(self.window, clock - (2700.0 if period == 2 else 0.0)) / 60)
-        count = {
-            (t, tag): 0 for t in teams for tag in ("on_ball", "complete", "turnover", "press", "won_ball")
-        }
+        count = {(t, tag): 0 for t in teams for tag in ("on_ball", "complete", "turnover", "press", "won_ball")}
         for _, _, team, tag in self._items:
             if (team, tag) in count:
                 count[(team, tag)] += 1

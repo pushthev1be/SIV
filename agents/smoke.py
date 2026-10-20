@@ -25,9 +25,7 @@ async def main() -> None:
             default_options={"reasoning": {"effort": "minimal"}},
         )
         t0 = time.perf_counter()
-        result = await agent.run(
-            "Facts: Okafor (Northbridge) sprinted at 33.1 km/h on the counter. Write the caption."
-        )
+        result = await agent.run("Facts: Okafor (Northbridge) sprinted at 33.1 km/h on the counter. Write the caption.")
         print(f"{result.text}\n[{setting('FOUNDRY_MODEL')}, {time.perf_counter() - t0:.2f}s]")
 
 

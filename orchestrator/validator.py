@@ -50,9 +50,7 @@ CLOCK_RE = re.compile(r"\b(\d{1,3}):([0-5]\d)\b|\b(\d{1,3})\+(\d{1,2})'|\b(\d{1,
 # "Law 11", "Laws 12 and 14": references to the Laws of the Game, not match numbers
 LAW_REF_RE = re.compile(r"\bLaws?\s+\d{1,2}(?:\s*(?:and|&|,)\s*\d{1,2})*\b", re.IGNORECASE)
 SCORE_RE = re.compile(r"\b(\d{1,2})\s*[-–]\s*(\d{1,2})\b")
-_UNIT_PATTERN = "|".join(
-    re.escape(u) for u in sorted({*CONVERSIONS, *UNIT_ALIASES} - {""}, key=len, reverse=True)
-)
+_UNIT_PATTERN = "|".join(re.escape(u) for u in sorted({*CONVERSIONS, *UNIT_ALIASES} - {""}, key=len, reverse=True))
 NUMBER_RE = re.compile(rf"(?<![\w.])(\d+(?:\.\d+)?)(?:\s*({_UNIT_PATTERN})(?![a-z]))?", re.IGNORECASE)
 
 # Verdict language that may not appear before the decision. "possible offside" and "checking for a
@@ -67,6 +65,8 @@ VERDICT_RE = re.compile(
 )
 CHECK_COMPLETE_RE = re.compile(r"\bcheck\s+(?:is\s+)?(?:complete|completed|over|done)\b", re.IGNORECASE)
 # "checking whether he was offside" asks the question; it does not answer it
+# "a player is offside if ..." is the rule, not a verdict
+RULE_FOLLOWS_RE = re.compile(r"\s+(?:if|when)\b", re.IGNORECASE)
 QUESTION_RE = re.compile(r"\b(?:whether|if)\b[^.!?;:]*$", re.IGNORECASE)
 
 
@@ -166,6 +166,8 @@ def validate_text(text: str, packet: Any, incident_state: str | None = None) -> 
     if unresolved:
         for m in VERDICT_RE.finditer(text):
             if QUESTION_RE.search(text[max(0, m.start() - 60) : m.start()]):
+                continue
+            if RULE_FOLLOWS_RE.match(text, m.end()):  # "a player is offside if ..." states the rule
                 continue
             kind = "check_complete" if CHECK_COMPLETE_RE.fullmatch(m.group(0)) else "premature_reveal"
             out.append(Violation(kind, m.group(0), "a verdict before the decision"))

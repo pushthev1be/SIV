@@ -91,11 +91,7 @@ class ReplayPackage(Contract):
             raise ValueError("key moment must sit inside the replay")
         if any(len(v) != len(self.frames) for v in self.speeds.values()):
             raise ValueError("speeds must align with frames")
-        leaks = (
-            self.lines is not None
-            or "margin_m" in self.facts
-            or any(m.reveal == "after" for m in self.moments)
-        )
+        leaks = self.lines is not None or "margin_m" in self.facts or any(m.reveal == "after" for m in self.moments)
         if self.phase == "during" and leaks:
             raise ValueError("a during replay cannot carry the measurement (N4)")
         return self

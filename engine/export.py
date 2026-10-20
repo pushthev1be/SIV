@@ -15,11 +15,37 @@ from dataclasses import asdict
 from pathlib import Path
 
 from engine.engine import Engine
+from engine.laws import FACTUAL_KINDS, law_summary
 from sim.scenario import load_scenario, scenario_names
 from sim.simulator import Simulator
 from sim.teams import TEAMS
 
 OUT_DIR = Path(__file__).resolve().parent.parent / "web" / "preview" / "data"
+
+
+def officials_brief(engine: Engine, facts: list[dict]) -> dict:
+    times: dict[str, dict[str, float]] = {}
+    for f in facts:
+        if f["kind"] == "incident":
+            times.setdefault(f["values"]["incident_id"], {}).setdefault(f["values"]["state"], f["t"])
+    brief = {}
+    for iid, inc in engine.desk.incidents.items():
+        topic = {"goal_check": None, "foul": "red_card"}.get(inc.kind, inc.kind)
+        after = engine.replays.get(iid, {}).get("after")
+        brief[iid] = {
+            "kind": inc.kind,
+            "factual": inc.kind in FACTUAL_KINDS,
+            "on_field": inc.on_field,
+            "final": inc.final,
+            "var_outcome": inc.var_outcome,
+            "reason_codes": inc.reason_codes,
+            "facts": inc.facts,
+            "replay_facts": after.facts if after else {},
+            "law": law_summary(topic) if topic else None,
+            "t": times.get(iid, {}),
+            "sources": [s for s in (inc.goal_event, iid) if s],
+        }
+    return brief
 
 
 def export(name: str) -> Path:
@@ -75,9 +101,11 @@ def export(name: str) -> Path:
             for iid, phases in engine.replays.items()
         },
         "player_log": {
-            pid: [a | {"t": t_of(a["period"], a["clock"])} for a in log]
-            for pid, log in engine.player_log.items()
+            pid: [a | {"t": t_of(a["period"], a["clock"])} for a in log] for pid, log in engine.player_log.items()
         },
+        # The officials' briefing for Ref Buddy: the full facts from the moment a check opens. The broadcast
+        # never sees these early; only the referee view in the preview reads them.
+        "officials": officials_brief(engine, facts),
         "roster": {
             f"{code}-{p.number}": {"name": p.name, "number": p.number, "role": p.role, "team": code}
             for code in (sc.home, sc.away)

@@ -79,9 +79,7 @@ class MatchStore:
                 view["involved"] = [{"player": f.player, "role": f.role} for f in pkg.focus]
                 players += [f.player for f in pkg.focus]
             view["names"] = self._names(players)
-            view["sources"] = [s for s in (inc.goal_event, inc.incident_id) if s] + (
-                pkg.sources if pkg else []
-            )
+            view["sources"] = [s for s in (inc.goal_event, inc.incident_id) if s] + (pkg.sources if pkg else [])
             view["sources"] = list(dict.fromkeys(view["sources"]))
             return view
 
