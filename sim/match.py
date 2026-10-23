@@ -55,6 +55,7 @@ class Player:
     chase: bool = False  # target the ball every tick
     max_af_x: float | None = None  # scripted cap on depth, in the opposing team's attacking frame
     run_until: float | None = None  # end of a sprint run; the override clears then
+    down_until: float | None = None  # fouled (on the ground) or pulled up at the whistle: stays put until then
 
     @property
     def top(self) -> float:
@@ -125,7 +126,10 @@ class Match:
         attacking = self.possession == p.team
         sx, sy = p.spec.slot
         if p.is_gk:
-            ax, ay = clamp(3 + bx * 0.12, 2, 16), W / 2 + (by - W / 2) * 0.25
+            # His own goal is at af x = 0, so bx is how far the ball is from it. Ball in his third: 1-4 m off
+            # the line. Further away he steps up, at most to about 16 m.
+            ax = 1.0 + 0.07 * bx if bx < 40 else 3.8 + 0.2 * (bx - 40)
+            ax, ay = clamp(ax, 1.0, 16.0), W / 2 + (by - W / 2) * 0.2
         else:
             line = clamp(bx - (34 if attacking else 18), 8, 52 if attacking else 40)
             length = 50 if attacking else 34
@@ -171,6 +175,13 @@ class Match:
             chasers = [p.pid for p in near[:2]]
 
         for p in self.on_pitch():
+            if p.down_until is not None:
+                if self.clock < p.down_until:  # on the ground, or pulled up: stops within about half a second
+                    p.vx, p.vy = p.vx * 0.6, p.vy * 0.6
+                    p.x = clamp(p.x + p.vx * DT, -1.0, L + 1.0)
+                    p.y = clamp(p.y + p.vy * DT, -1.0, W + 1.0)
+                    continue
+                p.down_until = None
             if p.run_until is not None and self.clock >= p.run_until:
                 p.override, p.urgency, p.run_until = None, None, None
             if self.clock >= p.wander_until:

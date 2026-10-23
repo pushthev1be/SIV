@@ -35,7 +35,7 @@ PERIOD_START = {1: 0.0, 2: 2700.0}
 # as it is set (so it can land a few seconds before `at`; nobody stands holding the ball). DOGSO keeps a long
 # lead: those seconds are the other defenders dropping off so the fouler is the last man.
 LEAD_S = {
-    "offside_goal": 10.0, "red_card": 20.0, "goal": 0.0, "penalty_review": 10.0, "ball_out_goal": 10.0,
+    "offside_goal": 18.0, "red_card": 20.0, "goal": 0.0, "penalty_review": 10.0, "ball_out_goal": 10.0,
     "box_edge_foul": 10.0, "goal_line_clearance": 10.0, "penalty_retake": 10.0, "dogso_foul": 30.0,
 }  # fmt: skip
 BALL_RADIUS_M = 0.11
@@ -200,12 +200,18 @@ class Simulator:
         """Returns True when the challenge ends the carrier's action."""
         rng = self.rng
         if rng.random() < 0.16:
-            self._emit("foul", team=tackler.team, player=tackler.pid, receiver=c.pid, start=_r(c.pos))
+            self._close_in(tackler, c)
+            spot = c.pos
+            self._emit("foul", team=tackler.team, player=tackler.pid, receiver=c.pid, start=_r(spot), contact=_r(spot))
+            self._whistle(c, tackler, spot)
             if rng.random() < 0.14 and tackler.yellows == 0:
                 tackler.yellows = 1
                 self._wait(rng.uniform(8, 15))
                 self._emit("card", team=tackler.team, player=tackler.pid, outcome="yellow")
-            self._wait(rng.uniform(10, 22))  # free kick
+            c.override, c.urgency = spot, 0.3  # once he's up, he takes the free kick where it happened
+            self._wait(rng.uniform(10, 22))
+            c.override, c.urgency = None, None
+            self._give(c)
             return False
         won = rng.random() < 0.55 or self.force_ball_to == tackler.team
         self._emit("tackle", team=tackler.team, player=tackler.pid, receiver=c.pid, outcome="won" if won else "lost")
@@ -213,6 +219,30 @@ class Simulator:
             self._give(tackler)
             return True
         return False
+
+    def _close_in(self, tackler: Player, c: Player, gap: float = 0.8, most: float = 1.5) -> None:
+        """The challenger actually reaches the player: contact at about `gap` metres, centre to centre.
+        Never more than `most` metres of correction, so it reads as a lunge, not a jump."""
+        d = dist(tackler.pos, c.pos)
+        if d > gap:
+            k = min(d - gap, most) / d
+            tackler.x += (c.x - tackler.x) * k
+            tackler.y += (c.y - tackler.y) * k
+
+    def _whistle(self, fouled: Player | None = None, offender: Player | None = None, spot=None) -> None:
+        """Play stops. The fouled player goes down, the offender pulls up, the ball stays where it was."""
+        m, rng = self.m, self.rng
+        m.carrier, m.flight = None, None
+        if spot is not None:
+            m.ball = spot
+        for p in m.on_pitch():
+            p.run_until, p.chase = None, False
+        if fouled is not None:
+            fouled.override, fouled.urgency = None, None
+            fouled.down_until = m.clock + rng.uniform(2.5, 4.0)
+        if offender is not None:
+            offender.override, offender.urgency = None, None
+            offender.down_until = m.clock + rng.uniform(0.8, 1.5)
 
     def _forced_for(self, c: Player) -> bool:
         """A scripted receiver applies only to his own team: the other side never passes the ball to him."""
@@ -295,9 +325,15 @@ class Simulator:
             frame=frame,
             ball_track=track,
         )
-        self._fly(c.pos, end, flight, runner=interceptor or (r if outcome == "complete" else None))
+        # The offside player runs onto it too: the flag goes up when he plays the ball, not at the kick.
+        self._fly(c.pos, end, flight, runner=interceptor or (r if outcome in ("complete", "offside") else None))
 
-        if outcome == "complete":
+        if outcome == "offside":
+            self._whistle(spot=end)
+            r.down_until = m.clock + rng.uniform(1.0, 1.6)  # pulls up at the flag
+            self._wait(rng.uniform(8, 18))  # free kick to the defending side where he played it
+            self._give(m.nearest(opp, end))
+        elif outcome == "complete":
             self._give(r)
         elif outcome == "intercepted":
             self._emit("interception", team=opp, player=interceptor.pid, start=_r(end))
@@ -342,15 +378,19 @@ class Simulator:
         xg = 0.6 * math.exp(-dg / 8.0) * (1 - 0.6 * min(1.0, abs(c.y - W / 2) / max(dg, 1.0)))
         speed = clamp(rng.gauss(95, 12) - dg * 0.5, 55, 130)
         roll = rng.random()
+        keeper = next(p for p in m.on_pitch(opp) if p.is_gk)
+        d = m.direction(team)
         if self.goal_team == team or (self.sc.random_goals and roll < xg and self.safe_team is None):
-            outcome, end = "goal", (gx, W / 2 + rng.uniform(-3.2, 3.2))
+            # Into the net, in the half of the goal the keeper isn't covering
+            side = -1 if keeper.y > W / 2 else 1
+            outcome, end = "goal", (gx + d * 1.2, W / 2 + side * rng.uniform(1.2, 3.2))
         else:
             roll = rng.random()
-            if roll < 0.34:
-                outcome, end = "saved", (gx, W / 2 + rng.uniform(-3.0, 3.0))
+            if roll < 0.34:  # he gets to it: the ball ends in his hands, in front of his line
+                outcome, end = "saved", (keeper.x - d * 0.3, keeper.y + rng.uniform(-1.0, 1.0))
             elif roll < 0.74:
                 side = 1 if rng.random() < 0.5 else -1
-                outcome, end = "off_target", (gx, W / 2 + side * rng.uniform(4.5, 12))
+                outcome, end = "off_target", (gx + d * 3.0, W / 2 + side * rng.uniform(4.5, 12))
             else:
                 outcome = "blocked"
                 k = 2.0 / max(dg, 2.0)
@@ -360,7 +400,6 @@ class Simulator:
             ball_speed_kmh=round(speed, 1),
         )  # fmt: skip
         self._fly(c.pos, end, max(0.2, dist(c.pos, end) / (speed / 3.6)))
-        keeper = next(p for p in m.on_pitch(opp) if p.is_gk)
         if outcome == "goal":
             self._emit("goal", team=team, player=c.pid, start=_r(end))
             if not isinstance(self.active, OffsideGoal) and not self.suppress_after_goal:
@@ -545,11 +584,16 @@ class Simulator:
         self.safe_team = victim_team
         offender.chase = True
         c = m.players[m.carrier]
-        if m.clock < s.at or (dist(offender.pos, c.pos) > 2.0 and m.clock < s.at + 60):
+        if m.clock < s.at or (dist(offender.pos, c.pos) > 2.0 and m.clock < s.at + 120):
+            if m.clock >= s.at and dist(offender.pos, c.pos) < 10:
+                c.override, c.urgency = c.pos, 0.3  # the carrier checks back, so the offender can get to him
             return False
-        self._emit("foul", team=offender.team, player=offender.pid, receiver=c.pid, start=_r(c.pos))
-        m.carrier = None
-        offender.chase = False
+        c.override, c.urgency = None, None
+        self._close_in(offender, c)
+        spot = c.pos
+        self._emit("foul", team=offender.team, player=offender.pid, receiver=c.pid, start=_r(spot), contact=_r(spot))
+        self._whistle(c, offender, spot)
+        c.override, c.urgency = spot, 0.3  # treated, then up for the free kick where it happened
         self._wait(rng.uniform(15, 25))
         self._emit("card", team=offender.team, player=offender.pid, outcome="red")
         if s.var:
@@ -603,6 +647,8 @@ class Simulator:
             outcome="won" if s.played_ball else "loose", start=_r(attacker.pos), contact=_r(contact),
             frame=frame, ball_track=track,
         )  # fmt: skip
+        attacker.override, attacker.urgency = None, None
+        attacker.down_until = m.clock + rng.uniform(2.5, 3.5)  # no whistle, but he's on the ground
         self._give(defender)
         self._wait(rng.uniform(1.0, 2.0))
         out = m.af(s.team, rng.uniform(40, 60), 0.5)
@@ -826,6 +872,7 @@ class Simulator:
             "foul", team=deff.team, player=deff.pid, receiver=att.pid, outcome="penalty", start=_r(contact),
             contact=_r(contact), frame=frame,
         )  # fmt: skip
+        self._whistle(att, deff, contact)
         decision = "free_kick" if s.outside_m > 0 else "penalty_confirmed"
         self._var(deff.team, deff.pid, "penalty_location", decision, s.check_s, receiver=att.pid, lead=(6, 9))
         if decision == "free_kick":
@@ -846,7 +893,9 @@ class Simulator:
         if not self._build_up(s.team, shooter.pid, (L - 20.0, W / 2 - 6.0)):
             return False
         spot = self._go(shooter, s.team, (L - 12.0, W / 2 - 6.0), 0.8)
-        self._go(clearer, s.team, (L - 0.3, W / 2 + 2.2), 1.0)
+        self._go(clearer, s.team, (L - 0.3, W / 2 + 2.2), 1.0)  # covering the far post behind his keeper
+        gk = next(p for p in m.on_pitch(m.other(s.team)) if p.is_gk)
+        self._go(gk, s.team, (L - 1.5, W / 2 - 2.6), 0.9)  # the keeper narrows the near post; the shot goes far side
         if dist(shooter.pos, spot) > 1.0 and m.clock < s.at + 90:
             self._wait(0.5)
             return True
@@ -886,22 +935,29 @@ class Simulator:
         if (not in_box or dist(fouler.pos, taker.pos) > 2.0) and m.clock < s.at + 90:
             self._wait(0.3)
             return True
+        self._close_in(fouler, taker)
         self._emit("foul", team=fouler.team, player=fouler.pid, receiver=taker.pid, outcome="penalty",
                    start=_r(taker.pos), contact=_r(taker.pos))  # fmt: skip
-        m.carrier, fouler.chase = None, False
+        self._whistle(taker, fouler, taker.pos)
         self._go(taker, s.team, (L - 11.8, W / 2), 0.5)
         self._go(keeper, s.team, (L - 0.4, W / 2), 0.5)
         self._wait(rng.uniform(35, 45))
 
         def kick(off_m: float, outcome: str) -> None:
+            m.carrier = None
             spot = m.af(s.team, L - 11.0, W / 2)
             taker.x, taker.y = m.af(s.team, L - 11.6, W / 2)
             keeper.x, keeper.y = m.af(s.team, L - LINE_WIDTH_M - off_m - KEEPER_REAR_FOOT, W / 2)
             m.ball = spot
-            aim = m.af(s.team, L - 0.25, W / 2 + 1.6)
+            if outcome == "saved":  # he gets a hand to it in front of his line
+                aim = m.af(s.team, L - LINE_WIDTH_M - off_m - 0.7, W / 2 + 1.4)
+            else:  # the keeper dives one way, the ball goes into the net the other
+                aim = m.af(s.team, L + 1.2, W / 2 - 2.6)
             frame, track, tk = self._kick_evidence(
                 taker, spot, aim, 96.0, [(taker, ATTACKER_BODY), (keeper, KEEPER_BODY)]
             )
+            dive = m.af(s.team, L - 0.6, W / 2 + (1.6 if outcome == "saved" else 2.2))
+            keeper.override, keeper.urgency = dive, 1.0
             self._emit(
                 "shot", clock=tk + rng.uniform(0.02, 0.09), team=s.team, player=taker.pid, outcome=outcome,
                 start=_r(spot), end=_r(aim), ball_speed_kmh=96.0, frame=frame, ball_track=track,
@@ -909,11 +965,20 @@ class Simulator:
             self._fly(spot, aim, dist(spot, aim) / (96 / 3.6))
 
         kick(s.off_m, "saved")
-        self._give(keeper)
+        out = m.af(s.team, L + 1.5, W / 2 + 12.0)  # parried behind for a corner
+        self._fly(m.ball, out, 0.8)
+        m.carrier = None
         self._wait(rng.uniform(2, 4))
         self._var(keeper.team, keeper.pid, "keeper_encroachment", "retake", s.check_s, lead=(1.5, 3))
-        self._go(taker, s.team, (L - 11.8, W / 2), 0.5)  # walk back for the retake, no teleporting
+        # The taker fetches the ball and carries it back to the spot; the keeper returns to his line.
+        taker.override, taker.urgency = m.ball, 0.45
         self._go(keeper, s.team, (L - 0.3, W / 2), 0.5)
+        for _ in range(40):
+            if dist(taker.pos, m.ball) < 1.0:
+                break
+            self._wait(0.5)
+        m.carrier = taker.pid
+        self._go(taker, s.team, (L - 11.6, W / 2), 0.4)
         self._wait(rng.uniform(25, 35))
         kick(-0.05, "goal")  # on the line this time
         self._emit("goal", team=s.team, player=taker.pid, start=_r(m.ball))
@@ -950,8 +1015,10 @@ class Simulator:
             self._wait(0.1)
             return True
         self._dogso_run = False
+        self._close_in(deff, att)
         self._emit("foul", team=deff.team, player=deff.pid, receiver=att.pid, start=_r(att.pos), contact=_r(att.pos))
-        m.carrier, deff.chase = None, False
+        att.override = None
+        self._whistle(att, deff, att.pos)
         self._wait(rng.uniform(12, 18))
         self._emit("card", team=deff.team, player=deff.pid, outcome="yellow")
         self._var(deff.team, deff.pid, "dogso", "red_card_dogso", s.check_s, receiver=att.pid, lead=(5, 8))
