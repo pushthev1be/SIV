@@ -315,7 +315,8 @@
                  ball_out: "Ball out of play", goal_line: "Goal-line", penalty_location: "Penalty or free kick", keeper_encroachment: "Penalty retake", dogso: "DOGSO" };
   const MEASURED = new Set(["ball_out", "goal_line", "penalty_location", "keeper_encroachment", "dogso"]);
   const SIDE = (kind, v) => ({ ball_out: v > 0 ? "wholly over the line" : "still on the line", goal_line: v > 0 ? "wholly over the line" : "short of wholly over",
-                               box_edge: v > 0 ? "outside the area" : "inside the area", keeper_line: v > 0 ? "off the line" : "on the line" })[kind] || "";
+                               box_edge: v > 0 ? "outside the area" : "inside the area", keeper_line: v > 0 ? "off the line" : "on the line",
+                               ball_contact: v > 0.06 ? "foot to ball: never played it" : "on the ball" })[kind] || "";
   const MKIND = { ball_out: "ball_out", goal_line: "goal_line", penalty_location: "box_edge", keeper_encroachment: "keeper_line", dogso: "dogso" };
   const FINAL = { no_goal: "No goal", goal: "Goal stands", penalty: "Penalty", no_penalty: "No penalty", red_card: "Red card", yellow: "Yellow card", offside: "Offside",
                   free_kick: "Free kick", retake: "Retake" };
@@ -484,11 +485,16 @@
           const factors = [];
           if (rf.closing_speed_kmh) factors.push(`${name(f.offender)} arriving at ${Math.round(rf.closing_speed_kmh)} km/h`);
           if (rf.distance_to_goal_m) factors.push(`contact ${Math.round(rf.distance_to_goal_m)} m from goal, inside the area`);
+          const missed = f.measure === "ball_contact" && f.touched_ball === false;
+          if (f.measure === "ball_contact") factors.push(missed ? `<b>nearest foot ${margin(f.ball_gap_m)} from the ball</b> at contact, no deflection: the ball was never played` : `<b>${name(f.offender)} reached the ball first</b>`);
           say(c.review + 0.02, "evidence", "Evidence", factors.length ? `Factors to weigh: ${factors.join("; ")}.` : "Watch the challenge from the closest angle.");
-          say(c.review + 0.03, "advice", "Advice", `A judgement call. If the on-field call (<b>${onField(b)}</b>) looks clearly wrong, take the on-field review at the monitor. <b>The decision is yours.</b>`);
+          say(c.review + 0.03, "advice", "Advice", missed && f.contact_in_area && b.on_field === "no_penalty"
+            ? `The challenger missed the ball and made contact inside the area. The on-field call (<b>${onField(b)}</b>) is hard to support: <b>recommend an on-field review.</b> The decision is the referee's.`
+            : `A judgement call. If the on-field call (<b>${onField(b)}</b>) looks clearly wrong, take the on-field review at the monitor. <b>The decision is yours.</b>`);
         }
-        const agrees = b.kind === "offside" ? (f.margin_m > 0) === (b.final === "no_goal") : true;
-        say(c.decided, "decision", `Decision · ${when}`, `<b>${FINAL[b.final] || b.final}</b>. ${b.factual ? (agrees ? "Consistent with the evidence." : "The measurement points the other way: record the reason.") : "Recorded with the factors above."}`, { iid: c.iid });
+        const missedBall = f.measure === "ball_contact" && f.touched_ball === false && f.contact_in_area;
+        const agrees = b.kind === "offside" ? (f.margin_m > 0) === (b.final === "no_goal") : missedBall ? b.final === "penalty" : true;
+        say(c.decided, "decision", `Decision · ${when}`, `<b>${FINAL[b.final] || b.final}</b>. ${b.factual || missedBall ? (agrees ? "Consistent with the evidence." : "The measurement points the other way: record the reason.") : "Recorded with the factors above."}`, { iid: c.iid });
       } else if (c.kind === "foul" || (c.kind === "red_card" && !c.reviewed)) {
         say(c.decided, "note", `Card · ${when}`, `${FINAL[b.final] || "Card"} for <b>${name(f.offender)}</b>. Law 12: a reckless challenge is a caution.`, { iid: c.iid });
       } else if (c.kind === "offside") {
@@ -1048,6 +1054,23 @@
         svg("rect", { x: bx, y: by, width: bw, height: bh, rx: u / 300, fill: "rgba(18,18,18,.9)", stroke: "rgba(255,255,255,.25)", "stroke-width": u / 900 }, T);
         text(T, bx + u / 60, by + fs * 1.3, "DOGSO · THE FOUR CONSIDERATIONS", "var(--muted)", fs * 0.8, "start");
         rows.forEach(([label, ok], i) => text(T, bx + u / 60, by + fs * (2.9 + i * 1.5), `${ok ? "✓" : "✗"}  ${label}`, ok ? "#ececec" : "var(--muted)", fs, "start"));
+      }
+      return;
+    }
+    if (ms.kind === "ball_contact") {   // the challenger's nearest foot, the ball, and the gap between them
+      svg("line", { x1, y1, x2, y2, stroke: "#ececec", "stroke-width": u / 260, "stroke-dasharray": `${u / 200} ${u / 300}` }, L);
+      svg("circle", { cx: x1, cy: y1, r: u / 110, fill: "#ececec", stroke: "#121212", "stroke-width": u / 900 }, L);
+      svg("circle", { cx: x2, cy: y2, r: 0.11, fill: "#f4f4f4", stroke: "#121212", "stroke-width": u / 900 }, L);
+      svg("circle", { cx: px, cy: py, r: u / 45, fill: "none", stroke: "#ececec", "stroke-width": u / 500, opacity: 0.7 }, L);  // contact
+      if (textAlpha > 0) {
+        const T = svg("g", { opacity: textAlpha.toFixed(2) }, L), v = Math.max(0, ms.value_m);
+        const big = ms.factors.touched_ball ? "ON THE BALL" : `${(v / 0.0254).toFixed(1)} in · ${Math.round(v * 100)} cm`;
+        const bs = u / 16, pw = big.length * bs * 0.5 + u * 0.05, ph = bs * 2.2;
+        const cx = (x1 + x2) / 2, cy = Math.min(y1, y2) - u * 0.14;
+        svg("rect", { x: cx - pw / 2, y: cy - ph / 2, width: pw, height: ph, rx: u / 200, fill: "rgba(18,18,18,.92)", stroke: "rgba(255,255,255,.3)", "stroke-width": u / 900 }, T);
+        text(T, cx, cy + bs * 0.1, big, "#ececec", bs, "middle", "Barlow Condensed", 700);
+        text(T, cx, cy + bs * 0.75, SIDE(ms.kind, ms.value_m).toUpperCase(), "var(--muted)", bs * 0.3);
+        text(T, px, py + u / 45 + u / 40, "CONTACT", "var(--muted)", u / 55);
       }
       return;
     }

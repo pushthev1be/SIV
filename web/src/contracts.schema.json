@@ -550,7 +550,7 @@
     },
     "Measurement": {
       "additionalProperties": false,
-      "description": "Any measured call, drawn the same way: a reference line, the measured point, the distance between.\n\nvalue_m is signed so the sign alone says which side: positive means the condition the check asks\nabout is met (ball wholly out, wholly over the goal line, contact outside the area, keeper off the\nline). DOGSO has no single distance; its factors carry the evidence and value_m is the distance to goal.",
+      "description": "Any measured call, drawn the same way: a reference line, the measured point, the distance between.\n\nvalue_m is signed so the sign alone says which side: positive means the condition the check asks\nabout is met (ball wholly out, wholly over the goal line, contact outside the area, keeper off the\nline, challenger never reached the ball). DOGSO has no single distance; its factors carry the evidence\nand value_m is the distance to goal.",
       "properties": {
         "factors": {
           "additionalProperties": {
@@ -598,7 +598,8 @@
             "goal_line",
             "box_edge",
             "keeper_line",
-            "dogso"
+            "dogso",
+            "ball_contact"
           ],
           "type": "string"
         },

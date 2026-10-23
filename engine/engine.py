@@ -332,7 +332,7 @@ class Engine:
             if kick is not None:
                 codes = ["multiple_phases"] if self._ctx.on_ball_since_frame.get(e.team, 0) > MULTIPLE_PHASES else []
                 inc = self.desk.add_facts(inc.incident_id, self._offside_facts(kick), codes)
-        elif kind in MEASURED_KINDS:
+        elif kind in MEASURED_KINDS or kind == "penalty":
             m = self._measure(kind, e)
             if m is not None:
                 self.measurements[inc.incident_id] = m
@@ -363,6 +363,11 @@ class Engine:
             if ev is None:
                 return None
             return mc.box_edge(ev, -self.direction.get(e.team, 1))
+        if kind == "penalty":  # a judgement call, but whether the challenger reached the ball is measurable
+            ev = self._last_challenge(e.player)
+            if ev is None or ev.ball_track is None or ev.frame is None:
+                return None
+            return mc.ball_contact(ev, -self.direction.get(e.team, 1))
         if kind == "keeper_encroachment":
             ev = self._last(lambda x: x.type == "shot" and x.team != e.team and x.frame is not None)
             return mc.keeper_line(ev, e.player, self.direction.get(ev.team, 1)) if ev else None

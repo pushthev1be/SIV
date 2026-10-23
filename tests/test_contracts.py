@@ -98,9 +98,10 @@ def test_evidence_fields_appear_only_where_a_check_can_use_them():
     MatchEvent.model_validate(event(frame=frame, ball_track=track))
     MatchEvent.model_validate(event(type="shot", frame=frame, ball_track=track))  # goal-line, penalty kicks
     MatchEvent.model_validate(event(type="foul", frame=frame, contact=[88.4, 30.0]))  # penalty or free kick
+    MatchEvent.model_validate(event(type="tackle", frame=frame, ball_track=track, contact=[88.4, 30.0]))  # ball played?
     with pytest.raises(ValidationError, match="needs a body frame"):
         MatchEvent.model_validate(event(ball_track=track))
-    with pytest.raises(ValidationError, match="only on passes and shots"):
+    with pytest.raises(ValidationError, match="only on passes, shots and tackles"):
         MatchEvent.model_validate(event(type="foul", frame=frame, ball_track=track))
     with pytest.raises(ValidationError, match="contact appears only"):
         MatchEvent.model_validate(event(contact=[88.4, 30.0]))

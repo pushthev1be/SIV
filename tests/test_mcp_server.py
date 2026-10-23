@@ -80,7 +80,7 @@ def test_engine_templates_pass_the_validator():
     }
     for audience, text in packet["replay"]["status"].items():
         assert validate_text(text, packet, "reviewing") == [], audience
-    for full in (golden_full(), MatchStore.from_scenario("var_showcase")):
+    for full in (golden_full(), MatchStore.from_scenario("var_showcase"), MatchStore.from_scenario("var_errors")):
         check_templates(full)
 
 

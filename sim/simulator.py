@@ -584,9 +584,11 @@ class Simulator:
         # The challenge. The referee waves play on, so the feed has a tackle, not a foul.
         defender.chase = False
         attacker.override = None
+        frame, track, contact = self._challenge_evidence(attacker, defender, s.played_ball)
         self._emit(
-            "tackle", team=defender.team, player=defender.pid, receiver=attacker.pid, outcome="won",
-            start=_r(attacker.pos),
+            "tackle", team=defender.team, player=defender.pid, receiver=attacker.pid,
+            outcome="won" if s.played_ball else "loose", start=_r(attacker.pos), contact=_r(contact),
+            frame=frame, ball_track=track,
         )  # fmt: skip
         self._give(defender)
         self._wait(rng.uniform(1.0, 2.0))
@@ -646,6 +648,32 @@ class Simulator:
                 (round(tk + i * 0.01, 2), round(ball_from[0] + ux / n * s, 3), round(ball_from[1] + uy / n * s, 3))
             )
         return frame, track, tk
+
+    def _challenge_evidence(self, att: Player, deff: Player, played_ball: bool):
+        """Body frame and 100 fps ball track at a challenge. The attacker has pushed the ball on; the
+        defender's leading foot either reaches it first (and it deflects) or misses it and hits the attacker."""
+        m = self.m
+        d = m.direction(att.team)
+        tk = m.clock
+        front = (att.x + d * ATTACKER_BODY["foot_l"][0], att.y + d * ATTACKER_BODY["foot_l"][1])
+        ball0 = (front[0] + d * (0.3 if played_ball else 1.05), front[1])  # where the ball is at contact
+        foot = (ball0[0] - d * 0.12, ball0[1] + d * 0.08) if played_ball else (front[0] + d * 0.05, front[1] + d * 0.1)
+        lead = DEFENDER_BODY["foot_l"]
+        deff.x, deff.y = foot[0] - d * lead[0], foot[1] - d * lead[1]  # a short lunge from within 1.8 m
+        frame = BodyFrame(clock=tk, body={att.pid: self._body(att, ATTACKER_BODY, d, False),
+                                          deff.pid: self._body(deff, DEFENDER_BODY, d, False)})  # fmt: skip
+        v_in, v_out = 4.0, 7.0  # m/s: the attacker's push, then the ball off the defender
+        turn = math.radians(70.0) if played_ball else 0.0
+        track = []
+        for i in range(-20, 41):
+            s = i * 0.01
+            if s <= 0 or not played_ball:
+                x, y = ball0[0] + d * v_in * s, ball0[1]
+            else:
+                x = ball0[0] + d * v_out * s * math.cos(turn)
+                y = ball0[1] + d * v_out * s * math.sin(turn)
+            track.append((round(tk + s, 2), round(x, 3), round(y, 3)))
+        return frame, track, front  # contact on the attacker: his front foot
 
     def _have_ball(self, s_team: str, pid: str) -> bool:
         """True once `pid` has the ball; until then free play is steered to give it to them."""

@@ -64,7 +64,7 @@ class OffsideLines(Contract):
     body: dict[PlayerId, dict[BodyPart, Point]]
 
 
-MeasurementKind = Literal["ball_out", "goal_line", "box_edge", "keeper_line", "dogso"]
+MeasurementKind = Literal["ball_out", "goal_line", "box_edge", "keeper_line", "dogso", "ball_contact"]
 
 
 class Measurement(Contract):
@@ -72,7 +72,8 @@ class Measurement(Contract):
 
     value_m is signed so the sign alone says which side: positive means the condition the check asks
     about is met (ball wholly out, wholly over the goal line, contact outside the area, keeper off the
-    line). DOGSO has no single distance; its factors carry the evidence and value_m is the distance to goal.
+    line, challenger never reached the ball). DOGSO has no single distance; its factors carry the evidence
+    and value_m is the distance to goal.
     """
 
     kind: MeasurementKind

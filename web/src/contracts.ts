@@ -294,7 +294,8 @@ export interface OffsideLines {
  *
  * value_m is signed so the sign alone says which side: positive means the condition the check asks
  * about is met (ball wholly out, wholly over the goal line, contact outside the area, keeper off the
- * line). DOGSO has no single distance; its factors carry the evidence and value_m is the distance to goal.
+ * line, challenger never reached the ball). DOGSO has no single distance; its factors carry the evidence
+ * and value_m is the distance to goal.
  *
  * This interface was referenced by `VarNarrativeContracts`'s JSON-Schema
  * via the `definition` "Measurement".
@@ -308,7 +309,7 @@ export interface Measurement {
    * @maxItems 4
    */
   focus: [number, number, number, number];
-  kind: "ball_out" | "goal_line" | "box_edge" | "keeper_line" | "dogso";
+  kind: "ball_out" | "goal_line" | "box_edge" | "keeper_line" | "dogso" | "ball_contact";
   /**
    * @minItems 2
    * @maxItems 2

@@ -9,6 +9,7 @@ value_m always means the condition the check asks about is met:
     box_edge     the contact started outside the penalty area             (Laws 12, 14)
     keeper_line  the keeper had no part of either foot on the goal line   (Law 14)
     dogso        no single line; value_m is the attacker's distance to goal (Law 12)
+    ball_contact the challenger's nearest foot never reached the ball      (Laws 12, 14)
 """
 
 from __future__ import annotations
@@ -26,6 +27,8 @@ AREA_DEPTH_M = 16.5
 AREA_HALF_WIDTH_M = 20.16
 POST_HALF_GAP_M = 3.66
 DOGSO_CONE_PAD_M = 4.0  # how far outside the line to the posts a defender still counts as "between"
+TOUCH_M = 0.06  # foot points are joint centres; a boot this close to the ball's edge is on it
+DEFLECT_DEG = 15.0  # a turn this sharp at the challenge means something touched the ball
 
 
 @dataclass(frozen=True)
@@ -157,6 +160,43 @@ def dogso(
     return Measured(
         "dogso", round(dist, 1), ((_r(ax), _r(ay)), goal), "line to goal", (_r(ax), _r(ay)), "attacker at the foul",
         attacker, e.event_id, e.clock, factors,
+    )  # fmt: skip
+
+
+def _heading_change_deg(track, t: float, span: float = 0.1) -> float | None:
+    """How far the ball's direction turned at time t, from the track either side of it."""
+    before = [s for s in track if t - span <= s[0] <= t]
+    after = [s for s in track if t <= s[0] <= t + span]
+    if len(before) < 2 or len(after) < 2:
+        return None
+    a = math.atan2(before[-1][2] - before[0][2], before[-1][1] - before[0][1])
+    b = math.atan2(after[-1][2] - after[0][2], after[-1][1] - after[0][1])
+    return abs(math.degrees((b - a + math.pi) % (2 * math.pi) - math.pi))
+
+
+def ball_contact(e: MatchEvent, attack_dir: int) -> Measured:
+    """Whether the challenger reached the ball: the gap from his nearest foot to the ball's edge at the
+    challenge, and whether the ball changed direction there. attack_dir is the fouled team's."""
+    tk = e.frame.clock
+    body = e.frame.body.get(e.player, {})
+    feet = [body[p] for p in ("foot_l", "foot_r") if p in body] or [e.positions[e.player]]
+    near = [s for s in e.ball_track if abs(s[0] - tk) <= 0.05]  # the ball around the moment of contact
+    gap, foot, (_, bx, by) = min(((math.dist(f, (s[1], s[2])), f, s) for f in feet for s in near), key=lambda c: c[0])
+    gap -= BALL_RADIUS_M
+    turned = _heading_change_deg(e.ball_track, tk)
+    deflected = turned is not None and turned >= DEFLECT_DEG
+    loc = box_edge(e, attack_dir) if e.contact else None
+    factors = {
+        "ball_gap_m": _r(max(gap, 0.0)),
+        "touched_ball": gap <= TOUCH_M or deflected,
+        "ball_turned_deg": round(turned) if turned is not None else 0,
+    }
+    if loc is not None:
+        factors["contact_in_area"] = loc.value_m <= 0
+    return Measured(
+        "ball_contact", _r(gap), ((_r(foot[0], 3), _r(foot[1], 3)), (_r(bx, 3), _r(by, 3))),
+        "challenger's nearest foot to the ball", tuple(_r(v, 3) for v in (e.contact or foot)),
+        "contact on the player", e.player, e.event_id, tk, factors,
     )  # fmt: skip
 
 

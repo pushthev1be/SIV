@@ -27,6 +27,7 @@ from engine.stats import distance_to_goal
 
 SPEED_HALF_WINDOW_S = 0.5
 BALL_TRACK_FPS = 100  # the sampling rate the kick point is found from
+MIN_CLOSING_KMH = 5.0  # below this a challenger's "arriving at" speed is noise, not a run-in
 FINAL_TEXT = {
     "no_goal": "no goal", "goal": "goal", "red_card": "red card", "yellow": "yellow card",
     "penalty": "penalty", "no_penalty": "no penalty", "free_kick": "free kick", "retake": "retake",
@@ -115,7 +116,7 @@ def build_replay(
     if inc.kind == "goal_check":
         return _goal(history, inc, phase, direction)
     if inc.kind in ("red_card", "foul", "penalty") and "foul_event" in inc.facts:
-        return _challenge(history, inc, phase)
+        return _challenge(history, inc, phase, measured)
     return None
 
 
@@ -278,12 +279,30 @@ def _goal(history, inc: Incident, phase, direction) -> ReplayPackage | None:
     )  # fmt: skip
 
 
-def _challenge(history, inc: Incident, phase) -> ReplayPackage | None:
+def _ball_contact_text(m, offender: str, fouled: str, given: bool) -> tuple[str, str, bool]:
+    """(evidence sentence, fan headline, agrees) for a penalty review that measured the ball contact.
+    Missing the ball and hitting the attacker inside the area points to a penalty; a touch on the ball
+    first does not by itself rule a foul out, so only the first case can disagree with the decision."""
+    fx = m.factors
+    in_area = fx.get("contact_in_area", True)
+    if fx["touched_ball"]:
+        evidence = f"{offender} reached the ball before the contact on {fouled}"
+        return evidence, f"Why {'a penalty' if given else 'no penalty'}.", True
+    evidence = (
+        f"{offender}'s nearest foot was still {margin_text(m.value_m)} from the ball at the moment of contact with "
+        f"{fouled}{' inside the area' if in_area else ''}: the ball was never played"
+    )
+    agrees = given or not in_area
+    head = f"Why {'a penalty' if given else 'no penalty'}." if agrees else "No penalty, but the measurement says foul."
+    return evidence, head, agrees
+
+
+def _challenge(history, inc: Incident, phase, m=None) -> ReplayPackage | None:
     f = inc.facts
     foul = _find(history, f["foul_event"])
     if foul is None:
         return None
-    frames, ball = _window(history, foul.period, foul.clock - 8.0, foul.clock + 3.0)
+    frames, ball = _window(history, foul.period, foul.clock - 8.0, foul.clock + 3.0, foul.ball_track or ())
     offender, fouled = f["offender"], f.get("fouled") or None
     focus = [ReplayFocus(player=offender, role="offender")]
     if fouled:
@@ -291,6 +310,7 @@ def _challenge(history, inc: Incident, phase) -> ReplayPackage | None:
     pkg_probe = {ff.player: _speeds(frames, ff.player) for ff in focus}
     i = min(range(len(frames)), key=lambda i: abs(frames[i].t - foul.clock)) if frames else 0
     closing = pkg_probe[offender][i] if frames else None
+    closing = closing if closing and closing >= MIN_CLOSING_KMH else None  # a standing lunge has no run-in speed
     closing_text = f", arriving at {closing:.0f} km/h" if closing else ""
     red = inc.kind == "red_card"
     penalty = inc.kind == "penalty"
@@ -325,6 +345,12 @@ def _challenge(history, inc: Incident, phase) -> ReplayPackage | None:
                 f"into the challenge on {fouled}{arriving} inside the area{',' if where else ''}{where}; "
                 f"on review the {outcome}"
             )
+            if m is not None and m.kind == "ball_contact":
+                evidence, head, agrees = _ball_contact_text(m, offender, fouled, given)
+                came = f", arriving{arriving}" if arriving else ""
+                fan = f"{head} {RULE_SENTENCE['penalty']}. {evidence}{came}. On review the {outcome}"
+                if not agrees:  # never defend a call the measurement does not support
+                    fan += " The measurement alone does not explain this decision; the officials' notes will say why."
         elif red and inc.var_outcome == "overturned":
             fan = (
                 f"Why it's now a yellow. {RULE_SENTENCE['red_card']}. {offender} arrived{arriving} on "
@@ -355,7 +381,24 @@ def _challenge(history, inc: Incident, phase) -> ReplayPackage | None:
     cfacts = {"closing_speed_kmh": closing} if closing else {}
     if phase == "after" and "distance_to_goal_m" in f:
         cfacts["distance_to_goal_m"] = f["distance_to_goal_m"]
-    return _package(inc, phase, foul.period, foul.clock, frames, ball, moments, focus, status, sources, facts=cfacts)
+    measurement = None
+    if phase == "after" and m is not None and m.kind == "ball_contact":
+        touched = m.factors["touched_ball"]
+        gap = "on the ball" if touched else f"{margin_text(m.value_m)} from the ball"
+        status["analyst"] += f" Nearest foot {gap} at contact."
+        status["officials"] = (
+            f"Measured: at the contact frame {clock_text(foul.period, m.at)}, {offender}'s nearest foot was {gap}"
+            f"{'' if touched else '; the ball track shows no deflection'}. " + status["officials"]
+        )
+        cfacts["ball_gap_m"] = m.factors["ball_gap_m"]
+        measurement = Measurement(
+            kind=m.kind, value_m=m.value_m, line=m.line, line_label=m.line_label, point=m.point,
+            point_label=m.point_label, subject=m.subject, focus=m.focus(), factors=m.factors,
+            sources=[m.evidence_event, inc.incident_id],
+        )  # fmt: skip
+        moments.append(ReplayMoment(t=m.at, label=f"Nearest foot {gap}"[:80], reveal="after"))
+    pkg = _package(inc, phase, foul.period, foul.clock, frames, ball, moments, focus, status, sources, facts=cfacts)
+    return pkg.model_copy(update={"measurement": measurement}) if pkg and measurement else pkg
 
 
 # ── Measured checks beyond offside ───────────────────────────────────────────

@@ -2,7 +2,7 @@
 
 Every on-ball event carries the position of every player on the pitch (22, fewer after a red
 card), so speeds are derived by the engine, never stated.
-`frame` and `ball_track` appear only on passes that may lead to an offside check.
+`frame` and `ball_track` appear only on events a check may measure: kicks, shots and challenges.
 """
 
 from typing import Literal
@@ -32,7 +32,7 @@ EventType = Literal[
 BodyPart = Literal["head", "torso", "foot_l", "foot_r", "knee_l", "knee_r", "arm"]
 
 
-BALL_TRACK_TYPES = frozenset({"pass", "shot"})
+BALL_TRACK_TYPES = frozenset({"pass", "shot", "tackle"})  # tackle: did the challenger reach the ball?
 FRAME_TYPES = frozenset({"pass", "shot", "foul", "tackle"})
 
 
@@ -68,7 +68,7 @@ class MatchEvent(Contract):
         if self.ball_track is not None and self.frame is None:
             raise ValueError("a ball_track needs a body frame at the same moment")
         if self.ball_track is not None and self.type not in BALL_TRACK_TYPES:
-            raise ValueError("ball_track appears only on passes and shots")
+            raise ValueError("ball_track appears only on passes, shots and tackles")
         if self.frame is not None and self.type not in FRAME_TYPES:
             raise ValueError("frame appears only on passes, shots, fouls and tackles")
         if self.contact is not None and self.type not in ("foul", "tackle"):

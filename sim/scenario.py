@@ -49,6 +49,7 @@ class PenaltyReview(_Script):
     defender: str
     awarded: bool = True
     scored: bool = True
+    played_ball: bool = False  # the defender got a touch on the ball before going through the attacker
     check_s: float = Field(default=55, gt=0)
 
 
