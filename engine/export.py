@@ -51,13 +51,30 @@ def officials_brief(engine: Engine, facts: list[dict]) -> dict:
 def export(name: str) -> Path:
     sc = load_scenario(name)
     events = Simulator(sc).run()
-    engine = Engine(sc.match_id)
+    teams = {
+        code: {
+            "name": TEAMS[code].name,
+            "colour": TEAMS[code].colour,
+            "players": {f"{code}-{p.number}": p.name for p in TEAMS[code].players},
+        }
+        for code in (sc.home, sc.away)
+    }
+    roster = {
+        f"{code}-{p.number}": {"name": p.name, "number": p.number, "role": p.role, "team": code}
+        for code in (sc.home, sc.away)
+        for p in TEAMS[code].players
+    }
+    return write(name, sc.match_id, sc.home, sc.away, events, Engine(sc.match_id), teams, roster)
 
-    players = [f"{t}-{p.number}" for t in (sc.home, sc.away) for p in TEAMS[t].players]
-    p1_end = max(e.clock for e in events if e.period == 1)
+
+def write(name, match_id, home, away, events, engine: Engine, teams: dict, roster: dict, extra=None) -> Path:
+    """Run the feed through the engine and write the preview's data file."""
+    players = list(roster)
+    p1 = [e.clock for e in events if e.period == 1]
+    p1_end = max(p1) if p1 else 2700.0 - 30
 
     def t_of(period: int, clock: float) -> float:
-        return round(clock if period == 1 else p1_end + 30 + (clock - 2700.0), 2)
+        return round(clock if period == 1 or not p1 else p1_end + 30 + (clock - 2700.0), 2)
 
     frames, facts, feed = [], [], []
     for e in events:
@@ -80,17 +97,10 @@ def export(name: str) -> Path:
 
     data = {
         "scenario": name,
-        "match_id": sc.match_id,
-        "teams": {
-            code: {
-                "name": TEAMS[code].name,
-                "colour": TEAMS[code].colour,
-                "players": {f"{code}-{p.number}": p.name for p in TEAMS[code].players},
-            }
-            for code in (sc.home, sc.away)
-        },  # fmt: skip
-        "home": sc.home,
-        "away": sc.away,
+        "match_id": match_id,
+        "teams": teams,
+        "home": home,
+        "away": away,
         "players": players,
         "second_half_t": t_of(2, 2700.0),
         "frames": frames,
@@ -107,12 +117,8 @@ def export(name: str) -> Path:
         # The officials' briefing for Ref Buddy: the full facts from the moment a check opens. The broadcast
         # never sees these early; only the referee view in the preview reads them.
         "officials": officials_brief(engine, facts),
-        "roster": {
-            f"{code}-{p.number}": {"name": p.name, "number": p.number, "role": p.role, "team": code}
-            for code in (sc.home, sc.away)
-            for p in TEAMS[code].players
-        },
-    }
+        "roster": roster,
+    } | (extra or {})
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     out = OUT_DIR / f"{name}.json"
     out.write_text(json.dumps(data, separators=(",", ":")), encoding="utf-8")

@@ -61,11 +61,12 @@ VAR_DECISION = {  # var_decision outcome -> (final, var_outcome)
     "red_card_dogso": ("red_card", "dogso"),
     "goal": ("goal", "goal_line"),
     "no_penalty": ("no_penalty", "no_change"),
+    "goal_awarded": ("goal", "in_play"),  # disallowed on the field, given after review
 }
 # A check with no on-field call to review (e.g. play was waved on): what the referee had given
 ON_FIELD_WHEN_UNCALLED = {
     "penalty": "no_penalty", "handball": "play_on", "red_card": "no_card",
-    "goal_line": "play_on", "keeper_encroachment": "save_stands",
+    "goal_line": "play_on", "keeper_encroachment": "save_stands", "ball_out": "no_goal",
 }  # fmt: skip
 
 
@@ -96,14 +97,27 @@ class _Context:
 
 
 class Engine:
-    def __init__(self, match_id: str) -> None:
+    def __init__(
+        self,
+        match_id: str,
+        *,
+        directions: dict[str, int] | None = None,
+        score: dict[str, int] | None = None,
+        timed_checks: bool = True,
+        evidence_resolution_m: float | None = None,
+    ) -> None:
+        """A feed that starts mid-match (a real clip) passes `directions` and `score` instead of a kickoff.
+        `timed_checks=False` when the feed's VAR timings are not the real ones, so no duration is quoted;
+        `evidence_resolution_m` when positions are coarser than tracking data (event data, about 10 cm)."""
         self.match_id = match_id
         self.desk = DecisionDesk(match_id)
         self.movement = Movement()
         self.rolling = Rolling()
-        self.teams: tuple[str, str] | None = None
-        self.direction: dict[str, int] = {}
-        self.score: dict[str, int] = {}
+        self.teams: tuple[str, str] | None = tuple(sorted(directions)) if directions else None  # type: ignore[assignment]
+        self.direction: dict[str, int] = dict(directions or {})
+        self.score: dict[str, int] = {t: 0 for t in self.direction} | dict(score or {})
+        self.timed_checks = timed_checks
+        self.evidence_resolution_m = evidence_resolution_m
         self.period = 1
         self.clock = 0.0
         self._ctx = _Context()
@@ -338,6 +352,8 @@ class Engine:
                 self.measurements[inc.incident_id] = m
                 facts = {"value_m": m.value_m, "evidence_event": m.evidence_event, "measure": m.kind,
                          "subject": m.subject or "", **m.factors}  # fmt: skip
+                if self.evidence_resolution_m is not None:
+                    facts["data_resolution_m"] = self.evidence_resolution_m
                 inc = self.desk.add_facts(inc.incident_id, facts)
         return [self._incident_fact(inc, e)]
 
@@ -407,7 +423,8 @@ class Engine:
         final, var_outcome = VAR_DECISION.get(e.outcome or "", (e.outcome or "unknown", None))
         var_outcome = var_outcome or inc.kind
         opened = self._ctx.review_opened.get(inc.incident_id, inc.opened_at)
-        self.desk.add_facts(inc.incident_id, {"check_s": round(e.clock - opened, 1)})
+        if self.timed_checks:
+            self.desk.add_facts(inc.incident_id, {"check_s": round(e.clock - opened, 1)})
         inc = self.desk.decide(inc.incident_id, final, e.clock, var_outcome=var_outcome)
         out = []
         if inc.goal_event is not None and final == "no_goal":  # a goal given on the field is taken off

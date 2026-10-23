@@ -11,3 +11,4 @@ dist/
 .azure/
 *.log
 web/preview/data/
+data/statsbomb/

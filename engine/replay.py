@@ -23,6 +23,7 @@ from contracts.replay import (
     SlowWindow,
 )
 from engine.laws import LAWS, RULE_SENTENCE
+from engine.measure import BALL_RADIUS_M
 from engine.stats import distance_to_goal
 
 SPEED_HALF_WINDOW_S = 0.5
@@ -442,7 +443,11 @@ def _measured(history, inc: Incident, phase: str, direction: dict[str, int], m) 
     }[kind]
     subj = m.subject or ""
     moments = [ReplayMoment(t=m.at, label=KEY_LABEL[kind].format(subject=ev.player)[:80], reveal="always")]
-    if kind != "dogso":
+    res = f.get("data_resolution_m")
+    if res is not None and abs(m.value_m) <= res + BALL_RADIUS_M:
+        moments.append(ReplayMoment(t=m.at, label=f"On the {m.line_label}, within the data's {margin_text(res)}"[:80],
+                                    reveal="after"))  # fmt: skip
+    elif kind != "dogso":
         moments.append(ReplayMoment(t=m.at, label=f"{mtext} {side}"[:80], reveal="after"))
     rule = RULE_SENTENCE[kind]
     check = f" The check took {f['check_s']:.0f} s." if "check_s" in f else ""
@@ -474,6 +479,7 @@ def _measured(history, inc: Incident, phase: str, direction: dict[str, int], m) 
         }[kind]
         outcome = {
             ("ball_out", "no_goal"): "so play had already stopped and the goal is ruled out.",
+            ("ball_out", "goal"): "so the ball was still in play and the goal is given.",
             ("goal_line", "no_goal"): "so it is not a goal.",
             ("goal_line", "goal"): "so it is a goal.",
             ("penalty_location", "free_kick"): "so it is a free kick, not a penalty.",
@@ -502,7 +508,8 @@ def _measured(history, inc: Incident, phase: str, direction: dict[str, int], m) 
             facts = {k: fx[k] for k in ("distance_to_goal_m", "defenders_between", "direction_off_goal_deg") if k in fx}
         else:
             why = {
-                "ball_out": "no goal", "goal_line": "no goal" if inc.final == "no_goal" else "it's a goal",
+                "ball_out": "no goal" if inc.final == "no_goal" else "it's a goal",
+                "goal_line": "no goal" if inc.final == "no_goal" else "it's a goal",
                 "penalty_location": "a free kick"
                 if inc.final == "free_kick" else "the penalty", "keeper_encroachment": "a retake",
             }[kind]  # fmt: skip
@@ -513,6 +520,23 @@ def _measured(history, inc: Incident, phase: str, direction: dict[str, int], m) 
             )
             analyst = f"{m.point_label.capitalize()}: {abs(m.value_m):.2f} m {side} the {m.line_label}.{check}"
             facts = {"value_m": abs(m.value_m)}
+            res = f.get("data_resolution_m")
+            if res is not None and abs(m.value_m) <= res + BALL_RADIUS_M:  # too close to call from this data
+                where = {"ball_out": f"when {ev.player} played it", "goal_line": f"when {clearer} cleared it"}.get(
+                    kind, "at the key moment"
+                )
+                fan = (
+                    f"Why {why}. {rule}. The event data puts the ball on the {m.line_label} {where}, but it "
+                    f"places the ball only to about {margin_text(res)}, too coarse for a call decided by "
+                    f"millimetres. The officials decided it from the goal-line camera images, {outcome}"
+                )
+                officials = (
+                    f"Under {LAWS[kind]['law']}. Event data at {clock_text(ev.period, m.at)} puts the ball on the "
+                    f"{m.line_label}, within its {margin_text(res)} resolution: it cannot settle this. Decide from "
+                    f"the goal-line camera images. Final decision: {final}."
+                )
+                analyst = f"Ball on the {m.line_label} in event data (resolution {margin_text(res)}).{check}"
+                facts = {"data_resolution_m": res}
         if "check_s" in f:
             facts["check_s"] = f["check_s"]
         status = {

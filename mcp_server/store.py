@@ -22,8 +22,8 @@ ON_BALL_TYPES = {
 
 
 class MatchStore:
-    def __init__(self, match_id: str, roster: dict[str, str] | None = None) -> None:
-        self.engine = Engine(match_id)
+    def __init__(self, match_id: str, roster: dict[str, str] | None = None, engine: Engine | None = None) -> None:
+        self.engine = engine or Engine(match_id)
         self.roster = roster or {}
         self.events: deque[MatchEvent] = deque(maxlen=4000)  # on-ball only; tracking stays in the engine
         self._lock = threading.Lock()
@@ -35,6 +35,17 @@ class MatchStore:
             self.engine.ingest(e)
             if e.type in ON_BALL_TYPES:
                 self.events.append(e)
+
+    @classmethod
+    def from_real(cls, name: str) -> MatchStore:
+        """A real-match clip from StatsBomb open data (see real/clips.py)."""
+        from real.clips import CLIPS, build
+
+        events, engine, _, roster, _, _ = build(name)
+        store = cls(CLIPS[name].match_code, {pid: r["name"] for pid, r in roster.items()}, engine)
+        for e in events:
+            store.ingest(e)
+        return store
 
     @classmethod
     def from_scenario(cls, name: str, until: tuple[int, float] | None = None) -> MatchStore:

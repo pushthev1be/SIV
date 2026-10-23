@@ -225,13 +225,13 @@
   <header class="bar">
     <div class="bug"><span id="homeTeam"></span><span class="score" id="score">0 – 0</span><span id="awayTeam"></span><span class="clock" id="clock">0:00</span></div>
     <div class="right">
-      <select id="scenario" aria-label="Match"><option value="var_showcase">Every VAR call</option><option value="var_errors">VAR got it wrong</option><option value="golden">Golden match</option><option value="red_card">Red card match</option><option value="late_comeback">Late comeback</option></select>
+      <select id="scenario" aria-label="Match"><option value="var_showcase">Every VAR call</option><option value="var_errors">VAR got it wrong</option><option value="real_japan_spain">Japan v Spain 2022 · real</option><option value="golden">Golden match</option><option value="red_card">Red card match</option><option value="late_comeback">Late comeback</option></select>
       <div class="brand"><b>VAR</b> NARRATIVE</div>
     </div>
   </header>
 
   <aside class="keyside" aria-label="Timeline key"><h4>ON THE PITCH</h4><ul id="teamKey"></ul><h4 style="margin-top:12px">KEY · SO FAR</h4><ul id="keyList"></ul>
-    <div class="foot">Click a row to watch the latest one.</div></aside>
+    <div class="foot">Click a row to watch the latest one.</div><div class="foot" id="sourceNote" hidden></div></aside>
   <div class="main">
   <section class="stage" id="stage">
     <svg class="pitch" id="pitch" viewBox="-3 -3 111 74" aria-label="Pitch"></svg>
@@ -318,6 +318,7 @@
                                box_edge: v > 0 ? "outside the area" : "inside the area", keeper_line: v > 0 ? "off the line" : "on the line",
                                ball_contact: v > 0.06 ? "foot to ball: never played it" : "on the ball" })[kind] || "";
   const MKIND = { ball_out: "ball_out", goal_line: "goal_line", penalty_location: "box_edge", keeper_encroachment: "keeper_line", dogso: "dogso" };
+  const finalText = (b) => (b.final === "goal" && b.on_field === "no_goal" ? "Goal given" : FINAL[b.final] || b.final);  // disallowed, then given on review
   const FINAL = { no_goal: "No goal", goal: "Goal stands", penalty: "Penalty", no_penalty: "No penalty", red_card: "Red card", yellow: "Yellow card", offside: "Offside",
                   free_kick: "Free kick", retake: "Retake" };
   const margin = (m) => (Math.abs(m) < 1 ? `${Math.round(Math.abs(m) * 100)} cm (${(Math.abs(m) / 0.0254).toFixed(1)} in)` : `${Math.abs(m).toFixed(2)} m`);
@@ -350,10 +351,10 @@
   function playerNodes(parent, onClick) {
     const g = svg("g", {}, parent);
     players.forEach((pid) => {
-      const team = pid.slice(0, 3), n = pid.split("-")[1];
+      const team = pid.slice(0, 3), r = roster[pid] || {}, n = r.number == null ? "" : String(r.number), gk = r.role === "GK";
       const node = svg("g", { "data-pid": pid }, g);
       svg("circle", { class: "ring", r: 2.1, fill: "none", stroke: "#ececec", "stroke-width": 0.3, display: "none" }, node);
-      const body = { fill: colour[team], stroke: n === "1" ? "#ececec" : "rgba(0,0,0,.5)", "stroke-width": n === "1" ? 0.35 : 0.2, "stroke-linejoin": "round" };
+      const body = { fill: colour[team], stroke: gk ? "#ececec" : "rgba(0,0,0,.5)", "stroke-width": gk ? 0.35 : 0.2, "stroke-linejoin": "round" };
       if (team === D.home) svg("polygon", { class: "dir", points: "0,-1.87 1.6,0.93 -1.6,0.93", ...body }, node);   // Northbridge: triangles, pointing where they run
       else svg("rect", { x: -1.2, y: -1.2, width: 2.4, height: 2.4, rx: 0.25, ...body }, node);       // Ashvale: squares
       svg("text", { "text-anchor": "middle", y: team === D.home ? 0.46 : 0.52, "font-size": team === D.home ? 1.25 : 1.45, "font-family": "IBM Plex Mono", "font-weight": 600, fill: "#121212" }, node).textContent = n;
@@ -419,7 +420,7 @@
         iconId = "goal"; title = `Goal · ${name(scorer)}`; team = scorer.slice(0, 3);
       } else if (MEASURED.has(b.kind)) {
         iconId = { ball_out: "ballout", goal_line: "goalline", penalty_location: "pen", keeper_encroachment: "pen", dogso: "red" }[b.kind];
-        title = `${KIND[b.kind]} · ${FINAL[b.final] || b.final}`;
+        title = `${KIND[b.kind]} · ${finalText(b)}`;
       } else if (b.kind === "offside") {
         iconId = reviewed ? "var" : "flag";
         title = reviewed ? `Offside check · ${FINAL[b.final]}` : `Offside flag · ${name(f.attacker)}`;
@@ -466,6 +467,11 @@
             const v = f.value_m, side = SIDE(f.measure, v);
             const what = { ball_out: "ball's edge nearest the pitch", goal_line: "ball's trailing edge", box_edge: "point where contact started", keeper_line: `${name(f.subject)}'s foot nearest the line` }[f.measure];
             const law = b.law ? b.law.law : "the Laws";
+            const res = f.data_resolution_m, coarse = res != null && Math.abs(v) <= res + 0.11;
+            if (coarse) {   // event data, not tracking: it can't settle a call this close, so don't pretend it can
+              say(c.review + 0.02, "evidence", "Evidence", `${law}: event data puts the ball <b>on the ${ms ? ms.line_label : "line"}</b>, but only to about <b>${margin(res)}</b>. That can't settle a call decided by millimetres.`);
+              say(c.review + 0.03, "advice", "Advice", `Decide from the <b>goal-line camera images</b>: any part of the ball over the line keeps it in play. The on-field call was <b>${onField(b)}</b>.`);
+            } else {
             say(c.review + 0.02, "evidence", "Evidence", `${law}: the ${what} is <b>${margin(v)} ${side}</b>${ms ? ` (${ms.line_label})` : ""}.`);
             const advice = {
               ball_out: v > 0 ? "The ball was out before the goal. <b>Advise: no goal.</b>" : "The ball was still in play. <b>Advise: the goal stands.</b>",
@@ -474,6 +480,7 @@
               keeper_line: v > 0 ? "The keeper was off the line and the save came from it. <b>Advise: retake.</b>" : "The keeper was on the line. <b>Advise: the save stands.</b>",
             }[f.measure];
             say(c.review + 0.03, "advice", "Advice", `${advice} A factual call.`);
+            }
           }
         } else if (b.kind === "offside") {
           const m = f.margin_m, side = m > 0 ? "beyond" : "behind";
@@ -494,7 +501,8 @@
         }
         const missedBall = f.measure === "ball_contact" && f.touched_ball === false && f.contact_in_area;
         const agrees = b.kind === "offside" ? (f.margin_m > 0) === (b.final === "no_goal") : missedBall ? b.final === "penalty" : true;
-        say(c.decided, "decision", `Decision · ${when}`, `<b>${FINAL[b.final] || b.final}</b>. ${b.factual || missedBall ? (agrees ? "Consistent with the evidence." : "The measurement points the other way: record the reason.") : "Recorded with the factors above."}`, { iid: c.iid });
+        const coarseCall = f.data_resolution_m != null && Math.abs(f.value_m ?? 1) <= f.data_resolution_m + 0.11;
+        say(c.decided, "decision", `Decision · ${when}`, `<b>${finalText(b)}</b>. ${coarseCall ? "Decided from the camera images; the event data is too coarse to contradict it." : b.factual || missedBall ? (agrees ? "Consistent with the evidence." : "The measurement points the other way: record the reason.") : "Recorded with the factors above."}`, { iid: c.iid });
       } else if (c.kind === "foul" || (c.kind === "red_card" && !c.reviewed)) {
         say(c.decided, "note", `Card · ${when}`, `${FINAL[b.final] || "Card"} for <b>${name(f.offender)}</b>. Law 12: a reckless challenge is a caution.`, { iid: c.iid });
       } else if (c.kind === "offside") {
@@ -571,7 +579,7 @@
   }
 
   function seek(to) {
-    t = to; factIdx = 0; score = { [D.home]: 0, [D.away]: 0 }; varOpen = null; lines = null; band = null; lastReplay = null;
+    t = to; factIdx = 0; score = { [D.home]: 0, [D.away]: 0, ...(D.start_score || {}) }; varOpen = null; lines = null; band = null; lastReplay = null;
     while (factIdx < D.facts.length && D.facts[factIdx].t <= t) applyFact(D.facts[factIdx++], false);
     chatShown = -1; callsShown = ""; keyShown = ""; cardNext = 0;
     render();
@@ -613,7 +621,7 @@
       if (x != null) {
         const kmh = SPD[j][fr.i], inv = involvement(fr, j);
         callout(H, x, y, [
-          { text: `${roster[selected].number} · ${name(selected).toUpperCase()}`, bold: true, size: 1.15 },
+          { text: `${roster[selected].number ?? "–"} · ${name(selected).toUpperCase()}`, bold: true, size: 1.15 },
           { text: isNaN(kmh) ? "speed –" : `${kmh.toFixed(1)} km/h · ${mph(kmh)} mph`, mono: true },
           { text: `${inv.label}${inv.dBall != null ? ` · ${inv.dBall.toFixed(0)} m to ball` : ""}`, mono: true, size: 0.85, color: "var(--muted)" },
         ], colour[selected.slice(0, 3)], 111, "live:" + selected, [-3, -3, 111, 74],
@@ -691,14 +699,21 @@
   }
 
   // ── Timeline ────────────────────────────────────────────────────────────
-  let END = 1;
+  let START = 0, END = 1, LAST_FRAME = 1;
+  const isReal = () => !!(D.source && D.source.real);
   function buildTimeline() {
-    END = D.frames[D.frames.length - 1][0];
-    const pos = (tt) => (100 * tt / END) + "%";
+    LAST_FRAME = D.frames[D.frames.length - 1][0];
+    // A real clip runs from its first frame through the VAR decision, which comes after play stops.
+    START = isReal() ? D.frames[0][0] : 0;
+    END = isReal() ? Math.max(LAST_FRAME, ...D.facts.map((f) => f.t)) + 3 : LAST_FRAME;
+    const pos = (tt) => (100 * (tt - START) / (END - START)) + "%";
     const minuteT = (m) => (m <= 45 ? m * 60 : D.second_half_t + (m - 45) * 60);
-    $("ticks").innerHTML = [[0, "0'"], [15, "15'"], [30, "30'"], [45, "HT"], [60, "60'"], [75, "75'"], [90, "90'"]]
-      .map(([m, l]) => `<span style="left:${pos(m === 45 ? D.second_half_t - 15 : minuteT(m))}">${l}</span>`).join("");
+    $("ticks").innerHTML = isReal()
+      ? [START, END].map((tt) => `<span style="left:${pos(tt)}">${tToClock(tt)}</span>`).join("")
+      : [[0, "0'"], [15, "15'"], [30, "30'"], [45, "HT"], [60, "60'"], [75, "75'"], [90, "90'"]]
+        .map(([m, l]) => `<span style="left:${pos(m === 45 ? D.second_half_t - 15 : minuteT(m))}">${l}</span>`).join("");
     $("htMark").style.left = pos(D.second_half_t - 15);
+    $("htMark").hidden = isReal();
     // Major events get an icon above the rail; cards and flags are small ticks on it, to keep the bar calm.
     const minor = (c) => c.icon === "yellow" && !c.reviewed || c.icon === "flag";
     $("lane").innerHTML = CALLS.map((c, i) => minor(c) ? "" : `<span class="ev" data-i="${i}" style="left:${pos(c.opened)};${c.team ? `box-shadow:0 0 0 2px ${colour[c.team]}` : ""}">${icon(c.icon)}</span>`).join("");
@@ -706,7 +721,7 @@
     const width = $("tl").getBoundingClientRect().width || 600;
     let lastX = -1e9;
     $("lane").querySelectorAll(".ev").forEach((el) => {
-      const x = CALLS[+el.dataset.i].opened / END * width, placed = Math.max(x, lastX + 18);
+      const x = (CALLS[+el.dataset.i].opened - START) / (END - START) * width, placed = Math.max(x, lastX + 18);
       el.style.left = `${placed}px`; lastX = placed;
     });
     $("tl").querySelectorAll(".tick").forEach((el) => el.remove());
@@ -720,13 +735,13 @@
     });
     const tl = $("tl");
     let drag = false;
-    const at = (ev) => { const r = tl.getBoundingClientRect(); return Math.min(END, Math.max(0, (ev.clientX - r.left) / r.width * END)); };
+    const at = (ev) => { const r = tl.getBoundingClientRect(); return Math.min(END, Math.max(START, START + (ev.clientX - r.left) / r.width * (END - START))); };
     tl.addEventListener("pointerdown", (ev) => { drag = true; tl.setPointerCapture(ev.pointerId); if (R.pkg) closeReplay(); seek(at(ev)); });
     tl.addEventListener("pointermove", (ev) => { if (drag) seek(at(ev)); });
     tl.addEventListener("pointerup", () => { drag = false; });
   }
   function renderTimeline() {
-    const p = (100 * t / END) + "%";
+    const p = (100 * (t - START) / (END - START)) + "%";
     $("fill").style.width = p; $("head").style.left = p;
     $("tl").querySelectorAll(".ev, .tick").forEach((el) => el.classList.toggle("future", CALLS[+el.dataset.i].opened > t));
   }
@@ -831,7 +846,7 @@
     const inReplay = R.pkg && R.pkg.focus.find((f) => f.player === pid);
     const stat = (b, s) => `<div class="stat"><b>${b}</b><span>${s}</span></div>`;
     $("pc").innerHTML = `<div class="pc">
-      <div class="who"><div class="num" style="background:${colour[r.team]}">${r.number}</div><div><div class="name">${r.name}</div><div class="sub">${ROLE[r.role]} · ${D.teams[r.team].name}</div></div>
+      <div class="who"><div class="num" style="background:${colour[r.team]}">${r.number ?? "–"}</div><div><div class="name">${r.name}</div><div class="sub">${ROLE[r.role]} · ${D.teams[r.team].name}</div></div>
         <span class="pill ${inv.cls || ""}" style="margin-left:auto">${inv.label}</span></div>
       ${inReplay ? `<span class="pill" style="justify-self:start">In this replay: ${CALL_ROLE[inReplay.role]}</span>` : ""}
       <div class="grid">
@@ -1102,12 +1117,13 @@
     svg("line", { x1: mx, y1: my, x2: fx, y2: fy, stroke: "#ececec", "stroke-width": u / 260 }, L);
     if (textAlpha > 0) {
       const T = svg("g", { opacity: textAlpha.toFixed(2) }, L), v = Math.abs(ms.value_m);
-      const big = v < 1 ? `${(v / 0.0254).toFixed(1)} in · ${Math.round(v * 100)} cm` : `${v.toFixed(2)} m`;
+      const res = isReal() ? D.source.resolution_m : null, coarse = res != null && v <= res + 0.11;
+      const big = coarse ? "ON THE LINE" : v < 1 ? `${(v / 0.0254).toFixed(1)} in · ${Math.round(v * 100)} cm` : `${v.toFixed(2)} m`;
       const bs = u / 16, pw = big.length * bs * 0.5 + u * 0.05, ph = bs * 2.2;
       const cx = (mx + fx) / 2 - (nx / nd) * u * 0.18, cy = (my + fy) / 2 - (ny / nd) * u * 0.18 - u * 0.12;
       svg("rect", { x: cx - pw / 2, y: cy - ph / 2, width: pw, height: ph, rx: u / 200, fill: "rgba(18,18,18,.92)", stroke: "rgba(255,255,255,.3)", "stroke-width": u / 900 }, T);
       text(T, cx, cy + bs * 0.1, big, "#ececec", bs, "middle", "Barlow Condensed", 700);
-      text(T, cx, cy + bs * 0.75, SIDE(ms.kind, ms.value_m).toUpperCase(), "var(--muted)", bs * 0.3);
+      text(T, cx, cy + bs * 0.75, coarse ? `EVENT DATA · ±${Math.round(res * 100)} CM: TOO COARSE TO CALL` : SIDE(ms.kind, ms.value_m).toUpperCase(), "var(--muted)", bs * 0.3);
       text(T, fx + ux * u * 0.12, fy + uy * u * 0.12 + u / 60, ms.line_label.toUpperCase(), "var(--muted)", u / 55);
     }
   }
@@ -1119,6 +1135,7 @@
     if (R.pkg) { replayTick(dt); drawReplay(); }
     else if (playing) {
       t = Math.min(END, t + dt * speed);
+      if (t > LAST_FRAME && factIdx < D.facts.length && D.facts[factIdx].t - t > 4) t = D.facts[factIdx].t - 2;  // play has stopped: skip to the VAR decision
       while (factIdx < D.facts.length && D.facts[factIdx].t <= t) applyFact(D.facts[factIdx++], true);
       if (t >= END) setPlaying(false);
       render();
@@ -1158,9 +1175,14 @@
       `<li><svg viewBox="0 0 16 16"><path d="M2 8h8" stroke="#ececec" stroke-width="1.6" stroke-dasharray="2 1.6"/><path d="M11 5.5 15 10.5M11 10.5 15 5.5" stroke="#ececec" stroke-width="1.4"/></svg><span>Pass lost</span><span></span></li>`;
     $("homeTeam").innerHTML = `<span style="display:flex;align-items:center;gap:8px">${crest(D.home)}${D.home}</span>`;
     $("awayTeam").innerHTML = `<span style="display:flex;align-items:center;gap:8px">${D.away}${crest(D.away)}</span>`;
+    if (isReal()) {
+      speed = 1;
+      $("sourceNote").hidden = false;
+      $("sourceNote").innerHTML = `Real match: <a href="${D.source.url}" target="_blank" rel="noopener">${D.source.name}</a>. Positions are only what the broadcast camera saw.`;
+    }
     precompute(); drawPitch(); buildCalls(); buildBuddy(); controls(); buildTimeline();
     PASSES = D.feed.filter((e) => (e.type === "pass" || e.type === "shot") && e.start && e.end);
-    seek(0); setPlaying(false);
+    seek(START); setPlaying(false);
     $("loading").remove();
     // Hooks for scripts/record_gifs.py and debugging; the page never needs them itself.
     window.__varNarrative = {
