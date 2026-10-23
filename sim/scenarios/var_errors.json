@@ -1,0 +1,22 @@
+{
+  "name": "var_errors",
+  "match_id": "m05",
+  "seed": 20230930,
+  "home": "NBR",
+  "away": "ASH",
+  "random_goals": false,
+  "script": [
+    { "kind": "offside_goal", "at": 600.0, "team": "NBR", "passer": "NBR-8", "attacker": "NBR-11", "defender": "ASH-5",
+      "passer_pos": [60.0, 38.0], "attacker_y": 24.0, "defender_pos": [83.5, 28.0], "margin_m": -0.3, "decision": "no_goal",
+      "check_s": 60 },
+    { "kind": "penalty_review", "at": 1500.0, "team": "ASH", "attacker": "ASH-9", "defender": "NBR-4", "awarded": false,
+      "check_s": 50 },
+    { "kind": "offside_goal", "at": 2300.0, "team": "ASH", "passer": "ASH-8", "attacker": "ASH-3", "defender": "NBR-4",
+      "passer_pos": [58.0, 40.0], "attacker_y": 46.0, "defender_pos": [84.0, 36.0], "margin_m": -0.2, "decision": "no_goal",
+      "check_s": 75 },
+    { "kind": "red_card", "at": 3500.0, "player": "NBR-3", "var": true, "var_result": "upheld", "check_s": 45 },
+    { "kind": "offside_goal", "at": 4600.0, "team": "NBR", "passer": "NBR-10", "attacker": "NBR-6", "defender": "ASH-4",
+      "passer_pos": [58.0, 30.0], "attacker_y": 44.0, "defender_pos": [83.0, 40.0], "margin_m": 0.15, "decision": "goal_stands",
+      "check_s": 40 }
+  ]
+}
