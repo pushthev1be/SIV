@@ -861,7 +861,21 @@
     $("replay").classList.add("on");
   }
   function closeReplay() { $("replay").classList.remove("on"); R.pkg = null; render(); }
-  function restartReplay() { R.rt = R.pkg.frames[0].t; R.playing = true; R.frozen = false; R.hold = 0; R.holdT = 0; R.zoom = 0; R.endHold = 0; $("rPause").textContent = "❚❚"; drawReplayText(); }
+  function restartReplay() { R.rt = R.pkg.frames[0].t; R.playing = true; R.frozen = false; R.hold = 0; R.holdT = 0; R.zoom = 0; R.endHold = 0; R.cam = null; $("rPause").textContent = "❚❚"; drawReplayText(); }
+  // Broadcast-style camera: frame the ball and the players involved right now, never tighter than
+  // CAM_MIN_W across, and ease toward it so the view pans with the move instead of jumping.
+  const CAM_MIN_W = 42, CAM_EASE = 0.06;
+  function followCam(P, rt) {
+    const pts = [];
+    interp(P.frames, rt, (a, b, k) => P.focus.forEach(({ player }) => {
+      const pa = a.positions[player], pb = b.positions[player] || pa;
+      if (pa) pts.push([pa[0] + (pb[0] - pa[0]) * k, pa[1] + (pb[1] - pa[1]) * k]);
+    }));
+    pts.push(interp(P.ball, rt, (a, b, k) => [a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k]));
+    const target = widen(bbox(pts, 7), CAM_MIN_W);
+    R.cam = R.cam ? R.cam.map((c, i) => c + (target[i] - c) * CAM_EASE) : target;
+    return R.cam;
+  }
   function bbox(points, pad) {
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
     points.forEach(([x, y]) => { if (x == null) return; x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); });
@@ -888,7 +902,7 @@
     const pts = [];
     P.frames.forEach((f) => P.focus.forEach((x) => f.positions[x.player] && pts.push(f.positions[x.player])));
     P.ball.forEach((b) => pts.push([b.x, b.y]));
-    R.view = bbox(pts, 6); R.zoomBox = null;
+    R.view = bbox(pts, 6); R.zoomBox = null; R.cam = null;
     if (P.lines) { const bp = []; Object.values(P.lines.body).forEach((parts) => Object.values(parts).forEach((p) => bp.push(p))); R.zoomBox = widen(bbox(bp, 1.6), MIN_ZOOM_W.offside); }
     else if (P.measurement) {
       const [fx, fy, fw, fh] = P.measurement.focus;
@@ -941,7 +955,7 @@
   function drawReplay() {
     const P = R.pkg; if (!P) return;
     const z = R.zoomBox ? R.zoom * R.zoom * (3 - 2 * R.zoom) : 0;
-    const v = R.view, zb = R.zoomBox || v, vb = v.map((a, k) => a + (zb[k] - a) * z);
+    const v = followCam(P, R.rt), zb = R.zoomBox || v, vb = v.map((a, k) => a + (zb[k] - a) * z);
     $("rsvg").setAttribute("viewBox", vb.join(" "));
     const scale = vb[2] / 111, nodes = $("rPlayers").children, pos = {};
     const minScale = (P.measurement || P.lines) && z > 0.3 ? 0.1 : 0.18;   // zoomed in: smaller players

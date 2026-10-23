@@ -31,9 +31,12 @@ from sim.scenario import (
 from sim.teams import TEAMS
 
 PERIOD_START = {1: 0.0, 2: 2700.0}
+# How early a script starts steering play toward its incident. Short on purpose: set-ups that finish early
+# leave everyone standing until `at`, and the replay's build-up is then a frozen pitch. DOGSO keeps a long
+# lead: those seconds are the other defenders dropping off so the fouler is the last man.
 LEAD_S = {
-    "offside_goal": 30.0, "red_card": 20.0, "goal": 0.0, "penalty_review": 30.0, "ball_out_goal": 30.0,
-    "box_edge_foul": 30.0, "goal_line_clearance": 30.0, "penalty_retake": 30.0, "dogso_foul": 30.0,
+    "offside_goal": 10.0, "red_card": 20.0, "goal": 0.0, "penalty_review": 10.0, "ball_out_goal": 10.0,
+    "box_edge_foul": 10.0, "goal_line_clearance": 10.0, "penalty_retake": 10.0, "dogso_foul": 30.0,
 }  # fmt: skip
 BALL_RADIUS_M = 0.11
 LINE_WIDTH_M = 0.12
@@ -79,6 +82,7 @@ class Simulator:
         self.m = Match(TEAMS[scenario.home], TEAMS[scenario.away], self.rng)
         self.events: list[MatchEvent] = []
         self.pending = sorted(scenario.script, key=lambda s: s.at)
+        self.drive: set[float] = set()  # scripts (by `at`) past their approach and into the move itself
         self.active: OffsideGoal | RedCard | Goal | PenaltyReview | None = None
         self.pressed = False
         # Constraints that scripts place on free play
@@ -739,10 +743,21 @@ class Simulator:
         ay = m.af(s.team, att.x, att.y)[1]
         lane_y = min(max(ay, W / 2 - 12), W / 2 + 12)
         contact_x = L - 16.5 - s.outside_m
+        # Approach first: the attacker shapes up 6 m short of the spot with the defender tracking alongside,
+        # so the defender is close when contact comes and the snap into the challenge stays under a metre or two.
+        if s.at not in self.drive:
+            start, mark = self._go(att, s.team, (contact_x - 6.0, lane_y), 0.75), (contact_x - 7.0, lane_y + 2.0)
+            mark = self._go(deff, s.team, mark, 0.9)
+            ready = dist(att.pos, start) < 1.5 and dist(deff.pos, mark) < 1.5
+            if not ready and m.clock < s.at + 60:
+                self._wait(0.3)
+                return True
+            self.drive.add(s.at)
+            deff.override = None
         self._go(att, s.team, (contact_x + 3.0, lane_y), 0.8)
         deff.chase = True
         ax = m.af(s.team, att.x, att.y)[0]
-        if (ax < contact_x - 0.6 or m.clock < s.at) and m.clock < s.at + 90:
+        if ax < contact_x - 0.6 and m.clock < s.at + 90:
             self._wait(0.3)
             return True
         # The challenge: contact starts exactly at the scripted spot.
@@ -858,7 +873,8 @@ class Simulator:
         for p in m.on_pitch(m.other(s.team)):
             if p.pid != deff.pid and not p.is_gk:
                 p.max_af_x = ax - 6  # everyone else is caught upfield: the defender is the last man
-        if m.clock < s.at:
+        if m.clock < s.at:  # hold the attacker well out while the others drop off, so the breakaway is a real run
+            self._go(att, s.team, (min(m.af(s.team, att.x, att.y)[0], L - 40.0), m.af(s.team, att.x, att.y)[1]), 0.4)
             self._wait(0.3)
             return True
         if att.override is None or not getattr(self, "_dogso_run", False):
@@ -867,7 +883,7 @@ class Simulator:
             self._emit("carry", team=att.team, player=att.pid, start=_r(att.pos), end=_r(goal_run))
             self._dogso_run = True
         deff.chase, deff.urgency = True, 1.0
-        caught = dist(deff.pos, att.pos) <= 1.4 and ax >= L - 32
+        caught = dist(deff.pos, att.pos) <= 1.4 and ax >= L - 28  # inside the 30 m an obvious chance needs
         if not caught and ax < L - 20.5 and m.clock < s.at + 60:  # never let it reach the area
             self._wait(0.1)
             return True
