@@ -31,8 +31,8 @@ from sim.scenario import (
 from sim.teams import TEAMS
 
 PERIOD_START = {1: 0.0, 2: 2700.0}
-# How early a script starts steering play toward its incident. Short on purpose: set-ups that finish early
-# leave everyone standing until `at`, and the replay's build-up is then a frozen pitch. DOGSO keeps a long
+# How early a script starts steering play toward its incident: a passing build-up, then the incident as soon
+# as it is set (so it can land a few seconds before `at`; nobody stands holding the ball). DOGSO keeps a long
 # lead: those seconds are the other defenders dropping off so the fouler is the last man.
 LEAD_S = {
     "offside_goal": 10.0, "red_card": 20.0, "goal": 0.0, "penalty_review": 10.0, "ball_out_goal": 10.0,
@@ -40,6 +40,10 @@ LEAD_S = {
 }  # fmt: skip
 BALL_RADIUS_M = 0.11
 LINE_WIDTH_M = 0.12
+BUILD_HOPS = 3  # passes in a scripted build-up before the final ball
+BUILD_REACH_M = 12.0  # the scripted player receives within this of where the incident happens
+BUILD_MIN = 2  # even if he wins it right there: lay it off and get it back, a one-two, not a solo run
+BUILD_DONE = 99
 
 # Body-part offsets (along the attacking direction, lateral), metres from the player's centre.
 # Arms are deliberately the most forward part: Law 11 excludes them, and the engine must too.
@@ -83,6 +87,7 @@ class Simulator:
         self.events: list[MatchEvent] = []
         self.pending = sorted(scenario.script, key=lambda s: s.at)
         self.drive: set[float] = set()  # scripts (by `at`) past their approach and into the move itself
+        self.hops: dict[str, int] = {}  # passes so far in the build-up to each scripted player
         self.active: OffsideGoal | RedCard | Goal | PenaltyReview | None = None
         self.pressed = False
         # Constraints that scripts place on free play
@@ -186,7 +191,7 @@ class Simulator:
             shot_p = 0.0
         if not c.is_gk and rng.random() < shot_p:
             self._shot(c)
-        elif c.is_gk or rng.random() < 0.70 or self.force_receiver:
+        elif c.is_gk or rng.random() < 0.70 or self._forced_for(c):
             self._pass(c)
         else:
             self._carry(c)
@@ -209,9 +214,14 @@ class Simulator:
             return True
         return False
 
+    def _forced_for(self, c: Player) -> bool:
+        """A scripted receiver applies only to his own team: the other side never passes the ball to him."""
+        f = self.force_receiver
+        return bool(f) and f != c.pid and self.m.players[f].team == c.team
+
     def _choose_receiver(self, c: Player) -> Player:
         m, rng = self.m, self.rng
-        if self.force_receiver and self.force_receiver != c.pid:
+        if self._forced_for(c):
             return m.players[self.force_receiver]
         cx = m.af(c.team, c.x, c.y)[0]
         opps = m.on_pitch(m.other(c.team))
@@ -446,6 +456,7 @@ class Simulator:
         for p in self.m.players.values():
             p.override, p.urgency, p.chase, p.max_af_x, p.run_until = None, None, False, None, None
         self.active = self.force_ball_to = self.safe_team = self.force_receiver = self.goal_team = None
+        self.hops.clear()
         self.suppress_after_goal = False
 
     def _script_offside(self, s: OffsideGoal) -> bool:
@@ -466,13 +477,11 @@ class Simulator:
             if p.pid != defender.pid and not p.is_gk:
                 p.max_af_x = dx - 6.5  # well behind, so the defender stays second-last as he steps up
 
-        if m.carrier != passer.pid:
-            self.force_receiver = passer.pid
+        if not self._build_up(s.team, passer.pid, m.af(s.team, *s.passer_pos), reach=8.0):
             return False
-        self.force_receiver = None
         passer.override = s.passer_pos
         settled = all(dist(p.pos, t) < 1.0 for p, t in ((attacker, att_start), (defender, def_start)))
-        if (m.clock < s.at or not settled) and m.clock < s.at + 20:
+        if not settled and m.clock < s.at + 20:
             self._wait(0.5)
             return True
 
@@ -568,16 +577,16 @@ class Simulator:
         """Get the ball to the attacker, run him into the box, and have the defender go through him."""
         m, rng = self.m, self.rng
         attacker, defender = m.players[s.attacker], m.players[s.defender]
-        self.safe_team = s.team
-        if m.carrier != attacker.pid:
-            self.force_receiver = attacker.pid
+        lane = 7.0 if m.af(s.team, attacker.x, attacker.y)[1] > W / 2 else -7.0
+        if self.hops.get(attacker.pid) != BUILD_DONE:
+            self._go(defender, s.team, (L - 13.0, W / 2 + lane * 0.7), 0.85)  # drops into the area as the move builds
+        if not self._build_up(s.team, attacker.pid, (L - 27.0, W / 2 + lane)):
             return False
-        self.force_receiver = None
         box = m.af(s.team, 96.0, W / 2 + (6.0 if attacker.y > W / 2 else -6.0))
         ax, ay = m.af(s.team, attacker.x, attacker.y)
         in_box = ax > L - 16.5 and abs(ay - W / 2) < 20.16
-        defender.chase = True
-        if (not in_box or m.clock < s.at) and m.clock < s.at + 90:
+        defender.override, defender.chase = None, True  # now he goes to meet the attacker
+        if not in_box and m.clock < s.at + 90:
             attacker.override, attacker.urgency = box, 0.85
             self._wait(0.5)
             return True
@@ -679,6 +688,49 @@ class Simulator:
             track.append((round(tk + s, 2), round(x, 3), round(y, 3)))
         return frame, track, front  # contact on the attacker: his front foot
 
+    def _build_up(self, team: str, pid: str, zone_af: tuple[float, float], reach: float = BUILD_REACH_M) -> bool:
+        """Work the ball to `pid` near `zone_af` (attacking frame) through a passing move, not a solo run.
+
+        Each call is one pass: to the open teammate furthest forward short of the zone, until the ball is
+        close or the move has had its passes; then the final ball goes to `pid`, who has been running
+        toward the zone. True once `pid` has the ball within `reach` of it, so his own carry stays short."""
+        m = self.m
+        self.safe_team = team
+        if m.carrier is None or m.possession != team:
+            if self.hops.get(pid) != BUILD_DONE:
+                self.hops.pop(pid, None)  # the move broke down: when they win it back, it starts again
+            return False
+        key, zone = m.players[pid], m.af(team, *zone_af)
+        c = m.players[m.carrier]
+        hops = self.hops.get(pid, 0)
+        if c.pid == pid and ((dist(c.pos, zone) <= reach and hops >= BUILD_MIN) or hops >= BUILD_HOPS + 2):
+            self.force_receiver = None
+            self.hops[pid] = BUILD_DONE  # latched: the script now moves him on from here without passing again
+            return True
+        key.override, key.urgency = zone, 0.75  # the run that the final pass finds
+        bx = m.af(team, c.x, c.y)[0]
+        options = [
+            q for q in m.on_pitch(team)
+            if q.pid not in (pid, c.pid) and not q.is_gk and not m.offside_position(q)
+            and bx + 5 <= m.af(team, q.x, q.y)[0] <= zone_af[0] - 3 and 6 <= dist(c.pos, q.pos) <= 35
+        ]  # fmt: skip
+        if c.pid == pid or (hops < BUILD_HOPS and zone_af[0] - bx > 25):
+            opps = m.on_pitch(m.other(team))
+            # Nobody ahead and open: recycle it to a teammate nearby and go again, rather than a long ball.
+            support = options or [
+                q for q in m.on_pitch(team)
+                if q.pid not in (c.pid, pid) and not q.is_gk and not m.offside_position(q)
+                and 6 <= dist(c.pos, q.pos) <= 28
+            ] or [q for q in m.on_pitch(team) if q.pid != c.pid and not q.is_gk]  # fmt: skip
+            nxt = max(
+                support, key=lambda q: m.af(team, q.x, q.y)[0] + 0.8 * min(min(dist(q.pos, o.pos) for o in opps), 8)
+            )
+        else:
+            nxt = key
+        self.force_receiver = nxt.pid
+        self.hops[pid] = hops + 1
+        return False
+
     def _have_ball(self, s_team: str, pid: str) -> bool:
         """True once `pid` has the ball; until then free play is steered to give it to them."""
         self.safe_team = s_team
@@ -710,12 +762,13 @@ class Simulator:
     def _script_ball_out(self, s) -> bool:
         m, rng = self.m, self.rng
         crosser, scorer = m.players[s.crosser], m.players[s.scorer]
-        if not self._have_ball(s.team, crosser.pid):
-            return False
         side = 1 if m.af(s.team, crosser.x, crosser.y)[1] > W / 2 else -1
+        self._go(scorer, s.team, (L - 20.0, W / 2 - side * 4.0), 0.7)  # the scorer drifts in as the move builds
+        if not self._build_up(s.team, crosser.pid, (L - 18.0, W / 2 + side * 19.0)):
+            return False
         byline = self._go(crosser, s.team, (L - 1.2, W / 2 + side * 20), 0.85)
         self._go(scorer, s.team, (L - 11.5, W / 2 - side * 2.5), 0.9)
-        if (dist(crosser.pos, byline) > 1.0 or m.clock < s.at) and m.clock < s.at + 90:
+        if dist(crosser.pos, byline) > 1.0 and m.clock < s.at + 90:
             self._wait(0.5)
             return True
         # The ball runs on over the byline, wholly out, and is pulled back anyway.
@@ -738,18 +791,20 @@ class Simulator:
     def _script_box_edge(self, s) -> bool:
         m, rng = self.m, self.rng
         att, deff = m.players[s.attacker], m.players[s.defender]
-        if not self._have_ball(s.team, att.pid):
-            return False
         ay = m.af(s.team, att.x, att.y)[1]
         lane_y = min(max(ay, W / 2 - 12), W / 2 + 12)
         contact_x = L - 16.5 - s.outside_m
+        if s.at not in self.drive:
+            self._go(deff, s.team, (contact_x - 7.0, lane_y + 2.0), 0.8)  # tracks back into position as the move builds
+            if not self._build_up(s.team, att.pid, (contact_x - 9.0, lane_y)):
+                return False
         # Approach first: the attacker shapes up 6 m short of the spot with the defender tracking alongside,
         # so the defender is close when contact comes and the snap into the challenge stays under a metre or two.
         if s.at not in self.drive:
             start, mark = self._go(att, s.team, (contact_x - 6.0, lane_y), 0.75), (contact_x - 7.0, lane_y + 2.0)
             mark = self._go(deff, s.team, mark, 0.9)
-            ready = dist(att.pos, start) < 1.5 and dist(deff.pos, mark) < 1.5
-            if not ready and m.clock < s.at + 60:
+            ready = dist(att.pos, start) < 2.0 and dist(deff.pos, mark) < 2.5
+            if not ready and m.clock < s.at + 30:
                 self._wait(0.3)
                 return True
             self.drive.add(s.at)
@@ -788,11 +843,11 @@ class Simulator:
     def _script_goal_line(self, s) -> bool:
         m, rng = self.m, self.rng
         shooter, clearer = m.players[s.shooter], m.players[s.clearer]
-        if not self._have_ball(s.team, shooter.pid):
+        if not self._build_up(s.team, shooter.pid, (L - 20.0, W / 2 - 6.0)):
             return False
         spot = self._go(shooter, s.team, (L - 12.0, W / 2 - 6.0), 0.8)
         self._go(clearer, s.team, (L - 0.3, W / 2 + 2.2), 1.0)
-        if (dist(shooter.pos, spot) > 1.0 or m.clock < s.at) and m.clock < s.at + 90:
+        if dist(shooter.pos, spot) > 1.0 and m.clock < s.at + 90:
             self._wait(0.5)
             return True
         end = m.af(s.team, L + BALL_RADIUS_M + s.over_m, W / 2 + 2.2)
@@ -820,13 +875,15 @@ class Simulator:
         m, rng = self.m, self.rng
         taker, fouler = m.players[s.taker], m.players[s.fouler]
         keeper = next(p for p in m.on_pitch(m.other(s.team)) if p.is_gk)
-        if not self._have_ball(s.team, taker.pid):
+        if self.hops.get(taker.pid) != BUILD_DONE:
+            self._go(fouler, s.team, (L - 11.0, W / 2 - 4.0), 0.85)  # drops into the area as the move builds
+        if not self._build_up(s.team, taker.pid, (L - 20.0, W / 2 - 5.0)):
             return False
         self._go(taker, s.team, (L - 8.5, W / 2 - 5.0), 0.85)
-        fouler.chase = True
+        fouler.override, fouler.chase = None, True
         tx, ty = m.af(s.team, taker.x, taker.y)
         in_box = tx > L - 16.5 and abs(ty - W / 2) < 20.16
-        if (not in_box or m.clock < s.at or dist(fouler.pos, taker.pos) > 2.0) and m.clock < s.at + 90:
+        if (not in_box or dist(fouler.pos, taker.pos) > 2.0) and m.clock < s.at + 90:
             self._wait(0.3)
             return True
         self._emit("foul", team=fouler.team, player=fouler.pid, receiver=taker.pid, outcome="penalty",
@@ -867,16 +924,21 @@ class Simulator:
     def _script_dogso(self, s) -> bool:
         m, rng = self.m, self.rng
         att, deff = m.players[s.attacker], m.players[s.defender]
-        if not self._have_ball(s.team, att.pid):
-            return False
+        if not getattr(self, "_dogso_run", False):
+            lane = W / 2 + (6.0 if m.af(s.team, att.x, att.y)[1] > W / 2 else -6.0)
+            for p in m.on_pitch(m.other(s.team)):
+                if p.pid != deff.pid and not p.is_gk:
+                    p.max_af_x = L - 47.0  # pushed up and caught upfield: the defender will be the last man
+            if m.clock < s.at - 8:  # the team keeps the ball while the defence is drawn up
+                self.safe_team = s.team
+                self._go(att, s.team, (L - 50.0, lane), 0.5)
+                mate = m.nearest(s.team, att.pos, exclude=att.pid)
+                self.force_receiver = mate.pid if m.carrier == att.pid else None
+                return False
+            # Then the move that plays him in behind, received 40 m out: the breakaway starts from a pass.
+            if not self._build_up(s.team, att.pid, (L - 40.0, lane), reach=10.0):
+                return False
         ax = m.af(s.team, att.x, att.y)[0]
-        for p in m.on_pitch(m.other(s.team)):
-            if p.pid != deff.pid and not p.is_gk:
-                p.max_af_x = ax - 6  # everyone else is caught upfield: the defender is the last man
-        if m.clock < s.at:  # hold the attacker well out while the others drop off, so the breakaway is a real run
-            self._go(att, s.team, (min(m.af(s.team, att.x, att.y)[0], L - 40.0), m.af(s.team, att.x, att.y)[1]), 0.4)
-            self._wait(0.3)
-            return True
         if att.override is None or not getattr(self, "_dogso_run", False):
             # The breakaway: one carry at goal, at a pace the last defender can just catch.
             goal_run = self._go(att, s.team, (L - 7, W / 2 + 2), 0.66)
