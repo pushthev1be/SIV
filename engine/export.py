@@ -72,10 +72,11 @@ def export(name: str) -> Path:
                 row += [x, y]
             frames.append(row)
         elif e.type in ("pass", "shot", "goal", "foul", "card", "var_check", "var_decision", "kickoff"):
-            feed.append(
-                {"t": t_of(e.period, e.clock), "id": e.event_id, "type": e.type, "team": e.team,
-                 "player": e.player, "receiver": e.receiver, "outcome": e.outcome}
-            )  # fmt: skip
+            row = {"t": t_of(e.period, e.clock), "id": e.event_id, "type": e.type, "team": e.team,
+                   "player": e.player, "receiver": e.receiver, "outcome": e.outcome}  # fmt: skip
+            if e.type in ("pass", "shot") and e.start and e.end:  # for drawing the ball's path
+                row |= {"start": e.start, "end": e.end, "kmh": e.ball_speed_kmh}
+            feed.append(row)
 
     data = {
         "scenario": name,

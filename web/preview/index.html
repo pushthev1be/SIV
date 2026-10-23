@@ -230,7 +230,7 @@
     </div>
   </header>
 
-  <aside class="keyside" aria-label="Timeline key"><h4>KEY · SO FAR</h4><ul id="keyList"></ul>
+  <aside class="keyside" aria-label="Timeline key"><h4>ON THE PITCH</h4><ul id="teamKey"></ul><h4 style="margin-top:12px">KEY · SO FAR</h4><ul id="keyList"></ul>
     <div class="foot">Click a row to watch the latest one.</div></aside>
   <div class="main">
   <section class="stage" id="stage">
@@ -352,8 +352,10 @@
       const team = pid.slice(0, 3), n = pid.split("-")[1];
       const node = svg("g", { "data-pid": pid }, g);
       svg("circle", { class: "ring", r: 2.1, fill: "none", stroke: "#ececec", "stroke-width": 0.3, display: "none" }, node);
-      svg("circle", { r: 1.25, fill: colour[team], stroke: n === "1" ? "#ececec" : "rgba(0,0,0,.45)", "stroke-width": n === "1" ? 0.35 : 0.2 }, node);
-      svg("text", { "text-anchor": "middle", y: 0.55, "font-size": 1.5, "font-family": "IBM Plex Mono", "font-weight": 600, fill: "#121212" }, node).textContent = n;
+      const body = { fill: colour[team], stroke: n === "1" ? "#ececec" : "rgba(0,0,0,.5)", "stroke-width": n === "1" ? 0.35 : 0.2, "stroke-linejoin": "round" };
+      if (team === D.home) svg("polygon", { class: "dir", points: "0,-1.87 1.6,0.93 -1.6,0.93", ...body }, node);   // Northbridge: triangles, pointing where they run
+      else svg("rect", { x: -1.2, y: -1.2, width: 2.4, height: 2.4, rx: 0.25, ...body }, node);       // Ashvale: squares
+      svg("text", { "text-anchor": "middle", y: team === D.home ? 0.46 : 0.52, "font-size": team === D.home ? 1.25 : 1.45, "font-family": "IBM Plex Mono", "font-weight": 600, fill: "#121212" }, node).textContent = n;
       if (onClick) node.addEventListener("click", (ev) => { ev.stopPropagation(); onClick(pid); });
     });
     return g;
@@ -362,6 +364,9 @@
     const p = $("pitch");
     pitchMarkings(p);
     svg("g", { id: "lines" }, p);
+    svg("defs", {}, p).innerHTML = [D.home, D.away].map((code) =>
+      `<marker id="arrow-${code}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${colour[code]}"/></marker>`).join("");
+    svg("g", { id: "trails" }, p);
     playerNodes(p, selectPlayer).id = "players";
     svg("circle", { id: "ball", r: 0.6, fill: "#ececec", stroke: "#121212", "stroke-width": 0.15 }, p);
     svg("g", { id: "hud" }, p);
@@ -568,11 +573,11 @@
 
   // ── Live render ─────────────────────────────────────────────────────────
   function render() {
-    const fr = frameAt(t), g = $("players").children;
+    const fr = frameAt(t), g = $("players").children, back = frameAt(Math.max(0, t - 0.5));
     for (let j = 0; j < players.length; j++) {
       const [x, y] = fr.pos(j);
       if (x == null) g[j].setAttribute("display", "none");
-      else { g[j].removeAttribute("display"); g[j].setAttribute("transform", `translate(${x.toFixed(2)},${y.toFixed(2)})`); }
+      else { g[j].removeAttribute("display"); g[j].setAttribute("transform", `translate(${x.toFixed(2)},${y.toFixed(2)})`); turn(g[j], players[j], [x, y], back.pos(j), "live:"); }
       g[j].querySelector(".ring").setAttribute("display", players[j] === selected ? "inline" : "none");
     }
     $("ball").setAttribute("cx", fr.ball[0]); $("ball").setAttribute("cy", fr.ball[1]);
@@ -595,6 +600,7 @@
       $("bandWatch").classList.toggle("on", !!r);
       if (r) { $("bandWatch").textContent = r.phase === "during" ? "▶ Watch the build-up" : "▶ Watch the call"; $("bandWatch").onclick = () => openReplay(r.iid); }
     }
+    drawTrails();
     const H = $("hud"); H.innerHTML = "";
     if (hud && selected) {
       const j = players.indexOf(selected), [x, y] = fr.pos(j);
@@ -611,6 +617,46 @@
     renderTimeline(); renderBuddy(); renderCalls(); renderKey();
     const now = performance.now();
     if (selected && now >= cardNext) { renderCard(fr); cardNext = now + 250; }
+  }
+
+  // ── Headings: which way each player is running ──────────────────────────
+  const HEADING = {};
+  const MIN_RUN_M = 0.25;   // movement over the look-back below this keeps the last heading
+  function turn(node, pid, now, before, key) {
+    const tri = node.querySelector(".dir");
+    if (!tri || !now || !before || now[0] == null || before[0] == null) return;
+    const dx = now[0] - before[0], dy = now[1] - before[1];
+    const k = key + pid;
+    if (Math.hypot(dx, dy) >= MIN_RUN_M) HEADING[k] = Math.atan2(dy, dx) * 180 / Math.PI + 90;  // apex points up at 0
+    if (HEADING[k] == null) HEADING[k] = D.home === pid.slice(0, 3) ? 90 : -90;
+    tri.setAttribute("transform", `rotate(${HEADING[k].toFixed(1)})`);
+  }
+
+  // ── Ball paths: every pass and shot leaves a fading line; the ball leaves a short trail ─
+  let PASSES = [];
+  function trailWindow() { return Math.max(2.5, speed * 0.7); }   // match seconds; about 0.7 s of real time
+  function drawTrails() {
+    const G = $("trails"); G.innerHTML = "";
+    const win = trailWindow();
+    let lo = 0, hi = PASSES.length;
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (PASSES[mid].t < t - win) lo = mid + 1; else hi = mid; }
+    for (let i = lo; i < PASSES.length && PASSES[i].t <= t; i++) {
+      const e = PASSES[i], a = Math.max(0, 1 - (t - e.t) / win);
+      const c = colour[e.team] || "#ececec", ok = e.type === "pass" && e.outcome === "complete", shot = e.type === "shot";
+      const [x1, y1] = e.start, [x2, y2] = e.end;
+      const attrs = { x1, y1, x2, y2, stroke: c, "stroke-width": shot ? 0.45 : 0.3, opacity: (0.25 + 0.65 * a).toFixed(2), "stroke-linecap": "round" };
+      if (ok || (shot && e.outcome === "goal")) attrs["marker-end"] = `url(#arrow-${e.team})`;
+      if (!ok && !shot) attrs["stroke-dasharray"] = "0.9 0.7";
+      svg("line", attrs, G);
+      if (!ok && !shot) {   // where the move broke down
+        const k = 0.6;
+        svg("path", { d: `M${x2 - k},${y2 - k} L${x2 + k},${y2 + k} M${x2 - k},${y2 + k} L${x2 + k},${y2 - k}`, stroke: c, "stroke-width": 0.28, opacity: (0.4 + 0.6 * a).toFixed(2) }, G);
+      }
+    }
+    for (let k = 1; k <= 4; k++) {   // the ball's last moments, as fading dots
+      const b = frameAt(Math.max(0, t - k * 0.35)).ball;
+      if (b[0] != null) svg("circle", { cx: b[0], cy: b[1], r: 0.45 - k * 0.07, fill: "#ececec", opacity: (0.32 - k * 0.07).toFixed(2) }, G);
+    }
   }
 
   // ── Left legend ─────────────────────────────────────────────────────────
@@ -829,6 +875,7 @@
     const P = R.pkg, s = $("rsvg");
     s.innerHTML = ""; pitchMarkings(s);
     svg("g", { id: "rLines" }, s);
+    svg("g", { id: "rTrail" }, s);
     playerNodes(s, selectPlayer).id = "rPlayers";
     svg("circle", { id: "rBall", r: 0.6, fill: "#ececec", stroke: "#121212", "stroke-width": 0.15 }, s);
     svg("g", { id: "rTags" }, s);
@@ -900,12 +947,17 @@
         pos[pid] = [x, y];
         n.removeAttribute("display");
         n.setAttribute("transform", `translate(${x.toFixed(3)},${y.toFixed(3)}) scale(${Math.max(scale, minScale)})`);
+        const earlier = interp(P.frames, R.rt - 0.5, (a2, b2, k2) => { const qa = a2.positions[pid], qb = b2.positions[pid] || qa; return qa ? [qa[0] + (qb[0] - qa[0]) * k2, qa[1] + (qb[1] - qa[1]) * k2] : null; });
+        turn(n, pid, [x, y], earlier, "replay:");
         const focus = P.focus.find((f) => f.player === pid);
         n.style.opacity = focus || pid === selected ? 1 : 0.4;
         n.querySelector(".ring").setAttribute("display", focus || pid === selected ? "inline" : "none");
       });
     });
     const ball = interp(P.ball, R.rt, (a, b, k) => [a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k]);
+    const RT = $("rTrail"); RT.innerHTML = "";
+    const pts = P.ball.filter((b) => b.t <= R.rt && b.t >= R.rt - 1.6).map((b) => `${b.x},${b.y}`);
+    if (pts.length > 1) svg("polyline", { points: pts.concat([`${ball[0]},${ball[1]}`]).join(" "), fill: "none", stroke: "#ececec", "stroke-width": (vb[2] / 260).toFixed(3), opacity: 0.55, "stroke-linecap": "round" }, RT);
     $("rBall").setAttribute("cx", ball[0]); $("rBall").setAttribute("cy", ball[1]); const br = 0.6 * Math.max(scale, minScale); $("rBall").setAttribute("r", br); $("rBall").setAttribute("stroke-width", br * 0.25);
 
     const tags = $("rTags"); tags.innerHTML = "";
@@ -1056,13 +1108,22 @@
     $("pitch").addEventListener("click", () => selected && selectPlayer(selected));
   }
 
-  fetch(`data/${scenario}.json`).then((r) => { if (!r.ok) throw new Error(`data/${scenario}.json not found: run  uv run python -m engine.export`); return r.json(); })
+  // no-cache: always revalidate, the data is re-exported often
+  fetch(`data/${scenario}.json`, { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(`data/${scenario}.json not found: run  uv run python -m engine.export`); return r.json(); })
   .then((data) => {
     D = data; players = D.players; roster = D.roster;
     colour = Object.fromEntries(Object.entries(D.teams).map(([k, v]) => [k, v.colour]));
+    const shapeIcon = (code, tri) => `<svg viewBox="-8 -8 16 16">${tri ? `<polygon points="0,-7 6.4,4.2 -6.4,4.2" fill="${colour[code]}"/>` : `<rect x="-5" y="-5" width="10" height="10" rx="1" fill="${colour[code]}"/>`}</svg>`;
+    $("teamKey").innerHTML =
+      `<li>${shapeIcon(D.home, true)}<span>${D.teams[D.home].name}</span><span class="n">▲</span></li>` +
+      `<li>${shapeIcon(D.away, false)}<span>${D.teams[D.away].name}</span><span class="n">■</span></li>` +
+      `<li><svg viewBox="0 0 16 16"><path d="M2 8h9" stroke="#ececec" stroke-width="1.6"/><path d="M10 4.5 14 8 10 11.5Z" fill="#ececec"/></svg><span>Pass completed</span><span></span></li>` +
+      `<li><svg viewBox="0 0 16 16"><path d="M2 8h8" stroke="#ececec" stroke-width="1.6" stroke-dasharray="2 1.6"/><path d="M11 5.5 15 10.5M11 10.5 15 5.5" stroke="#ececec" stroke-width="1.4"/></svg><span>Pass lost</span><span></span></li>`;
     $("homeTeam").innerHTML = `<span style="display:flex;align-items:center;gap:8px">${crest(D.home)}${D.home}</span>`;
     $("awayTeam").innerHTML = `<span style="display:flex;align-items:center;gap:8px">${D.away}${crest(D.away)}</span>`;
-    precompute(); drawPitch(); buildCalls(); buildBuddy(); controls(); buildTimeline(); seek(0); setPlaying(false);
+    precompute(); drawPitch(); buildCalls(); buildBuddy(); controls(); buildTimeline();
+    PASSES = D.feed.filter((e) => (e.type === "pass" || e.type === "shot") && e.start && e.end);
+    seek(0); setPlaying(false);
     $("loading").remove();
     // Hooks for scripts/record_gifs.py and debugging; the page never needs them itself.
     window.__varNarrative = {
