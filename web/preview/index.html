@@ -604,7 +604,8 @@
           { text: `${roster[selected].number} · ${name(selected).toUpperCase()}`, bold: true, size: 1.15 },
           { text: isNaN(kmh) ? "speed –" : `${kmh.toFixed(1)} km/h · ${mph(kmh)} mph`, mono: true },
           { text: `${inv.label}${inv.dBall != null ? ` · ${inv.dBall.toFixed(0)} m to ball` : ""}`, mono: true, size: 0.85, color: "var(--muted)" },
-        ], colour[selected.slice(0, 3)], 111, 0, [-3, -3, 111, 74]);
+        ], colour[selected.slice(0, 3)], 111, "live:" + selected, [-3, -3, 111, 74],
+           players.map((pid, k) => (k === j ? null : fr.pos(k))).filter((q) => q && q[0] != null).concat([fr.ball]));
       }
     }
     renderTimeline(); renderBuddy(); renderCalls(); renderKey();
@@ -679,31 +680,61 @@
   }
 
   // ── HUD callouts ────────────────────────────────────────────────────────
-  const SLOTS = [[1, -1], [1, 1], [-1, -1], [-1, 1]];
-  function callout(parent, px, py, rows, accent, u, slot, view) {
+  // Callouts try eight directions at two leader lengths and take the spot covering the fewest
+  // players, other callouts and the frame edge. A remembered choice is kept unless another spot is
+  // clearly better, so panels don't flicker as players move.
+  const DIRS = [[1, -1], [-1, -1], [1, 1], [-1, 1], [1, 0], [-1, 0], [0, -1], [0, 1]];
+  const calloutMemo = {};
+  function callout(parent, px, py, rows, accent, u, key, view, obstacles = [], placed = []) {
     const g = svg("g", { class: "callout" }, parent);
     const r = u / 55, arm = r * 0.6;
     for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
       const cx = px + sx * r, cy = py + sy * r;
-      svg("path", { d: `M ${cx} ${cy - sy * arm} L ${cx} ${cy} L ${cx - sx * arm} ${cy}`, fill: "none", stroke: accent, "stroke-width": u / 500 }, g);
+      svg("path", { d: `M ${cx} ${cy - sy * arm} L ${cx} ${cy} L ${cx - sx * arm} ${cy}`, fill: "none", stroke: accent, "stroke-width": u / 600, opacity: 0.8 }, g);
     }
     const fs = u / 58, h = fs * (rows.length * 1.35 + 0.6);
     const longest = Math.max(...rows.map((row) => row.text.length * (row.mono ? 0.62 : 0.5) * (row.size || 1)));
     const w = Math.max(u * 0.16, fs * longest + u * 0.03);
-    let [dx, dy] = SLOTS[slot % SLOTS.length];
-    const lx = u * 0.07, ly = u * 0.07;
-    let ex = px + dx * lx, ey = py + dy * ly, bx = dx > 0 ? ex + u * 0.03 : ex - u * 0.03 - w;
-    if (view && (bx + w > view[0] + view[2] - u * 0.01 || bx < view[0] + u * 0.01)) { dx = -dx; ex = px + dx * lx; bx = dx > 0 ? ex + u * 0.03 : ex - u * 0.03 - w; }
-    let by = ey - h / 2;
-    if (view) by = Math.min(Math.max(by, view[1] + u * 0.01), view[1] + view[3] - h - u * 0.01);
-    const tip = dx > 0 ? bx : bx + w;
-    svg("polyline", { points: `${px + dx * r * 0.9},${py + dy * r * 0.9} ${ex},${ey} ${tip},${ey}`, fill: "none", stroke: accent, "stroke-width": u / 600 }, g);
-    svg("circle", { cx: ex, cy: ey, r: u / 700, fill: accent }, g);
-    svg("rect", { x: bx, y: by, width: w, height: h, rx: u / 300, fill: "rgba(18,18,18,.88)", stroke: "rgba(255,255,255,.14)", "stroke-width": u / 900 }, g);
-    svg("rect", { x: dx > 0 ? bx : bx + w - u / 260, y: by, width: u / 260, height: h, fill: accent }, g);
+    const pr = u / 70;  // a player's footprint, for overlap
+
+    const layout = (dx, dy, reach) => {
+      const ex = px + dx * reach, ey = py + dy * reach;
+      const bx = dx > 0 ? ex + u * 0.02 : dx < 0 ? ex - u * 0.02 - w : ex - w / 2;
+      const by = dy > 0 ? ey + (dx === 0 ? u * 0.02 : -h / 2) : dy < 0 ? ey - (dx === 0 ? u * 0.02 + h : h / 2) : ey - h / 2;
+      return { ex, ey, bx, by, dx, dy };
+    };
+    const score = (c) => {
+      let sc = 0;
+      for (const [ox, oy] of obstacles) if (ox > c.bx - pr && ox < c.bx + w + pr && oy > c.by - pr && oy < c.by + h + pr) sc += 1;
+      for (const b of placed) if (c.bx < b.x + b.w && c.bx + w > b.x && c.by < b.y + b.h && c.by + h > b.y) sc += 3;
+      if (view && (c.bx < view[0] || c.by < view[1] || c.bx + w > view[0] + view[2] || c.by + h > view[1] + view[3])) sc += 5;
+      return sc;
+    };
+    const options = [];
+    DIRS.forEach(([dx, dy], i) => [0.07, 0.12].forEach((k, j) => {
+      const c = layout(dx, dy, u * k);
+      options.push({ c, id: i * 2 + j, sc: score(c) + j * 0.3 + i * 0.01 });  // prefer short leaders, then order
+    }));
+    options.sort((a, b) => a.sc - b.sc);
+    let pick = options[0];
+    const prev = key != null ? options.find((o) => o.id === calloutMemo[key]) : null;
+    if (prev && prev.sc <= pick.sc + 0.9) pick = prev;  // keep the old spot unless a new one is clearly better
+    if (key != null) calloutMemo[key] = pick.id;
+    let { ex, ey, bx, by, dx } = pick.c;
+    if (view) { bx = Math.min(Math.max(bx, view[0] + u * 0.01), view[0] + view[2] - w - u * 0.01); by = Math.min(Math.max(by, view[1] + u * 0.01), view[1] + view[3] - h - u * 0.01); }
+    placed.push({ x: bx, y: by, w, h });
+
+    const tipX = Math.min(Math.max(ex, bx), bx + w), tipY = Math.min(Math.max(ey, by), by + h);
+    const nx = ex - px, ny = ey - py, nd = Math.hypot(nx, ny) || 1;
+    svg("polyline", { points: `${px + (nx / nd) * r * 0.9},${py + (ny / nd) * r * 0.9} ${ex},${ey} ${tipX},${tipY}`, fill: "none", stroke: accent, "stroke-width": u / 700, opacity: 0.8 }, g);
+    svg("circle", { cx: ex, cy: ey, r: u / 800, fill: accent }, g);
+    // Translucent glass: the pitch and players stay visible through it
+    svg("rect", { x: bx, y: by, width: w, height: h, rx: u / 300, fill: "rgba(18,18,18,.5)", stroke: "rgba(255,255,255,.1)", "stroke-width": u / 1000 }, g);
+    svg("rect", { x: dx >= 0 ? bx : bx + w - u / 300, y: by, width: u / 300, height: h, fill: accent, opacity: 0.85 }, g);
     rows.forEach((row, i) => {
       svg("text", { x: bx + u / 120 + u / 260, y: by + fs * (1.15 + i * 1.35), "font-size": fs * (row.size || 1), "font-family": row.mono ? "IBM Plex Mono" : "Barlow Condensed",
-                    "font-weight": row.bold ? 700 : 500, fill: row.color || "#ececec", "letter-spacing": row.mono ? 0 : fs * 0.04 }, g).textContent = row.text;
+                    "font-weight": row.bold ? 700 : 500, fill: row.color || "#ececec", "letter-spacing": row.mono ? 0 : fs * 0.04,
+                    stroke: "rgba(18,18,18,.6)", "stroke-width": fs * 0.12, "paint-order": "stroke" }, g).textContent = row.text;
     });
     return g;
   }
@@ -870,15 +901,17 @@
     if (hud && calloutAlpha > 0) {
       const shown = P.focus.map((f) => f.player);
       if (selected && !shown.includes(selected)) shown.push(selected);
-      shown.forEach((pid, slot) => {
+      const placed = [];
+      shown.forEach((pid) => {
         const p = pos[pid]; if (!p) return;
+        const others = Object.entries(pos).filter(([q]) => q !== pid).map(([, xy]) => xy).concat([ball]);
         const f = P.focus.find((x) => x.player === pid), series = P.speeds[pid];
         const kmh = series ? interp(P.frames, R.rt, (a, b, k, lo) => { const sa = series[lo], sb = series[Math.min(lo + 1, series.length - 1)]; return sa == null ? sb : sb == null ? sa : sa + (sb - sa) * k; }) : null;
         callout(tags, p[0], p[1], [
           { text: name(pid).toUpperCase(), bold: true, size: 1.15 },
           { text: kmh != null ? `${kmh.toFixed(1)} km/h · ${mph(kmh)} mph` : "speed –", mono: true },
           { text: f ? (CALL_ROLE[f.role] || f.role) : "selected", mono: true, size: 0.85, color: "var(--muted)" },
-        ], colour[pid.slice(0, 3)], vb[2], slot, vb);
+        ], colour[pid.slice(0, 3)], vb[2], "replay:" + pid, vb, others, placed);
       });
     }
 
