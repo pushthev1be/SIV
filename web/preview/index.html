@@ -22,10 +22,12 @@
   button, select { font: 500 13px var(--body); color: var(--text); background: var(--panel-2); border: 1px solid var(--line);
                    border-radius: 6px; padding: 6px 10px; cursor: pointer; }
   button:hover { border-color: var(--faint); }
-  .app { max-width: 1360px; margin: 0 auto; padding: 14px 16px 16px; display: grid; gap: 12px; align-items: start;
-         grid-template-columns: minmax(0, 1fr) 360px; grid-template-areas: "bar bar" "main panel"; }
+  .app { max-width: 1540px; margin: 0 auto; padding: 14px 16px 16px; display: grid; gap: 12px; align-items: start;
+         grid-template-columns: 176px minmax(0, 1fr) 360px; grid-template-areas: "bar bar bar" "key main panel"; }
   .main { grid-area: main; display: grid; gap: 12px; min-width: 0; }
-  @media (max-width: 980px) { .app { grid-template-columns: 1fr; grid-template-areas: "bar" "main" "panel"; } }
+  @media (max-width: 1180px) { .app { grid-template-columns: minmax(0, 1fr) 340px; grid-template-areas: "bar bar" "key key" "main panel"; }
+    .keyside ul { flex-direction: row; flex-wrap: wrap; } .keyside li { flex: 1 1 150px; } }
+  @media (max-width: 980px) { .app { grid-template-columns: 1fr; grid-template-areas: "bar" "key" "main" "panel"; } }
 
   /* ── Top bar ── */
   .bar { grid-area: bar; display: flex; align-items: center; gap: 14px; }
@@ -181,6 +183,20 @@
   .mini li button { margin-left: auto; padding: 3px 9px; font-size: 11px; border-radius: 999px; }
   .foot { font-size: 11px; color: var(--faint); }
   .hint { padding: 16px 14px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+  /* Left legend: every timeline icon, named, with how many so far */
+  .keyside { grid-area: key; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 8px;
+             position: sticky; top: 14px; }
+  .keyside h4 { margin: 2px 6px 8px; font: 600 10.5px var(--mono); letter-spacing: .12em; color: var(--muted); }
+  .keyside ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+  .keyside li { display: grid; grid-template-columns: 20px 1fr auto; align-items: center; gap: 8px; padding: 7px 6px; border-radius: 7px;
+                font-size: 12.5px; color: var(--soft); cursor: default; }
+  .keyside li svg { width: 16px; height: 16px; }
+  .keyside li .n { font: 600 11px var(--mono); color: var(--faint); min-width: 16px; text-align: right; }
+  .keyside li.has { cursor: pointer; color: var(--text); }
+  .keyside li.has .n { color: var(--text); }
+  .keyside li.has:hover { background: var(--panel-2); }
+  .keyside li.none { opacity: .45; }
+  .keyside .foot { margin: 10px 6px 2px; line-height: 1.4; }
   .loading { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg); font-family: var(--display); font-size: 22px; letter-spacing: .14em; color: var(--muted); z-index: 20; }
 </style>
 </head>
@@ -214,6 +230,8 @@
     </div>
   </header>
 
+  <aside class="keyside" aria-label="Timeline key"><h4>KEY · SO FAR</h4><ul id="keyList"></ul>
+    <div class="foot">Click a row to watch the latest one.</div></aside>
   <div class="main">
   <section class="stage" id="stage">
     <svg class="pitch" id="pitch" viewBox="-3 -3 111 74" aria-label="Pitch"></svg>
@@ -544,7 +562,7 @@
   function seek(to) {
     t = to; factIdx = 0; score = { [D.home]: 0, [D.away]: 0 }; varOpen = null; lines = null; band = null; lastReplay = null;
     while (factIdx < D.facts.length && D.facts[factIdx].t <= t) applyFact(D.facts[factIdx++], false);
-    chatShown = -1; callsShown = ""; cardNext = 0;
+    chatShown = -1; callsShown = ""; keyShown = ""; cardNext = 0;
     render();
   }
 
@@ -589,9 +607,34 @@
         ], colour[selected.slice(0, 3)], 111, 0, [-3, -3, 111, 74]);
       }
     }
-    renderTimeline(); renderBuddy(); renderCalls();
+    renderTimeline(); renderBuddy(); renderCalls(); renderKey();
     const now = performance.now();
     if (selected && now >= cardNext) { renderCard(fr); cardNext = now + 250; }
+  }
+
+  // ── Left legend ─────────────────────────────────────────────────────────
+  const KEY_ROWS = [
+    ["goal", "Goal"], ["var", "VAR offside check"], ["nogoal", "Goal ruled out"], ["ballout", "Ball out of play"],
+    ["goalline", "Goal-line decision"], ["pen", "Penalty"], ["red", "Red card"], ["downgrade", "Red card downgraded"],
+    ["yellow", "Yellow card"], ["flag", "Offside flag"],
+  ];
+  let keyShown = "";
+  function renderKey() {
+    const seen = CALLS.filter((c) => c.decided <= t);
+    const counts = Object.fromEntries(KEY_ROWS.map(([id]) => [id, seen.filter((c) => c.icon === id).length]));
+    const sig = KEY_ROWS.map(([id]) => counts[id]).join();
+    if (sig === keyShown) return;
+    keyShown = sig;
+    // Only rows that can ever appear in this match, so the list stays short
+    const possible = new Set(CALLS.map((c) => c.icon));
+    $("keyList").innerHTML = KEY_ROWS.filter(([id]) => possible.has(id)).map(([id, label]) => {
+      const n = counts[id];
+      return `<li class="${n ? "has" : "none"}" data-icon="${id}" title="${n ? `Watch the latest ${label.toLowerCase()}` : "None yet"}">${icon(id)}<span>${label}</span><span class="n">${n}</span></li>`;
+    }).join("");
+    $("keyList").querySelectorAll("li.has").forEach((li) => (li.onclick = () => {
+      const latest = seen.filter((c) => c.icon === li.dataset.icon).pop();
+      if (latest) openReplay(latest.iid);
+    }));
   }
 
   // ── Timeline ────────────────────────────────────────────────────────────
