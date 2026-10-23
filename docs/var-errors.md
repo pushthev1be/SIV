@@ -9,7 +9,7 @@ Margins are illustrative: none of these incidents has a published, measured marg
 uv run python -m sim var_errors
 ```
 
-| at (s) | Script | Real incident | What went wrong | What Touchline shows |
+| at (s) | Script | Real incident | What went wrong | What VAR Narrative shows |
 |---|---|---|---|---|
 | 600 | `offside_goal`, NBR-11, margin −0.30 m, `no_goal` | Luis Díaz goal, Tottenham 2-1 Liverpool, 30 Sep 2023 | VAR Darren England saw Díaz was onside but thought the on-field call was "goal" and said "check complete". Play restarted, so it couldn't be fixed. PGMOL called it a "significant human error". | Measures him 30 cm onside and flags that the measurement doesn't explain the decision |
 | 1500 | `penalty_review`, ASH-9 vs NBR-4, `awarded: false` | Kalajdžić and Onana, Man Utd 1-0 Wolves, 14 Aug 2023 | Onana missed the ball and wiped out Kalajdžić in stoppage time. VAR Michael Salisbury didn't recommend a review. Howard Webb said VAR should have intervened, and the officials weren't selected for the next round. | Repeats the officials' "not enough for a foul" verdict; it can't disagree |
@@ -26,7 +26,7 @@ uv run python -m sim var_errors
 - **Díaz:** the real error was miscommunication, not a measurement. The scenario uses a 60 s check to stand
   in for the delay, and the officials' notes are where the "thought it was a goal" explanation would go.
 
-The offside cases are where Touchline proves its worth: the line measurement contradicts the decision, and the
+The offside cases are where VAR Narrative proves its worth: the line measurement contradicts the decision, and the
 explainer says so instead of defending it. For the penalty and the red card, nothing is measured, so the
 explainer passes on the officials' verdict. Flagging those would need a contact or severity measurement that
 the engine doesn't have yet.

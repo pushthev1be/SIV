@@ -193,14 +193,16 @@ def _offside(history, inc: Incident, phase, direction) -> ReplayPackage | None:
         if stands:
             stadium = "Check complete: goal stands, onside"
             why = ": level or behind is onside, so the goal stands." if agrees else "."
-            fan = f"Why the goal stands. {RULE_SENTENCE['offside']}. {evidence}{why}{check}"
+            head = "Why the goal stands." if agrees else "The goal stands, but the measurement says offside."
+            fan = f"{head} {RULE_SENTENCE['offside']}. {evidence}{why}{check}"
         else:
             stadium = f"{'Check complete: ' if reviewed else ''}{final.capitalize()}, offside"
             ruled_out = (
                 ", so the goal is ruled out for offside." if goal else ", so it's offside: a free kick to the defence."
             )
             why = ruled_out if agrees else "."
-            fan = f"Why it's offside. {RULE_SENTENCE['offside']}. {evidence}{why}{check}"
+            head = "Why it's offside." if agrees else "Ruled offside, but the measurement says onside."
+            fan = f"{head} {RULE_SENTENCE['offside']}. {evidence}{why}{check}"
         if not agrees:  # never defend a call the measurement does not support
             fan += " The measurement alone does not explain this decision; the officials' notes will say why."
         status = {
