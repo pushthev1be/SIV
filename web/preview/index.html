@@ -794,8 +794,11 @@
   }
 
   // ── Call replay ─────────────────────────────────────────────────────────
-  const R = { pkg: null, rt: 0, playing: true, frozen: false, hold: 0, zoom: 0, aud: "fan", view: null, zoomBox: null, loop: true, endHold: 0 };
+  const R = { pkg: null, rt: 0, playing: true, frozen: false, hold: 0, zoom: 0, aud: "fan", view: null, zoomBox: null, loop: true, endHold: 0, holdT: 0 };
   const LOOP_PAUSE_S = 1.2;
+  // At the key moment: pause, show who is involved for a beat, then zoom to the measurement.
+  const INTRO_S = 1.6, MEASURE_S = 3.6, PLAIN_HOLD_S = 0.6;
+  const MIN_ZOOM_W = { offside: 20, measured: 14 };  // metres across, so the zoom keeps some context
   function openReplay(iid) {
     const at = replayAt[iid] || {};
     const phase = at.after != null && t >= at.after ? "after" : at.during != null && t >= at.during ? "during" : null;
@@ -806,7 +809,7 @@
     $("replay").classList.add("on");
   }
   function closeReplay() { $("replay").classList.remove("on"); R.pkg = null; render(); }
-  function restartReplay() { R.rt = R.pkg.frames[0].t; R.playing = true; R.frozen = false; R.hold = 0; R.zoom = 0; R.endHold = 0; $("rPause").textContent = "❚❚"; drawReplayText(); }
+  function restartReplay() { R.rt = R.pkg.frames[0].t; R.playing = true; R.frozen = false; R.hold = 0; R.holdT = 0; R.zoom = 0; R.endHold = 0; $("rPause").textContent = "❚❚"; drawReplayText(); }
   function bbox(points, pad) {
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
     points.forEach(([x, y]) => { if (x == null) return; x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); });
@@ -815,6 +818,12 @@
     if (w / h < aspect) { const nw = h * aspect; x0 -= (nw - w) / 2; w = nw; } else { const nh = w / aspect; y0 -= (nh - h) / 2; h = nh; }
     if (w > 111) return [-3, -3, 111, 74];
     return [Math.min(Math.max(x0, -3), 108 - w), Math.min(Math.max(y0, -3), 71 - h), w, h];
+  }
+  function widen(box, minW) {
+    let [x, y, w, h] = box;
+    if (w >= minW) return box;
+    const cx = x + w / 2, cy = y + h / 2, nw = minW, nh = minW * (74 / 111);
+    return [Math.min(Math.max(cx - nw / 2, -3), 108 - nw), Math.min(Math.max(cy - nh / 2, -3), 71 - nh), nw, nh];
   }
   function buildReplayScene() {
     const P = R.pkg, s = $("rsvg");
@@ -827,10 +836,10 @@
     P.frames.forEach((f) => P.focus.forEach((x) => f.positions[x.player] && pts.push(f.positions[x.player])));
     P.ball.forEach((b) => pts.push([b.x, b.y]));
     R.view = bbox(pts, 6); R.zoomBox = null;
-    if (P.lines) { const bp = []; Object.values(P.lines.body).forEach((parts) => Object.values(parts).forEach((p) => bp.push(p))); R.zoomBox = bbox(bp, 1.6); }
+    if (P.lines) { const bp = []; Object.values(P.lines.body).forEach((parts) => Object.values(parts).forEach((p) => bp.push(p))); R.zoomBox = widen(bbox(bp, 1.6), MIN_ZOOM_W.offside); }
     else if (P.measurement) {
       const [fx, fy, fw, fh] = P.measurement.focus;
-      R.zoomBox = P.measurement.kind === "dogso" ? bbox([[fx, fy], [fx + fw, fy + fh]], 2) : bbox([P.measurement.point], 1.4);
+      R.zoomBox = P.measurement.kind === "dogso" ? bbox([[fx, fy], [fx + fw, fy + fh]], 2) : widen(bbox([P.measurement.point], 1.4), MIN_ZOOM_W.measured);
     }
     $("rTitle").textContent = P.kind === "offside" ? "Offside check" : P.kind === "goal_check" ? "Goal" : MEASURED.has(P.kind) ? KIND[P.kind] : `${KIND[P.kind]} review`;
     $("rPhase").className = "phase " + P.phase;
@@ -859,11 +868,15 @@
   function replayTick(dt) {
     const P = R.pkg;
     if (!R.playing) return;
-    if (R.hold > 0) { R.hold -= dt; R.zoom = Math.min(1, R.zoom + dt * 1.2); return; }
+    if (R.hold > 0) {
+      R.hold -= dt; R.holdT += dt;
+      if ((P.lines || P.measurement) && R.holdT > INTRO_S) R.zoom = Math.min(1, R.zoom + dt * 1.4);
+      return;
+    }
     if (R.zoom > 0 && R.frozen) R.zoom = Math.max(0, R.zoom - dt * 1.2);
     const slow = P.slow && R.rt >= P.slow.start && R.rt <= P.slow.end;
     const next = R.rt + dt * (slow ? P.slow.rate : 1);
-    if (!R.frozen && R.rt < P.key_t && next >= P.key_t) { R.rt = P.key_t; R.frozen = true; R.hold = P.lines || P.measurement ? 5 : 2.5; drawReplayText(); return; }
+    if (!R.frozen && R.rt < P.key_t && next >= P.key_t) { R.rt = P.key_t; R.frozen = true; R.holdT = 0; R.hold = INTRO_S + (P.lines || P.measurement ? MEASURE_S : PLAIN_HOLD_S); drawReplayText(); return; }
     const last = P.frames[P.frames.length - 1].t;
     R.rt = Math.min(next, last);
     if (R.rt >= last) {
@@ -878,7 +891,7 @@
     const v = R.view, zb = R.zoomBox || v, vb = v.map((a, k) => a + (zb[k] - a) * z);
     $("rsvg").setAttribute("viewBox", vb.join(" "));
     const scale = vb[2] / 111, nodes = $("rPlayers").children, pos = {};
-    const minScale = P.measurement && z > 0.3 ? 0.035 : 0.18;   // a 5 m zoom needs smaller players
+    const minScale = (P.measurement || P.lines) && z > 0.3 ? 0.1 : 0.18;   // zoomed in: smaller players
     interp(P.frames, R.rt, (a, b, k) => {
       players.forEach((pid, j) => {
         const pa = a.positions[pid], pb = b.positions[pid] || pa, n = nodes[j];
@@ -896,7 +909,8 @@
     $("rBall").setAttribute("cx", ball[0]); $("rBall").setAttribute("cy", ball[1]); const br = 0.6 * Math.max(scale, minScale); $("rBall").setAttribute("r", br); $("rBall").setAttribute("stroke-width", br * 0.25);
 
     const tags = $("rTags"); tags.innerHTML = "";
-    const calloutAlpha = Math.max(0, 1 - z / 0.15);
+    const intro = R.frozen && R.hold > 0 && R.holdT < INTRO_S;
+    const calloutAlpha = intro ? Math.max(0, Math.min(1, R.holdT / 0.25, (INTRO_S - R.holdT) / 0.35)) : 0;
     tags.setAttribute("opacity", calloutAlpha.toFixed(2));
     if (hud && calloutAlpha > 0) {
       const shown = P.focus.map((f) => f.player);
