@@ -196,6 +196,11 @@
   .keyside li.has .n { color: var(--text); }
   .keyside li.has:hover { background: var(--panel-2); }
   .keyside li.none { opacity: .45; }
+  .keyside ul.sub { margin: 0 0 4px 28px; gap: 0; }
+  .keyside ul.sub li { grid-template-columns: 44px 1fr; padding: 5px 6px; font-size: 12px; cursor: pointer; color: var(--muted); }
+  .keyside ul.sub li span:first-child { font: 600 11px var(--mono); }
+  .keyside ul.sub li:hover { background: var(--panel-2); color: var(--text); }
+  .keyside ul.sub li.later span:last-child { font-style: italic; }
   .keyside .foot { margin: 10px 6px 2px; line-height: 1.4; }
   .loading { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg); font-family: var(--display); font-size: 22px; letter-spacing: .14em; color: var(--muted); z-index: 20; }
 </style>
@@ -230,8 +235,8 @@
     </div>
   </header>
 
-  <aside class="keyside" aria-label="Timeline key"><h4>ON THE PITCH</h4><ul id="teamKey"></ul><h4 style="margin-top:12px">KEY · SO FAR</h4><ul id="keyList"></ul>
-    <div class="foot">Click a row to watch the latest one.</div><div class="foot" id="sourceNote" hidden></div></aside>
+  <aside class="keyside" aria-label="Timeline key"><h4>ON THE PITCH</h4><ul id="teamKey"></ul><h4 style="margin-top:12px">CALLS · SEEN / IN MATCH</h4><ul id="keyList"></ul>
+    <div class="foot">Click any row to watch that call.</div><div class="foot" id="sourceNote" hidden></div></aside>
   <div class="main">
   <section class="stage" id="stage">
     <svg class="pitch" id="pitch" viewBox="-3 -3 111 74" aria-label="Pitch"></svg>
@@ -680,21 +685,30 @@
     ["yellow", "Yellow card"], ["flag", "Offside flag"],
   ];
   let keyShown = "";
+  // Every row is clickable at any time: one call opens its replay, several open a list to pick from.
+  let keyOpen = null;
+  function watchCall(c) { if (R.pkg) closeReplay(); seek(c.decided + 0.1); openReplay(c.iid); }
   function renderKey() {
-    const seen = CALLS.filter((c) => c.decided <= t);
-    const counts = Object.fromEntries(KEY_ROWS.map(([id]) => [id, seen.filter((c) => c.icon === id).length]));
-    const sig = KEY_ROWS.map(([id]) => counts[id]).join();
+    const seen = new Set(CALLS.filter((c) => c.decided <= t).map((c) => c.iid));
+    const sig = `${[...seen].join()}|${keyOpen}`;
     if (sig === keyShown) return;
     keyShown = sig;
-    // Only rows that can ever appear in this match, so the list stays short
-    const possible = new Set(CALLS.map((c) => c.icon));
-    $("keyList").innerHTML = KEY_ROWS.filter(([id]) => possible.has(id)).map(([id, label]) => {
-      const n = counts[id];
-      return `<li class="${n ? "has" : "none"}" data-icon="${id}" title="${n ? `Watch the latest ${label.toLowerCase()}` : "None yet"}">${icon(id)}<span>${label}</span><span class="n">${n}</span></li>`;
+    const rows = KEY_ROWS.map(([id, label]) => [id, label, CALLS.filter((c) => c.icon === id)]).filter(([, , cs]) => cs.length);
+    $("keyList").innerHTML = rows.map(([id, label, cs]) => {
+      const done = cs.filter((c) => seen.has(c.iid)).length;
+      const list = keyOpen === id && cs.length > 1
+        ? `<ul class="sub">${cs.map((c) => `<li data-iid="${c.iid}" class="${seen.has(c.iid) ? "has" : "later"}"><span>${clockText(c.period, c.at)}</span><span>${seen.has(c.iid) ? c.title : KIND[c.kind] || label}</span></li>`).join("")}</ul>`
+        : "";
+      return `<li class="has row" data-icon="${id}" title="${cs.length > 1 ? `Pick a ${label.toLowerCase()} to watch` : `Watch the ${label.toLowerCase()}`}">${icon(id)}<span>${label}</span><span class="n">${done}/${cs.length}</span></li>${list}`;
     }).join("");
-    $("keyList").querySelectorAll("li.has").forEach((li) => (li.onclick = () => {
-      const latest = seen.filter((c) => c.icon === li.dataset.icon).pop();
-      if (latest) openReplay(latest.iid);
+    $("keyList").querySelectorAll("li.row").forEach((li) => (li.onclick = () => {
+      const cs = CALLS.filter((c) => c.icon === li.dataset.icon);
+      if (cs.length === 1) watchCall(cs[0]);
+      else { keyOpen = keyOpen === li.dataset.icon ? null : li.dataset.icon; renderKey(); }
+    }));
+    $("keyList").querySelectorAll(".sub li").forEach((li) => (li.onclick = (ev) => {
+      ev.stopPropagation();
+      watchCall(CALLS.find((c) => c.iid === li.dataset.iid));
     }));
   }
 

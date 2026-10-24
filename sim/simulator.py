@@ -86,7 +86,6 @@ class Simulator:
         self.m = Match(TEAMS[scenario.home], TEAMS[scenario.away], self.rng)
         self.events: list[MatchEvent] = []
         self.pending = sorted(scenario.script, key=lambda s: s.at)
-        self.drive: set[float] = set()  # scripts (by `at`) past their approach and into the move itself
         self.hops: dict[str, int] = {}  # passes so far in the build-up to each scripted player
         self.active: OffsideGoal | RedCard | Goal | PenaltyReview | None = None
         self.pressed = False
@@ -184,7 +183,7 @@ class Simulator:
 
         gx = L if m.direction(team) == 1 else 0.0
         dg = dist(c.pos, (gx, W / 2))
-        shot_p = 0.30 if dg < 14 else 0.18 if dg < 20 else 0.07 if dg < 28 else 0.0
+        shot_p = 0.26 if dg < 14 else 0.12 if dg < 20 else 0.04 if dg < 28 else 0.0  # about 12-18 a match
         if self.goal_team == team:
             shot_p = 0.9 if dg < 22 else 0.0
         elif safe or self.force_ball_to == opp:
@@ -199,7 +198,7 @@ class Simulator:
     def _challenge(self, c: Player, tackler: Player) -> bool:
         """Returns True when the challenge ends the carrier's action."""
         rng = self.rng
-        if rng.random() < 0.16:
+        if rng.random() < 0.21:  # about 10 fouls a team a match
             self._close_in(tackler, c)
             spot = c.pos
             self._emit("foul", team=tackler.team, player=tackler.pid, receiver=c.pid, start=_r(spot), contact=_r(spot))
@@ -218,6 +217,29 @@ class Simulator:
         if won:
             self._give(tackler)
             return True
+        return False
+
+    def _drive_and_meet(
+        self, team, att: Player, deff: Player, goal_af, ready, deadline: float, hold_x: float, gap: float = 1.6
+    ) -> bool:
+        """One step of a run at goal: the attacker keeps driving at `goal_af`; the defender, goal-side, holds his
+        ground at `hold_x` (attacking frame) on the attacker's line and backs off in front of him, but never steps
+        out past `hold_x`, so the challenge comes there rather than after a chase from behind. True when they
+        meet and `ready(ax, ay)` holds for the attacker, or at the deadline."""
+        m = self.m
+        att.override, att.urgency = m.af(team, *goal_af), 0.7
+        ax, ay = m.af(team, att.x, att.y)
+        gx, gy = goal_af
+        n = math.hypot(gx - ax, gy - ay) or 1.0
+        mx = max(ax + (gx - ax) / n * 1.4, hold_x)  # just ahead of him on his line, but no further out than hold_x
+        my = ay + (gy - ay) / n * 1.4
+        meet = m.af(team, mx, my)
+        deff.chase = False
+        deff.override, deff.urgency = meet, 0.6
+        if (dist(att.pos, deff.pos) <= gap and ready(ax, ay)) or m.clock >= deadline:
+            att.override = deff.override = None
+            return True
+        self._wait(0.2)
         return False
 
     def _close_in(self, tackler: Player, c: Player, gap: float = 0.8, most: float = 1.5) -> None:
@@ -375,7 +397,7 @@ class Simulator:
         team, opp = c.team, m.other(c.team)
         gx = L if m.direction(team) == 1 else 0.0
         dg = dist(c.pos, (gx, W / 2))
-        xg = 0.6 * math.exp(-dg / 8.0) * (1 - 0.6 * min(1.0, abs(c.y - W / 2) / max(dg, 1.0)))
+        xg = 0.45 * math.exp(-dg / 8.0) * (1 - 0.6 * min(1.0, abs(c.y - W / 2) / max(dg, 1.0)))
         speed = clamp(rng.gauss(95, 12) - dg * 0.5, 55, 130)
         roll = rng.random()
         keeper = next(p for p in m.on_pitch(opp) if p.is_gk)
@@ -626,16 +648,9 @@ class Simulator:
             self._go(defender, s.team, (L - 13.0, W / 2 + lane * 0.7), 0.85)  # drops into the area as the move builds
         if not self._build_up(s.team, attacker.pid, (L - 27.0, W / 2 + lane)):
             return False
-        box = m.af(s.team, 96.0, W / 2 + (6.0 if attacker.y > W / 2 else -6.0))
-        ax, ay = m.af(s.team, attacker.x, attacker.y)
-        in_box = ax > L - 16.5 and abs(ay - W / 2) < 20.16
-        defender.override, defender.chase = None, True  # now he goes to meet the attacker
-        if not in_box and m.clock < s.at + 90:
-            attacker.override, attacker.urgency = box, 0.85
-            self._wait(0.5)
-            return True
-        if dist(defender.pos, attacker.pos) > 1.8 and m.clock < s.at + 90:
-            self._wait(0.3)
+        goal = (L - 5.0, W / 2 + lane * 0.4)
+        if not self._drive_and_meet(s.team, attacker, defender, goal, lambda ax, ay: ax > L - 15.5, s.at + 90,
+                                    hold_x=L - 14.0):  # fmt: skip
             return True
 
         # The challenge. The referee waves play on, so the feed has a tackle, not a foul.
@@ -840,31 +855,22 @@ class Simulator:
         ay = m.af(s.team, att.x, att.y)[1]
         lane_y = min(max(ay, W / 2 - 12), W / 2 + 12)
         contact_x = L - 16.5 - s.outside_m
-        if s.at not in self.drive:
-            self._go(deff, s.team, (contact_x - 7.0, lane_y + 2.0), 0.8)  # tracks back into position as the move builds
+        if self.hops.get(att.pid) != BUILD_DONE:
+            # The defender holds the edge of his area, goal-side of the move, as it builds.
+            self._go(deff, s.team, (contact_x + 3.0, lane_y + 1.0), 0.8)
             if not self._build_up(s.team, att.pid, (contact_x - 9.0, lane_y)):
                 return False
-        # Approach first: the attacker shapes up 6 m short of the spot with the defender tracking alongside,
-        # so the defender is close when contact comes and the snap into the challenge stays under a metre or two.
-        if s.at not in self.drive:
-            start, mark = self._go(att, s.team, (contact_x - 6.0, lane_y), 0.75), (contact_x - 7.0, lane_y + 2.0)
-            mark = self._go(deff, s.team, mark, 0.9)
-            ready = dist(att.pos, start) < 2.0 and dist(deff.pos, mark) < 2.5
-            if not ready and m.clock < s.at + 30:
-                self._wait(0.3)
-                return True
-            self.drive.add(s.at)
-            deff.override = None
-        self._go(att, s.team, (contact_x + 3.0, lane_y), 0.8)
-        deff.chase = True
-        ax = m.af(s.team, att.x, att.y)[0]
-        if ax < contact_x - 0.6 and m.clock < s.at + 90:
-            self._wait(0.3)
+
+        # The attacker runs at the area; the defender holds the edge of it and catches him there.
+        def at_edge(ax: float, ay: float) -> bool:
+            return ax >= contact_x - 0.6
+
+        if not self._drive_and_meet(s.team, att, deff, (contact_x + 6.0, lane_y), at_edge, s.at + 90, contact_x + 0.5):
             return True
         # The challenge: contact starts exactly at the scripted spot.
         contact = m.af(s.team, contact_x, lane_y)
         att.x, att.y = m.af(s.team, contact_x - 0.35, lane_y)
-        deff.x, deff.y = m.af(s.team, contact_x - 0.9, lane_y + 0.6)
+        deff.x, deff.y = m.af(s.team, contact_x + 0.45, lane_y + 0.5)
         d = m.direction(s.team)
         frame = BodyFrame(clock=m.clock, body={att.pid: self._body(att, ATTACKER_BODY, d, False),
                                                deff.pid: self._body(deff, DEFENDER_BODY, d, False)})  # fmt: skip
@@ -890,15 +896,18 @@ class Simulator:
     def _script_goal_line(self, s) -> bool:
         m, rng = self.m, self.rng
         shooter, clearer = m.players[s.shooter], m.players[s.clearer]
+        # The covering defender drops onto the far post while the move builds, so he's already there.
+        post = self._go(clearer, s.team, (L - 0.3, W / 2 + 2.2), 0.8)
         if not self._build_up(s.team, shooter.pid, (L - 20.0, W / 2 - 6.0)):
             return False
         spot = self._go(shooter, s.team, (L - 12.0, W / 2 - 6.0), 0.8)
-        self._go(clearer, s.team, (L - 0.3, W / 2 + 2.2), 1.0)  # covering the far post behind his keeper
         gk = next(p for p in m.on_pitch(m.other(s.team)) if p.is_gk)
         self._go(gk, s.team, (L - 1.5, W / 2 - 2.6), 0.9)  # the keeper narrows the near post; the shot goes far side
-        if dist(shooter.pos, spot) > 1.0 and m.clock < s.at + 90:
-            self._wait(0.5)
+        in_place = dist(shooter.pos, spot) <= 1.0 and dist(clearer.pos, post) <= 0.8
+        if not in_place and m.clock < s.at + 90:
+            self._wait(0.3)
             return True
+        clearer.x, clearer.y = post  # under 0.8 m: he's standing on the line when it's struck
         end = m.af(s.team, L + BALL_RADIUS_M + s.over_m, W / 2 + 2.2)
         foot = m.af(s.team, *m.af(s.team, shooter.x + m.direction(s.team) * 0.3, shooter.y))
         keeper = next(p for p in m.on_pitch(m.other(s.team)) if p.is_gk)
@@ -928,12 +937,8 @@ class Simulator:
             self._go(fouler, s.team, (L - 11.0, W / 2 - 4.0), 0.85)  # drops into the area as the move builds
         if not self._build_up(s.team, taker.pid, (L - 20.0, W / 2 - 5.0)):
             return False
-        self._go(taker, s.team, (L - 8.5, W / 2 - 5.0), 0.85)
-        fouler.override, fouler.chase = None, True
-        tx, ty = m.af(s.team, taker.x, taker.y)
-        in_box = tx > L - 16.5 and abs(ty - W / 2) < 20.16
-        if (not in_box or dist(fouler.pos, taker.pos) > 2.0) and m.clock < s.at + 90:
-            self._wait(0.3)
+        if not self._drive_and_meet(s.team, taker, fouler, (L - 6.0, W / 2 - 4.0), lambda ax, ay: ax > L - 15.5,
+                                    s.at + 90, hold_x=L - 14.0):  # fmt: skip
             return True
         self._close_in(fouler, taker)
         self._emit("foul", team=fouler.team, player=fouler.pid, receiver=taker.pid, outcome="penalty",

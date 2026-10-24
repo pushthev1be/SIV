@@ -173,6 +173,7 @@ class Match:
         if self.carrier and self.flight is None:
             near = sorted((p for p in self.on_pitch(defending) if not p.is_gk), key=lambda p: dist(p.pos, self.ball))
             chasers = [p.pid for p in near[:2]]
+        marks = self._marking(defending, set(chasers))
 
         for p in self.on_pitch():
             if p.down_until is not None:
@@ -191,7 +192,14 @@ class Match:
 
             urgency = p.urgency
             if p.pid == self.carrier:
-                target = p.override or p.pos
+                if p.override is not None or p.is_gk:
+                    target = p.override or p.pos
+                else:  # on the ball he keeps moving: a dribble forward, drifting inside, until shooting range
+                    ax, ay = self.af(p.team, p.x, p.y)
+                    target = self.af(p.team, min(ax + 4.0, max(ax, L - 25.0)), ay + (W / 2 - ay) * 0.1)
+                    urgency = 0.25 if urgency is None else urgency
+            elif p.pid in marks and p.override is None and not p.chase:
+                target = marks[p.pid]  # urgency left to the jog/run default
             elif p.chase:
                 target, urgency = self.ball, 1.0
             elif p.override is not None:
@@ -219,11 +227,31 @@ class Match:
             self.ball = self.players[self.carrier].pos
         self.clock = round(self.clock + DT, 2)
 
+    def _marking(self, defending: str, busy: set[str]) -> dict[str, tuple[float, float]]:
+        """Ball in the defending team's third: each attacker in the danger area gets the nearest free
+        defender, who stands goal-side of him (between him and the middle of the goal), so nobody is left
+        alone in the box and nobody has to sprint 30 m to make a tackle."""
+        attacking = self.other(defending)
+        if self.af(attacking, *self.ball)[0] < L - 26:
+            return {}
+        gx = L if self.direction(attacking) == 1 else 0.0
+        threats = [p for p in self.on_pitch(attacking) if not p.is_gk and self.af(attacking, p.x, p.y)[0] > L - 25]
+        free = [p for p in self.on_pitch(defending) if not p.is_gk and p.pid not in busy]
+        out: dict[str, tuple[float, float]] = {}
+        for a in sorted(threats, key=lambda a: dist(a.pos, (gx, W / 2))):  # most dangerous first
+            if not free:
+                break
+            d = min(free, key=lambda q: dist(q.pos, a.pos))
+            free.remove(d)
+            n = dist(a.pos, (gx, W / 2)) or 1.0
+            out[d.pid] = (a.x + (gx - a.x) / n * 1.5, a.y + (W / 2 - a.y) / n * 1.5)
+        return out
+
     def _move(self, p: Player, target: tuple[float, float], urgency: float | None) -> None:
         dx, dy = target[0] - p.x, target[1] - p.y
         d = math.hypot(dx, dy)
         if urgency is None:
-            urgency = 0.8 if d > 12 else 0.4
+            urgency = 0.65 if d > 12 else 0.4
         want = min(p.top * urgency, d * 0.9)
         wx, wy = (dx / d * want, dy / d * want) if d > 1e-6 else (0.0, 0.0)
         ax, ay = wx - p.vx, wy - p.vy
