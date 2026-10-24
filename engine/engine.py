@@ -286,10 +286,22 @@ class Engine:
     def _on_goal(self, e: MatchEvent) -> list[Fact]:
         self.score[e.team] = self.score.get(e.team, 0) + 1
         inc = self.desk.open("goal_check", "goal", e.clock, goal_event=e.event_id)
+        shot = self._last(lambda x: x.type == "shot" and x.player == e.player, 10.0)
+        if shot is not None and shot.start and self._from_spot(shot.start):
+            retake = any(
+                i.kind == "keeper_encroachment" and i.final == "retake" and e.clock - (i.decided_at or 0) < 240
+                for i in self.desk.incidents.values()
+            )
+            inc = self.desk.add_facts(inc.incident_id, {"penalty_kick": True, "retake": retake})
         return [
             self._fact("goal", e, [e.event_id], team=e.team, player=e.player, score=dict(self.score)),
             self._incident_fact(inc, e),
         ]
+
+    @staticmethod
+    def _from_spot(p: tuple[float, float]) -> bool:
+        """Struck from either penalty spot (11 m out, centred), within half a metre."""
+        return min(abs(p[0] - 11.0), abs(p[0] - (PITCH_LENGTH_M - 11.0))) + abs(p[1] - 34.0) < 0.5
 
     def _on_foul(self, e: MatchEvent) -> list[Fact]:
         self._ctx.last_foul = e

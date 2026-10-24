@@ -198,7 +198,7 @@ class Simulator:
     def _challenge(self, c: Player, tackler: Player) -> bool:
         """Returns True when the challenge ends the carrier's action."""
         rng = self.rng
-        if rng.random() < 0.21:  # about 10 fouls a team a match
+        if rng.random() < 0.2:  # about 10 fouls a team a match
             self._close_in(tackler, c)
             spot = c.pos
             self._emit("foul", team=tackler.team, player=tackler.pid, receiver=c.pid, start=_r(spot), contact=_r(spot))
@@ -218,6 +218,21 @@ class Simulator:
             self._give(tackler)
             return True
         return False
+
+    def _penalty_setup(self, team: str, taker: Player) -> None:
+        """Law 14 positions: the taker behind the spot, the keeper on his line, and everyone else outside the
+        area and at least 9.15 m from the spot (outside the arc), waiting there until the kick."""
+        m = self.m
+        keeper = next(p for p in m.on_pitch(m.other(team)) if p.is_gk)
+        self._go(taker, team, (L - 12.2, W / 2), 0.4)
+        self._go(keeper, team, (L - 0.4, W / 2), 0.5)
+        for p in m.on_pitch():
+            if p.pid in (taker.pid, keeper.pid) or p.is_gk:
+                continue
+            ax, ay = m.af(team, p.x, p.y)
+            central = abs(ay - W / 2) < 9.5  # in line with the arc, which reaches 20.15 m out
+            edge = L - (21.0 if central else 17.5)
+            p.override, p.urgency = m.af(team, min(ax, edge - self.rng.uniform(0, 3)), clamp(ay, 3, W - 3)), 0.45
 
     def _drive_and_meet(
         self, team, att: Player, deff: Player, goal_af, ready, deadline: float, hold_x: float, gap: float = 1.6
@@ -690,9 +705,10 @@ class Simulator:
             return True
 
         spot = m.af(s.team, L - 11.0, W / 2)
-        attacker.override, attacker.urgency = m.af(s.team, L - 12.5, W / 2), 0.5
+        self._penalty_setup(s.team, attacker)
         self._wait(rng.uniform(35, 50))  # players clear the box, the kick is set
-        attacker.override, attacker.urgency = None, None
+        for p in m.on_pitch():
+            p.override, p.urgency = None, None
         m.ball = spot
         self._give(attacker)
         self.safe_team = None
@@ -884,9 +900,12 @@ class Simulator:
         if decision == "free_kick":
             self._restart_with(att, (20, 30))
             return True
+        self._penalty_setup(s.team, att)
         self._wait(rng.uniform(30, 40))
         m.ball = m.af(s.team, L - 11.0, W / 2)
         att.x, att.y = m.af(s.team, L - 11.6, W / 2)
+        for p in m.on_pitch():
+            p.override, p.urgency = None, None
         self._give(att)
         self.safe_team = self.force_ball_to = None
         self.goal_team = s.team
@@ -944,8 +963,7 @@ class Simulator:
         self._emit("foul", team=fouler.team, player=fouler.pid, receiver=taker.pid, outcome="penalty",
                    start=_r(taker.pos), contact=_r(taker.pos))  # fmt: skip
         self._whistle(taker, fouler, taker.pos)
-        self._go(taker, s.team, (L - 11.8, W / 2), 0.5)
-        self._go(keeper, s.team, (L - 0.4, W / 2), 0.5)
+        self._penalty_setup(s.team, taker)
         self._wait(rng.uniform(35, 45))
 
         def kick(off_m: float, outcome: str) -> None:
@@ -983,7 +1001,7 @@ class Simulator:
                 break
             self._wait(0.5)
         m.carrier = taker.pid
-        self._go(taker, s.team, (L - 11.6, W / 2), 0.4)
+        self._penalty_setup(s.team, taker)
         self._wait(rng.uniform(25, 35))
         kick(-0.05, "goal")  # on the line this time
         self._emit("goal", team=s.team, player=taker.pid, start=_r(m.ball))

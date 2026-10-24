@@ -88,11 +88,13 @@ def write(name, match_id, home, away, events, engine: Engine, teams: dict, roste
                 x, y = e.positions.get(pid, (None, None))
                 row += [x, y]
             frames.append(row)
-        elif e.type in ("pass", "shot", "goal", "foul", "card", "var_check", "var_decision", "kickoff"):
+        elif e.type in ("pass", "shot", "goal", "foul", "tackle", "card", "var_check", "var_decision", "kickoff"):
             row = {"t": t_of(e.period, e.clock), "id": e.event_id, "type": e.type, "team": e.team,
                    "player": e.player, "receiver": e.receiver, "outcome": e.outcome}  # fmt: skip
             if e.type in ("pass", "shot") and e.start and e.end:  # for drawing the ball's path
                 row |= {"start": e.start, "end": e.end, "kmh": e.ball_speed_kmh}
+            if e.type in ("foul", "tackle") and (e.contact or e.start):  # the "+" where the challenge landed
+                row |= {"at": e.contact or e.start, "period": e.period, "clock": e.clock}
             feed.append(row)
 
     data = {

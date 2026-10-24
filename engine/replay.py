@@ -260,15 +260,31 @@ def _goal(history, inc: Incident, phase, direction) -> ReplayPackage | None:
         dist = distance_to_goal(shot.start, direction.get(shot.team, 1))
         detail = f" from {dist:.0f} m at {shot.ball_speed_kmh:.0f} km/h"
         gfacts |= {"shot_distance_m": round(dist, 1), "shot_speed_kmh": shot.ball_speed_kmh}
-    moments = [ReplayMoment(t=key.clock, label=f"Shot by {goal.player}{detail}"[:80], reveal="always")]
+    if inc.facts.get("penalty_kick"):
+        gfacts["penalty_kick"] = True
+    pen = bool(inc.facts.get("penalty_kick"))
+    what = ("the retaken penalty" if inc.facts.get("retake") else "the penalty") if pen else ""
+    if pen:  # a penalty has no assist and no open play: say what it is
+        assist, detail = None, ""
+    shot_label = f"Penalty kick by {goal.player}" if pen else f"Shot by {goal.player}{detail}"
+    moments = [ReplayMoment(t=key.clock, label=shot_label[:80], reveal="always")]
     if assist:
         moments.insert(0, ReplayMoment(t=assist.clock, label=f"Pass from {assist.player}", reveal="always"))
     final = inc.final or "goal"
+    fan = (
+        f"{goal.player} scores {what}. Everyone but the taker and the keeper waits outside the area until it's "
+        f"struck, so there's no build-up and nobody can challenge him."
+        if pen
+        else f"{goal.player} scores{detail}." + (f" Set up by {assist.player}." if assist else "")
+    )
     status = {
-        "stadium": f"Goal: {goal.player}" if final == "goal" else "Check in progress",
-        "fan": f"{goal.player} scores{detail}." + (f" Set up by {assist.player}." if assist else ""),
-        "analyst": f"Shot{detail}."
-        + (f" Assist {assist.player}, {assist.ball_speed_kmh:.0f} km/h pass." if assist else ""),
+        "stadium": (f"Goal: {goal.player} ({what})" if pen else f"Goal: {goal.player}")
+        if final == "goal"
+        else "Check in progress",
+        "fan": fan,
+        "analyst": f"Penalty kick, {what}."
+        if pen
+        else f"Shot{detail}." + (f" Assist {assist.player}, {assist.ball_speed_kmh:.0f} km/h pass." if assist else ""),
         "officials": f"Goal event {goal.event_id}. On-field: goal. VAR: {inc.var_outcome or 'no review'}.",
     }
     if phase == "during":
