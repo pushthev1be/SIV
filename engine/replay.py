@@ -211,7 +211,7 @@ def _offside(history, inc: Incident, phase, direction) -> ReplayPackage | None:
             "stadium": stadium,
             "fan": fan,
             "analyst": (
-                f"Margin {margin:.2f} m: {att} {f['attacker_part']} vs {deff} {f['defender_part']}. "
+                f"{att}'s {a_part} {margin_text(margin)} {side} {deff}'s {d_part}. "
                 f"Kick at {clock_text(kick.period, kick_t)} from the {BALL_TRACK_FPS} fps ball track.{check}"
             ),
             "officials": (

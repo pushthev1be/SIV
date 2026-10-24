@@ -196,6 +196,24 @@
   .keyside li.has .n { color: var(--text); }
   .keyside li.has:hover { background: var(--panel-2); }
   .keyside li.none { opacity: .45; }
+  .desk-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 2px 2px 10px; }
+  .desk-head b { font: 700 15px var(--display); letter-spacing: .04em; }
+  .desk-head span { font: 500 11px var(--mono); color: var(--muted); }
+  .dcall { border: 1px solid var(--line); border-radius: 8px; padding: 10px; margin-bottom: 10px; background: var(--panel); }
+  .dcall h5 { margin: 0 0 8px; font: 600 13px var(--body); display: flex; justify-content: space-between; gap: 8px; }
+  .dcall h5 button { font-size: 11px; padding: 2px 8px; }
+  .dcall .aud { display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap; }
+  .dcall .aud button { font-size: 11px; padding: 3px 8px; }
+  .dcall .aud button.on { background: var(--text); color: var(--bg); }
+  .dcall .say { font-size: 13px; line-height: 1.45; margin: 0 0 6px; }
+  .badge2 { display: inline-block; font: 600 10px var(--mono); padding: 1px 6px; border-radius: 4px; border: 1px solid var(--line); color: var(--soft); margin-bottom: 8px; }
+  .badge2.fall { color: #e8b04a; border-color: #5a4a2a; }
+  .trace { list-style: none; margin: 0; padding: 0; border-left: 1px solid var(--line); }
+  .trace li { position: relative; padding: 3px 0 3px 12px; font-size: 11.5px; color: var(--soft); }
+  .trace li::before { content: ""; position: absolute; left: -4px; top: 8px; width: 7px; height: 7px; border-radius: 50%; background: var(--faint); }
+  .trace li.ok::before { background: #6fbf73; } .trace li.bad::before { background: #e05d5d; } .trace li.plant::before { background: #e8b04a; }
+  .trace li .ms { font-family: var(--mono); color: var(--muted); margin-left: 4px; }
+  .trace li .why { display: block; color: var(--muted); font-family: var(--mono); font-size: 10.5px; }
   .keyside ul.sub { margin: 0 0 4px 28px; gap: 0; }
   .keyside ul.sub li { grid-template-columns: 44px 1fr; padding: 5px 6px; font-size: 12px; cursor: pointer; color: var(--muted); }
   .keyside ul.sub li span:first-child { font: 600 11px var(--mono); }
@@ -283,12 +301,13 @@
   </div>
 
   <aside class="panel">
-    <div class="tabs" id="tabs"><button data-pane="buddy" class="on">Ref Buddy</button><button data-pane="calls">Calls</button><button data-pane="player">Player</button></div>
+    <div class="tabs" id="tabs"><button data-pane="buddy" class="on">Ref Buddy</button><button data-pane="calls">Calls</button><button data-pane="player">Player</button><button data-pane="desk">AI desk</button></div>
     <div class="pane on" id="pane-buddy">
       <div class="buddy-head"><div class="avatar"><svg><use href="#i-whistle"/></svg></div><div><b>REF BUDDY</b><span>Officials' view · not broadcast</span></div></div>
       <ul class="chat" id="chat"></ul>
     </div>
     <div class="pane" id="pane-calls"><ul class="calls" id="callList"></ul></div>
+    <div class="pane" id="pane-desk"><div id="desk"><div class="hint">The agent desk's explanations appear here as each VAR call is decided.</div></div></div>
     <div class="pane" id="pane-player"><div id="pc"><div class="hint">Tap any player on the pitch to see their speed, where they are in the play, and every call they were part of.</div></div></div>
   </aside>
 </div>
@@ -637,7 +656,7 @@
            players.map((pid, k) => (k === j ? null : fr.pos(k))).filter((q) => q && q[0] != null).concat([fr.ball]));
       }
     }
-    renderTimeline(); renderBuddy(); renderCalls(); renderKey();
+    renderTimeline(); renderBuddy(); renderCalls(); renderKey(); renderDesk();
     const now = performance.now();
     if (selected && now >= cardNext) { renderCard(fr); cardNext = now + 250; }
   }
@@ -703,6 +722,43 @@
     ["yellow", "Yellow card"], ["flag", "Offside flag"],
   ];
   let keyShown = "";
+  // ── AI desk: what the agent workflow wrote for each call, and how (orchestrator/desk.py) ──────
+  let DESK = null, deskShown = "", deskAud = {};
+  const AUD = [["fan", "Fan"], ["analyst", "Analyst"], ["es", "Español"], ["officials", "Ref Buddy"]];
+  const secs = (ms) => `${(ms / 1000).toFixed(1)} s`;
+  function traceRow(s) {
+    const esc = (x) => names(String(x)).replace(/</g, "&lt;");
+    if (s.step === "decision_desk") return `<li>Decision Desk${s.retry ? " (retry)" : ""} read ${s.tools.map((t) => t.tool).join(", ") || "nothing"}<span class="ms">${secs(s.ms)}</span></li>`;
+    if (s.step === "planted") return `<li class="plant">Stress test: a wrong number planted in the draft</li>`;
+    if (s.step === "verify") return `<li class="${s.passed ? "ok" : "bad"}">Verifier ${s.passed ? "passed" : "rejected"} ${s.target === "Decision Desk" ? "the draft" : AUD.find(([k]) => k === s.target)?.[1] || s.target}${s.attempt > 1 ? ` (try ${s.attempt})` : ""}${s.passed ? "" : `<span class="why">${s.reasons.map(esc).join("<br>")}</span>`}</li>`;
+    if (s.step === "edit") return s.passed ? "" : `<li class="bad">Editor sent back ${AUD.find(([k]) => k === s.target)?.[1] || s.target}: the meaning changed<span class="why">${esc(s.reasons[0] || "")}</span></li>`;
+    if (s.step === "fallback") return `<li class="bad">Fallback for ${s.target}: ${s.note}</li>`;
+    if (s.step === "persona") return "";
+    if (s.step === "publish") return `<li class="ok">Published ${s.audiences.length} versions<span class="ms">${secs(s.t_ms)}</span></li>`;
+    return "";
+  }
+  function renderDesk() {
+    if (!DESK) return;
+    const seen = CALLS.filter((c) => c.decided <= t && DESK.calls[c.iid]);
+    const sig = seen.map((c) => c.iid + (deskAud[c.iid] || "fan")).join();
+    if (sig === deskShown) return;
+    deskShown = sig;
+    const total = CALLS.filter((c) => DESK.calls[c.iid]).length;
+    const head = `<div class="desk-head"><b>AI DESK</b><span>${DESK.model} · Agent Framework · ${seen.length}/${total} calls</span></div>`;
+    if (!seen.length) { $("desk").innerHTML = head + `<div class="hint">The agent desk's explanations appear here as each VAR call is decided.</div>`; return; }
+    $("desk").innerHTML = head + seen.slice().reverse().map((c) => {
+      const d = DESK.calls[c.iid], aud = deskAud[c.iid] || "fan", v = d.variants[aud];
+      const parallel = d.trace.filter((s) => s.step === "persona").map((s) => `${AUD.find(([k]) => k === s.agent)?.[1]} ${secs(s.ms)}`).join(" · ");
+      return `<div class="dcall"><h5><span>${clockText(c.period, c.at)} · ${c.title}</span><button data-watch="${c.iid}">▶</button></h5>
+        <div class="aud">${AUD.map(([k, l]) => `<button data-iid="${c.iid}" data-aud="${k}" class="${k === aud ? "on" : ""}">${l}</button>`).join("")}</div>
+        <p class="say">${names(v.text).replace(/</g, "&lt;")}</p>
+        <span class="badge2 ${v.origin === "agent" ? "" : "fall"}">${v.origin === "agent" ? `AI · verified${v.attempts > 1 ? " on retry" : ""}` : "Engine text (agent fallback)"}</span>
+        <ul class="trace">${d.trace.map(traceRow).join("")}<li>Four audiences written in parallel: ${parallel}</li></ul></div>`;
+    }).join("");
+    $("desk").querySelectorAll(".aud button").forEach((b) => (b.onclick = () => { deskAud[b.dataset.iid] = b.dataset.aud; renderDesk(); }));
+    $("desk").querySelectorAll("[data-watch]").forEach((b) => (b.onclick = () => watchCall(CALLS.find((c) => c.iid === b.dataset.watch))));
+  }
+
   // Every row is clickable at any time: one call opens its replay, several open a list to pick from.
   let keyOpen = null;
   function watchCall(c) { if (R.pkg) closeReplay(); seek(c.decided + 0.1); openReplay(c.iid); }
@@ -841,7 +897,7 @@
   // ── Side panel ──────────────────────────────────────────────────────────
   function showPane(which) {
     [...$("tabs").children].forEach((b) => b.classList.toggle("on", b.dataset.pane === which));
-    ["buddy", "calls", "player"].forEach((p) => $("pane-" + p).classList.toggle("on", p === which));
+    ["buddy", "calls", "player", "desk"].forEach((p) => $("pane-" + p).classList.toggle("on", p === which));
     if (which === "buddy") chatShown = -1;
   }
   function selectPlayer(pid) {
@@ -1222,6 +1278,7 @@
     PASSES = D.feed.filter((e) => (e.type === "pass" || e.type === "shot") && e.start && e.end);
     CHALLENGES = D.feed.filter((e) => (e.type === "tackle" || e.type === "foul") && e.at);
     seek(START); setPlaying(false);
+    fetch(`data/desk_${scenario}.json`, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).then((d) => { DESK = d; deskShown = ""; renderDesk(); }).catch(() => {});
     $("loading").remove();
     // Hooks for scripts/record_gifs.py and debugging; the page never needs them itself.
     window.__varNarrative = {

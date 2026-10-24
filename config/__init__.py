@@ -40,8 +40,40 @@ def setting(name: str, default: str | None = None) -> str:
 
 
 def credential():
-    """Async Entra ID credential: managed identity in Azure, the Azure CLI session locally."""
+    """Async Entra ID credential: managed identity in Azure, the Azure CLI session locally.
+
+    Locally the CLI takes several seconds per token, and agents running side by side each ask for one, so
+    the CLI credential gets a longer timeout and its tokens are reused until shortly before they expire."""
     from azure.identity.aio import AzureCliCredential, ManagedIdentityCredential
 
     client_id = os.environ.get("AZURE_CLIENT_ID")
-    return ManagedIdentityCredential(client_id=client_id) if client_id else AzureCliCredential()
+    if client_id:
+        return ManagedIdentityCredential(client_id=client_id)
+    return _CachedCredential(AzureCliCredential(process_timeout=60))
+
+
+class _CachedCredential:
+    """Wraps an async credential: one token per scope, reused until five minutes before it expires."""
+
+    def __init__(self, inner) -> None:
+        import asyncio
+
+        self._inner, self._tokens, self._lock = inner, {}, asyncio.Lock()
+
+    async def get_token(self, *scopes: str, **kwargs):
+        import time
+
+        async with self._lock:
+            tok = self._tokens.get(scopes)
+            if tok is None or tok.expires_on - time.time() < 300:
+                tok = self._tokens[scopes] = await self._inner.get_token(*scopes, **kwargs)
+            return tok
+
+    async def close(self) -> None:
+        await self._inner.close()
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc) -> None:
+        await self.close()

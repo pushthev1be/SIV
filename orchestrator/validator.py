@@ -47,8 +47,13 @@ DISTANCE_UNITS = {"cm", "mm", "in", "ft", "m"}
 
 ID_RE = re.compile(r"\b(?:inc-m\d{2}-\d+|m\d{2}-e\d+|[A-Z]{3}-\d{1,2})\b")
 CLOCK_RE = re.compile(r"\b(\d{1,3}):([0-5]\d)\b|\b(\d{1,3})\+(\d{1,2})'|\b(\d{1,3})'")
-# "Law 11", "Laws 12 and 14": references to the Laws of the Game, not match numbers
-LAW_REF_RE = re.compile(r"\bLaws?\s+\d{1,2}(?:\s*(?:and|&|,)\s*\d{1,2})*\b", re.IGNORECASE)
+# "Law 11", "Laws 12 and 14" (and in Spanish and French: "Ley 11", "Reglas 12 y 14", "Loi 9"): references to
+# the Laws of the Game, not match numbers
+LAW_REF_RE = re.compile(
+    r"\b(?:Laws?|Ley(?:es)?|Reglas?|Lois?)\s+\d{1,2}(?:\s*(?:and|y|et|&|,)\s*\d{1,2})*\b", re.IGNORECASE
+)
+FIELD_RE = re.compile(r"\b[a-z]+(?:_[a-z0-9]+)+\b")  # snake_case: a data field, not English
+SIGNED_RE = re.compile(r"(?<![\w.])[-−–]\s?\d+(?:\.\d+)?\s*(?:m|cm|in|metres|centimetres)\b")
 SCORE_RE = re.compile(r"\b(\d{1,2})\s*[-–]\s*(\d{1,2})\b")
 _UNIT_PATTERN = "|".join(re.escape(u) for u in sorted({*CONVERSIONS, *UNIT_ALIASES} - {""}, key=len, reverse=True))
 NUMBER_RE = re.compile(rf"(?<![\w.])(\d+(?:\.\d+)?)(?:\s*({_UNIT_PATTERN})(?![a-z]))?", re.IGNORECASE)
@@ -72,7 +77,7 @@ QUESTION_RE = re.compile(r"\b(?:whether|if)\b[^.!?;:]*$", re.IGNORECASE)
 
 @dataclass(frozen=True)
 class Violation:
-    kind: str  # unknown_number | unknown_id | premature_reveal | check_complete
+    kind: str  # unknown_number | unknown_id | wrong_law | field_name | signed_distance | premature_reveal | ...
     token: str
     detail: str
 
@@ -92,6 +97,10 @@ def _flatten(packet: Any) -> tuple[list[float], set[str]]:
         elif isinstance(v, str):
             strings.add(v)
             strings.update(ID_RE.findall(v))
+            # A number written in text the agent read (a law summary's "11 m from goal") is grounded too;
+            # IDs and law references are removed first so their digits don't count.
+            plain = LAW_REF_RE.sub(" ", ID_RE.sub(" ", v))
+            numbers.extend(float(n) for n in re.findall(r"(?<![\w.])\d+(?:\.\d+)?", plain))
         elif isinstance(v, dict):
             for k, x in v.items():
                 strings.add(str(k))
@@ -129,6 +138,21 @@ def validate_text(text: str, packet: Any, incident_state: str | None = None) -> 
     for tok in ID_RE.findall(text):
         if tok not in strings:
             out.append(Violation("unknown_id", tok, "not in the fact packet"))
+
+    # Data plumbing never airs: no field names (var_outcome, value_m) and no signed distances (-0.11 m).
+    for m in FIELD_RE.finditer(text):
+        out.append(Violation("field_name", m.group(0), "say what it means in words"))
+    for m in SIGNED_RE.finditer(text):
+        out.append(Violation("signed_distance", m.group(0).strip(), "say the direction in words (behind, short of)"))
+
+    # Laws cited must be laws the packet cites ("Law 16" for a ball out of play is a fabrication). A packet
+    # with no law in it gives nothing to check against.
+    known_laws = {int(n) for s in strings for m in LAW_REF_RE.finditer(s) for n in re.findall(r"\d+", m.group(0))}
+    if known_laws:
+        for m in LAW_REF_RE.finditer(text):
+            wrong = [n for n in re.findall(r"\d+", m.group(0)) if int(n) not in known_laws]
+            if wrong:
+                out.append(Violation("wrong_law", m.group(0), f"the packet cites Law {sorted(known_laws)}"))
     scrubbed = LAW_REF_RE.sub(" ", ID_RE.sub(" ", text))
 
     # Match clocks: 78:01, 45+2', 78'

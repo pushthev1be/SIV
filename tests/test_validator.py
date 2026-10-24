@@ -65,6 +65,26 @@ def test_law_references_are_not_match_numbers():
     assert kinds("Under Law 11 the margin was 33 cm.") == ["unknown_number"]
 
 
+def test_a_law_the_packet_does_not_cite_is_rejected():
+    packet = {**DECIDED, "law": {"topic": "ball_out", "law": "Law 9"}}
+    assert validate_text("Under Law 9 the whole ball must cross the line.", packet, "decided") == []
+    assert kinds("Under Law 16 the whole ball must cross the line.", packet) == ["wrong_law"]
+    assert validate_text("Según la Ley 9, todo el balón debe cruzar la línea.", packet, "decided") == []
+    assert kinds("Según la Ley 16, todo el balón debe cruzar la línea.", packet) == ["wrong_law"]
+
+
+def test_a_number_in_text_the_agent_read_is_grounded():
+    packet = {**DECIDED, "law": {"law": "Laws 12 and 14", "summary": "A penalty is taken from the mark, 11 m out."}}
+    assert validate_text("The penalty is taken from the mark, 11 m out.", packet, "decided") == []
+    assert kinds("The penalty is taken from the mark, 12 m out.", packet) == ["unknown_number"]
+
+
+def test_data_plumbing_never_airs():
+    assert kinds("The goal stands (var_outcome: in_play).") == ["field_name", "field_name"]
+    assert kinds("The margin was -0.31 m.") == ["signed_distance"]
+    assert kinds("He was 31 cm behind the line, so it's 2-2.") == []
+
+
 def test_unknown_ids_are_rejected():
     assert kinds("See m01-e99999 and NBR-11.") == ["unknown_id", "unknown_id"]
 
