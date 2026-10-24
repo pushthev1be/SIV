@@ -28,6 +28,14 @@ def dist(a: tuple[float, float], b: tuple[float, float]) -> float:
     return math.hypot(a[0] - b[0], a[1] - b[1])
 
 
+def wide_open(at: tuple[float, float], opponents: list[tuple[float, float]], goal: tuple[float, float]) -> bool:
+    """A clear chance: inside 18 m of goal, no opponent within 3 m, none within 1.5 m of the line to goal.
+    Keepers are left out by the caller. The simulator shoots from here; tests check nobody passes back."""
+    if dist(at, goal) >= 18.0:
+        return False
+    return all(dist(o, at) > 3.0 and seg_dist(o, at, goal)[0] > 1.5 for o in opponents)
+
+
 def seg_dist(p: tuple[float, float], a: tuple[float, float], b: tuple[float, float]) -> tuple[float, float]:
     """Distance from p to segment ab, and the projection parameter t in 0..1."""
     ax, ay = a
@@ -209,6 +217,12 @@ class Match:
                 bx, by = self.ball
                 target = (bx, by) if first else ((p.x + bx) / 2, (p.y + by) / 2)
                 urgency = 0.85 if first else 0.6
+                attacking = self.other(p.team)
+                if first and self.af(attacking, bx, by)[0] > L - 32:
+                    # Near his goal he presses from the goal side: between the ball and the goal, in the shot's way.
+                    gx = L if self.direction(attacking) == 1 else 0.0
+                    n = dist((bx, by), (gx, W / 2)) or 1.0
+                    target, urgency = (bx + (gx - bx) / n * 1.5, by + (W / 2 - by) / n * 1.5), 0.95
             else:
                 target = self.shape_target(p)
 
