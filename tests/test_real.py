@@ -48,6 +48,22 @@ def test_real_clip_text_passes_the_validator():
     check_templates(MatchStore.from_real("real_japan_spain"))
 
 
+def test_wales_iran_keeper_red_is_upgraded_after_review():
+    try:
+        events, engine, *_ = build("real_wales_iran")
+    except OSError as err:
+        pytest.skip(f"StatsBomb data unavailable: {err}")
+    (foul,) = [e for e in events if e.type == "foul"]
+    assert (foul.player, foul.receiver) == ("WAL-1", "IRN-9")  # Hennessey on Taremi, as StatsBomb logged it
+    for e in events:
+        engine.ingest(e)
+    (inc,) = [i for i in engine.desk.incidents.values() if i.kind == "red_card"]
+    assert inc.on_field == "yellow" and inc.final == "red_card" and inc.var_outcome == "upgraded"
+    assert inc.facts["distance_to_goal_m"] > 16.5  # he was well outside his area
+    assert "yellow becomes a red" in engine.replays[inc.incident_id]["after"].status["fan"]
+    check_templates(MatchStore.from_real("real_wales_iran"))
+
+
 def test_every_clip_names_its_source_match():
     for clip in CLIPS.values():
         assert clip.sb_match and clip.match_code.startswith("m1")

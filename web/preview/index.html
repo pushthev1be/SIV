@@ -230,7 +230,7 @@
   <header class="bar">
     <div class="bug"><span id="homeTeam"></span><span class="score" id="score">0 – 0</span><span id="awayTeam"></span><span class="clock" id="clock">0:00</span></div>
     <div class="right">
-      <select id="scenario" aria-label="Match"><option value="var_showcase">Every VAR call</option><option value="var_errors">VAR got it wrong</option><option value="real_japan_spain">Japan v Spain 2022 · real</option><option value="golden">Golden match</option><option value="red_card">Red card match</option><option value="late_comeback">Late comeback</option></select>
+      <select id="scenario" aria-label="Match"><optgroup label="Real matches"><option value="real_japan_spain">Japan v Spain 2022: ball out?</option><option value="real_wales_iran">Wales v Iran 2022: keeper red</option></optgroup><optgroup label="Simulated"><option value="var_showcase">Every VAR call</option><option value="var_errors">VAR got it wrong</option><option value="golden">Golden match</option><option value="red_card">Red card match</option><option value="late_comeback">Late comeback</option></optgroup></select>
       <div class="brand"><b>VAR</b> NARRATIVE</div>
     </div>
   </header>
@@ -297,7 +297,7 @@
 (() => {
   const $ = (id) => document.getElementById(id);
   const NS = "http://www.w3.org/2000/svg";
-  const scenario = new URLSearchParams(location.search).get("s") || "var_showcase";
+  const scenario = new URLSearchParams(location.search).get("s") || "real_japan_spain";  // real matches lead
   $("scenario").value = scenario;
   $("scenario").onchange = (e) => { location.search = "?s=" + e.target.value; };
 
@@ -497,7 +497,10 @@
         } else {
           const factors = [];
           if (rf.closing_speed_kmh) factors.push(`${name(f.offender)} arriving at ${Math.round(rf.closing_speed_kmh)} km/h`);
-          if (rf.distance_to_goal_m) factors.push(`contact ${Math.round(rf.distance_to_goal_m)} m from goal, inside the area`);
+          if (rf.distance_to_goal_m) {
+            const d = rf.distance_to_goal_m, area = b.kind === "penalty" ? ", inside the area" : d > 20 ? ", well outside the area" : "";
+            factors.push(`contact ${Math.round(d)} m from goal${area}`);
+          }
           const missed = f.measure === "ball_contact" && f.touched_ball === false;
           if (f.measure === "ball_contact") factors.push(missed ? `<b>nearest foot ${margin(f.ball_gap_m)} from the ball</b> at contact, no deflection: the ball was never played` : `<b>${name(f.offender)} reached the ball first</b>`);
           say(c.review + 0.02, "evidence", "Evidence", factors.length ? `Factors to weigh: ${factors.join("; ")}.` : "Watch the challenge from the closest angle.");

@@ -46,6 +46,26 @@ play.
 Sources: [ESPN: why Japan's winning goal was awarded](https://africa.espn.com/football/story/_/id/37634475/why-japans-winning-goal-vs-spain-was-awarded-var),
 [The42: FIFA on the decision](https://www.the42.ie/japan-goal-spain-ball-over-line-fifa-var-decision-5936495-Dec2022).
 
+### Wales 0-2 Iran, FIFA World Cup 2022, 25 November 2022 (`real_wales_iran`)
+
+**The call:** from a Wales corner, Iran broke. Ali Karimi played a long ball over the top for Mehdi Taremi, and the
+Wales keeper Wayne Hennessey charged far out of his area and took him out (84'). The referee showed a yellow card;
+VAR recommended an on-field review, and after watching it at the monitor the referee upgraded it to a red.
+
+**What VAR Narrative shows:** the real counter-attack, Karimi's long ball and Hennessey's charge, frozen on the
+contact, about 30 m from his goal. The explainer states the Law 12 line between reckless (yellow) and endangering
+safety (red) and says the referee changed the card after the review. It's a judgement call, so nothing is measured
+against a line; the distance from goal is the fact that frames it.
+
+The event data has 7 players in view at the moment of the foul, so players last seen up to 3.5 s earlier (at the
+long ball) are carried on at the pace they were going. The card's timing relative to the foul isn't in the data.
+
+The referee was Mario Escobar and the VAR was Drew Fischer. Reports give the minute as 84', 86' or 87'; the event data
+puts the foul at 83:43 of match time.
+
+Sources: [ESPN: Iran's late show breaks 10-man Wales](https://global.espn.com/football/story/_/id/37634043/iran-late-show-breaks-10-man-wales-gareth-bale-struggles),
+[Fox Sports: why VAR correctly awarded the red card](https://amp.foxsports.com/stories/soccer/why-var-correctly-awarded-red-card-against-wales-keeper).
+
 ## Next clips
 
 Other real VAR calls in the same data (2022 World Cup, Euro 2020 and Euro 2024 all have 360 frames). Each would be

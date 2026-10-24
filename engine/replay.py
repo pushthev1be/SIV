@@ -374,6 +374,12 @@ def _challenge(history, inc: Incident, phase, m=None) -> ReplayPackage | None:
                 f"{fouled}; on review the referee judged it reckless rather than dangerous, so the red card "
                 f"is downgraded to a yellow."
             )
+        elif red and inc.var_outcome == "upgraded":
+            fan = (
+                f"Why it's now a red. {RULE_SENTENCE['red_card']}. {offender} arrived{arriving} on {fouled}{where}. "
+                f"The referee showed a yellow; VAR recommended a review, and at the monitor the referee judged the "
+                f"challenge endangered the opponent's safety, so the yellow becomes a red and {offender} is sent off."
+            )
         elif red:
             fan = (
                 f"Why a red card. {RULE_SENTENCE['red_card']}. {offender} arrived{arriving} on {fouled}; "

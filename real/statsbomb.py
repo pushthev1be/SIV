@@ -78,6 +78,8 @@ class Clip:
     var_player_sb: str  # StatsBomb name of the player the check is about
     decision: str  # our var_decision outcome
     awarded_goal_sb: str | None = None  # scorer of a goal VAR gives after it was disallowed on the field
+    ends_with: str = "goal"  # the incident: "goal" (the scoring shot) or "foul" (a Foul Committed)
+    on_field_card: str | None = None  # for a foul: the card the referee showed before VAR stepped in
     after_restart_s: float = 10.0
     score_before: dict[str, int] = field(default_factory=dict)
 
@@ -132,11 +134,17 @@ class Converter:
     def _window(self) -> tuple[list[dict], dict]:
         period = [e for e in self.events if e["period"] == self.clip.period]
         t0 = 60 * int(self.clip.start.split(":")[0]) + float(self.clip.start.split(":")[1])
-        goal = next(e for e in period if _secs(e["timestamp"]) >= t0 and e["type"]["name"] == "Shot"
-                    and e["shot"]["outcome"]["name"] == "Goal")  # fmt: skip
+
+        def is_target(e) -> bool:
+            if self.clip.ends_with == "foul":
+                return e["type"]["name"] == "Foul Committed"
+            return e["type"]["name"] == "Shot" and e["shot"]["outcome"]["name"] == "Goal"
+
+        goal = next(e for e in period if _secs(e["timestamp"]) >= t0 and is_target(e))
+        resume = "From Kick Off" if self.clip.ends_with == "goal" else "From Free Kick"
 
         def kickoff(e) -> bool:
-            return e.get("play_pattern", {}).get("name") == "From Kick Off" and e["type"]["name"] == "Pass"
+            return e.get("play_pattern", {}).get("name") == resume and e["type"]["name"] == "Pass"
 
         restart = next(e for e in period if _secs(e["timestamp"]) > _secs(goal["timestamp"]) + 5 and kickoff(e))
         t_end = _secs(restart["timestamp"]) + self.clip.after_restart_s
@@ -215,11 +223,12 @@ class Converter:
         return [tr for tr in tracks if len(tr.pts) >= 2 or tr.pid in claimed]
 
     @staticmethod
-    def _positions(tracks: list[_Track], t: float) -> dict[str, tuple[float, float]]:
+    def _positions(tracks: list[_Track], t: float, hold: float = 0.3) -> dict[str, tuple[float, float]]:
+        """Everyone seen around time t; a player last seen up to `hold` s ago (or about to be) stays put."""
         out: dict[str, tuple[float, float]] = {}
         for tr in tracks:
             p = tr.pts
-            if not p[0][0] - 0.3 <= t <= p[-1][0] + 0.3:
+            if not p[0][0] - hold <= t <= p[-1][0] + hold:
                 continue
             for a, b in zip(p, p[1:], strict=False):
                 if a[0] <= t <= b[0]:
@@ -227,8 +236,25 @@ class Converter:
                     out[tr.pid] = (round(a[1] + (b[1] - a[1]) * k, 2), round(a[2] + (b[2] - a[2]) * k, 2))
                     break
             else:
-                q = p[0] if t < p[0][0] else p[-1]
-                out[tr.pid] = (q[1], q[2])
+                if t < p[0][0] or len(p) < 2:
+                    q = p[0] if t < p[0][0] else p[-1]
+                    out[tr.pid] = (q[1], q[2])
+                    continue
+                # Off camera since his last sighting: carry on at the pace he was going (at most a run).
+                (ta, xa, ya), (tb, xb, yb) = p[-2], p[-1]
+                dt = max(tb - ta, 0.2)
+                vx, vy = (xb - xa) / dt, (yb - ya) / dt
+                v = math.hypot(vx, vy)
+                if v > 7.0:
+                    vx, vy = vx / v * 7.0, vy / v * 7.0
+                k = t - tb
+                out[tr.pid] = (round(min(max(xb + vx * k, 0.0), L), 2), round(min(max(yb + vy * k, 0.0), W), 2))
+        # Never more than eleven a side: when sightings overlap, keep named players and the freshest tracks.
+        stale = {tr.pid: (int(tr.pid[4:]) >= ANON_FROM, max(0.0, t - tr.pts[-1][0], tr.pts[0][0] - t)) for tr in tracks}
+        for team in {pid[:3] for pid in out}:
+            side = sorted((pid for pid in out if pid[:3] == team), key=lambda pid: stale.get(pid, (True, 99.0)))
+            for pid in side[11:]:
+                del out[pid]
         return out
 
     def convert(self) -> tuple[list[MatchEvent], dict]:
@@ -269,6 +295,8 @@ class Converter:
         for e in evs:
             kind = {"Pass": "pass", "Carry": "carry", "Shot": "shot", "Ball Recovery": "interception",
                     "Interception": "interception"}.get(e["type"]["name"])  # fmt: skip
+            if e is marks["goal"] and self.clip.ends_with == "foul":
+                kind = "foul"
             if kind and e.get("player"):
                 on_ball.append((self._clock(e), kind, e))
 
@@ -288,7 +316,7 @@ class Converter:
             if not var_done and t >= restart_t:
                 self._var(emit, goal_t, restart_t, tracks)
                 var_done = True
-            pos = self._positions(tracks, t)
+            pos = self._positions(tracks, t, hold=3.5 if kind == "foul" else 0.3)
             if len(pos) < 14:
                 continue  # the camera saw too little here to stand in for a full snapshot
             if kind == "tracking":
@@ -299,7 +327,14 @@ class Converter:
             pos.setdefault(pid, self._xy(e["location"], code))
             start = self._xy(e["location"], code)
             kw: dict = {"team": code, "player": pid, "start": start}
-            if kind == "pass":
+            if kind == "foul":  # who was fouled, and where: the Foul Won logged at the same moment
+                won = next(x for x in evs if x["type"]["name"] == "Foul Won" and x["timestamp"] == e["timestamp"])
+                victim = self.pid.get(won["player"]["id"])
+                spot = self._xy(won["location"], self.code[won["team"]["name"]])
+                pos.setdefault(victim, spot)
+                kw |= {"receiver": victim, "start": spot, "contact": spot}
+                self._foul = (pid, victim, pos)
+            elif kind == "pass":
                 p = e["pass"]
                 end = self._xy(p["end_location"], code)
                 rec = p.get("recipient")
@@ -348,6 +383,13 @@ class Converter:
         c = self.clip
         player = next(pid for sb, pid in ((p["player_name"], self.pid[p["player_id"]]) for t in self.lineups
                                           for p in t["lineup"]) if sb == c.var_player_sb)  # fmt: skip
+        if c.ends_with == "foul" and c.on_field_card and getattr(self, "_foul", None):
+            # The card shown on the field comes first; VAR then recommends a review of it.
+            offender, _, pos = self._foul
+            emit("card", round(goal_t + 20.0, 2), pos, team=c.var_team, player=offender, outcome=c.on_field_card)
+            emit("var_check", round(goal_t + 25.0, 2), team=c.var_team, player=offender, outcome=c.var_check)
+            emit("var_decision", round(restart_t - 1.0, 2), team=c.var_team, player=offender, outcome=c.decision)
+            return
         emit("var_check", round(goal_t + 1.5, 2), team=c.var_team, player=player, outcome=c.var_check)
         emit("var_decision", round(restart_t - 1.0, 2), team=c.var_team, player=player, outcome=c.decision)
         if c.awarded_goal_sb:

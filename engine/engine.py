@@ -62,6 +62,7 @@ VAR_DECISION = {  # var_decision outcome -> (final, var_outcome)
     "goal": ("goal", "goal_line"),
     "no_penalty": ("no_penalty", "no_change"),
     "goal_awarded": ("goal", "in_play"),  # disallowed on the field, given after review
+    "red_card_upgrade": ("red_card", "upgraded"),  # a yellow on the field, a red after review
 }
 # A check with no on-field call to review (e.g. play was waved on): what the referee had given
 ON_FIELD_WHEN_UNCALLED = {
@@ -327,6 +328,9 @@ class Engine:
         facts: dict[str, Any] = {"offender": e.player}
         if foul is not None and foul.player == e.player:
             facts |= {"foul_event": foul.event_id, "fouled": foul.receiver or "", "foul_clock": foul.clock}
+            where = foul.contact or foul.start
+            if where is not None:  # from the goal the offender was defending
+                facts["distance_to_goal_m"] = round(distance_to_goal(where, -self.direction.get(e.team, 1)), 1)
         inc = self.desk.add_facts(inc.incident_id, facts)
         sources = [e.event_id] + ([foul.event_id] if foul is not None and foul.player == e.player else [])
         return [

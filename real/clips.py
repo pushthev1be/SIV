@@ -31,8 +31,28 @@ CLIPS = {
         awarded_goal_sb="Ao Tanaka",
         score_before={"JPN": 1, "ESP": 1},
     ),
+    # FIFA World Cup 2022, Wales 0-2 Iran, 25 Nov 2022. From a Wales corner, Iran break; Karimi plays a long
+    # ball over the top for Taremi, and keeper Wayne Hennessey charges far out of his area and takes him out
+    # (84'). The referee shows a yellow; VAR recommends a review and it becomes a red.
+    "real_wales_iran": Clip(
+        name="real_wales_iran",
+        sb_match=3857273,
+        match_code="m11",
+        period=2,
+        start="38:29",
+        teams={"Wales": "WAL", "Iran": "IRN"},
+        colours={"WAL": "#d64545", "IRN": "#e8e8e8"},
+        home="IRN",
+        var_check="red_card",
+        var_team="WAL",
+        var_player_sb="Wayne Hennessey",
+        decision="red_card_upgrade",
+        ends_with="foul",
+        on_field_card="yellow",
+        score_before={"WAL": 0, "IRN": 0},
+    ),
 }
-TEAM_NAMES = {"JPN": "Japan", "ESP": "Spain"}
+TEAM_NAMES = {"JPN": "Japan", "ESP": "Spain", "WAL": "Wales", "IRN": "Iran"}
 
 
 def build(name: str):
