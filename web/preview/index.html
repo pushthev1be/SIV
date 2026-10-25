@@ -659,6 +659,7 @@
         lines = { until: f.t + Math.max(14, speed * 5), ax: v.facts.attacker_x, dx: v.facts.defender_x };
     }
     if (!live) return;
+    if (f.kind === "incident" && v.state === "reviewing") playBumper();   // a VAR check opens: the SIV bumper first
     const c = caption(f);
     const holdFor = c && c.prio >= 6 ? Math.max(10, speed * 4) : Math.max(6, speed * 1.5);
     if (c && (!band || f.t > band.until || c.prio >= band.prio)) band = { ...c, until: f.t + holdFor };
@@ -1020,23 +1021,31 @@
     setPlaying(false);
     buildReplayScene(); restartReplay();
     $("replay").classList.add("on");
-    playBumper();
+    if (performance.now() - lastBumper > BUMPER_GAP_MS) playBumper();   // not twice in a row for the same call
   }
-  // The SIV review bumper: a quick slide-through before each call (BUMPER_S), tap to skip. The replay holds
-  // still under it and starts as it wipes away.
-  const BUMPER_S = 5;
-  let bumperTimer = null;
+  // The SIV review bumper: a quick slide-through before each call (BUMPER_S), tap to skip. It plays when a VAR
+  // check opens during the match (the match pauses under it and carries on as it wipes away) and before a call
+  // replay (the replay holds still under it and starts as it wipes away).
+  const BUMPER_S = 5, BUMPER_GAP_MS = 20000;
+  let bumperTimer = null, lastBumper = -1e9;
   function playBumper() {
     const b = $("bumper");
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    lastBumper = performance.now();
     const root = b.querySelector(".siv-root"), box = $("stage").getBoundingClientRect();
     const k = Math.min(box.width / 1280, box.height / 720);
     root.style.transform = `scale(${k}) translate(-640px, -360px)`;
     b.style.setProperty("--dur", BUMPER_S + "s");
     b.classList.remove("on"); void b.offsetWidth; b.classList.add("on");   // restart the animation
+    const resumeMatch = !R.pkg && playing;   // live: hold the match while it plays
+    if (resumeMatch) setPlaying(false);
     R.playing = false;
     clearTimeout(bumperTimer);
-    const done = () => { clearTimeout(bumperTimer); b.classList.remove("on"); if (R.pkg) { R.playing = true; $("rPause").textContent = "❚❚"; } };
+    const done = () => {
+      clearTimeout(bumperTimer); b.classList.remove("on"); b.onclick = null;
+      if (R.pkg) { R.playing = true; $("rPause").textContent = "❚❚"; }
+      else if (resumeMatch) setPlaying(true);
+    };
     bumperTimer = setTimeout(done, BUMPER_S * 930);   // the wipe has cleared the screen by 93%
     b.onclick = done;
   }
