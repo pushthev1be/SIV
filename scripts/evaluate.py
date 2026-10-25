@@ -175,7 +175,7 @@ def spoilers() -> dict:
     packages = reveals = 0
     for name in scenario_names():
         store = MatchStore.from_scenario(name)
-        for iid, phases in store.engine.replays.items():
+        for phases in store.engine.replays.values():
             pkg = phases.get("during")
             if pkg is None:
                 continue
