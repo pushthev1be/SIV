@@ -214,6 +214,8 @@
   .trace li.ok::before { background: #6fbf73; } .trace li.bad::before { background: #e05d5d; } .trace li.plant::before { background: #e8b04a; }
   .trace li .ms { font-family: var(--mono); color: var(--muted); margin-left: 4px; }
   .trace li .why { display: block; color: var(--muted); font-family: var(--mono); font-size: 10.5px; }
+  .evallink { color: var(--soft); font: 500 12px var(--mono); text-decoration: none; border: 1px solid var(--line); padding: 4px 10px; border-radius: 6px; }
+  .evallink:hover { color: var(--text); background: var(--panel-2); }
   .keyside ul.sub { margin: 0 0 4px 28px; gap: 0; }
   .keyside ul.sub li { grid-template-columns: 44px 1fr; padding: 5px 6px; font-size: 12px; cursor: pointer; color: var(--muted); }
   .keyside ul.sub li span:first-child { font: 600 11px var(--mono); }
@@ -249,6 +251,7 @@
     <div class="bug"><span id="homeTeam"></span><span class="score" id="score">0 – 0</span><span id="awayTeam"></span><span class="clock" id="clock">0:00</span></div>
     <div class="right">
       <select id="scenario" aria-label="Match"><optgroup label="Real matches"><option value="real_japan_spain">Japan v Spain 2022: ball out?</option><option value="real_wales_iran">Wales v Iran 2022: keeper red</option></optgroup><optgroup label="Simulated"><option value="var_showcase">Every VAR call</option><option value="var_errors">VAR got it wrong</option><option value="golden">Golden match</option><option value="red_card">Red card match</option><option value="late_comeback">Late comeback</option></optgroup></select>
+      <a class="evallink" href="eval.html" title="How far you can trust it, in numbers">Evaluation</a>
       <div class="brand"><b>VAR</b> NARRATIVE</div>
     </div>
   </header>
