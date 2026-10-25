@@ -178,7 +178,9 @@ class Match:
         rng = self.rng
         defending = self.other(self.possession)
         chasers: list[str] = []
-        if self.carrier and self.flight is None:
+        holder = self.players[self.carrier] if self.carrier else None
+        in_hands = holder is not None and holder.is_gk and self.af(holder.team, holder.x, holder.y)[0] < 16.5
+        if self.carrier and self.flight is None and not in_hands:  # nobody presses a keeper holding the ball
             near = sorted((p for p in self.on_pitch(defending) if not p.is_gk), key=lambda p: dist(p.pos, self.ball))
             chasers = [p.pid for p in near[:2]]
         marks = self._marking(defending, set(chasers))
@@ -191,7 +193,8 @@ class Match:
                     p.y = clamp(p.y + p.vy * DT, -1.0, W + 1.0)
                     continue
                 p.down_until = None
-            if p.run_until is not None and self.clock >= p.run_until:
+            if p.run_until is not None and (self.clock >= p.run_until or self.possession != p.team):
+                # The run is over, or his side has lost the ball: he drops back into the shape.
                 p.override, p.urgency, p.run_until = None, None, None
             if self.clock >= p.wander_until:
                 r, a = 3.0 * math.sqrt(rng.random()), rng.uniform(0, 2 * math.pi)

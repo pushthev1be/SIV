@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import functools
+import math
 
 import pytest
 
@@ -54,3 +55,26 @@ def test_nobody_passes_backwards_when_wide_open(name):
         if wide_open(e.start, opponents, goal) and (e.end[0] - e.start[0]) * d < -3.0:
             bad.append((e.event_id, e.player, e.start, e.end))
     assert bad == []
+
+
+@pytest.mark.parametrize("name", scenario_names())
+def test_nobody_stands_still_while_play_goes_on(name):
+    """No outfield player stays rooted to one spot for 20 s while the ball travels 60 m of live play around him
+    (a run cut short by the whistle once left its runner standing at its end for minutes). The ball's path
+    leaves out the jumps of a restart, so a team waiting in its kick-off shape doesn't count."""
+    _, events = run(name)
+    track = [e for e in events if e.type == "tracking"]
+    path = [0.0]
+    for a, b in zip(track, track[1:], strict=False):
+        step = math.dist(a.start, b.start)
+        path.append(path[-1] + (step if step < 15 and a.period == b.period else 0.0))
+    frozen, since = [], {}
+    for i, e in enumerate(track):
+        for pid, pos in e.positions.items():
+            s = since.get(pid)
+            if s is None or track[s].period != e.period or math.dist(track[s].positions[pid], pos) > 0.5:
+                long = s is not None and e.clock - track[s].clock >= 20 and path[i] - path[s] > 60
+                if long and not pid.endswith("-1"):
+                    frozen.append((pid, track[s].clock, round(e.clock - track[s].clock)))
+                since[pid] = i
+    assert frozen == []

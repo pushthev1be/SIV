@@ -91,8 +91,10 @@ class Simulator:
         self.play_log: list[dict] = []  # every play script followed: the passes made, in order (tests check it)
         self.active: OffsideGoal | RedCard | Goal | PenaltyReview | None = None
         self.pressed = False
+        self.held_since = 0.0  # when the carrier got the ball
+        self.offside_restaged = 0  # times the scripted offside run had to be set up again
         # Constraints that scripts place on free play
-        self.force_ball_to: str | None = None  # the other team loses the ball at its next action
+        self.force_ball_to: str | None = None  # the other team loses the ball in its next action outside its third
         self.safe_team: str | None = None  # never loses the ball, never shoots unless allowed
         self.force_receiver: str | None = None
         self.goal_team: str | None = None  # every shot by this team scores
@@ -154,6 +156,7 @@ class Simulator:
         p.override, p.urgency = None, None
         m.ball = p.pos
         self.pressed = False
+        self.held_since = m.clock
 
     def _kickoff(self, team: str) -> None:
         taker = self.m.kickoff_taker(team)
@@ -169,23 +172,28 @@ class Simulator:
         m, rng = self.m, self.rng
         c = m.players[m.carrier]
         team, opp = c.team, m.other(c.team)
-        self._wait(rng.uniform(0.6, 1.9))
+        tight = dist(m.nearest(opp, c.pos).pos, c.pos) < 3.0
+        self._wait(rng.uniform(0.3, 0.9) if tight else rng.uniform(0.6, 1.9))  # closed down, he releases it sooner
 
         presser = m.nearest(opp, c.pos)
         d = dist(presser.pos, c.pos)
         safe = self.safe_team == team
+        forced = self._forced_loss(c)
         if self.active is None and rng.random() < 0.18:
             self._start_run(c)
         if d < 4.0 and not self.pressed and rng.random() < 0.4:
             self._emit("pressure", team=opp, player=presser.pid, receiver=c.pid, start=_r(c.pos))
             self.pressed = True
-        if d < 2.2 and not safe and rng.random() < (0.6 if self.force_ball_to == opp else 0.2):
+        # Per decision; a closed-down carrier decides about twice as often, so the chance per decision is lower.
+        if d < 2.2 and not safe and rng.random() < (0.6 if forced else 0.15):
             if self._challenge(c, presser):
                 return
 
         gx = L if m.direction(team) == 1 else 0.0
         dg = dist(c.pos, (gx, W / 2))
         shot_p = 0.16 if dg < 14 else 0.07 if dg < 20 else 0.025 if dg < 28 else 0.0  # about 12-18 a match
+        if tight:  # per decision, and he decides twice as often: closed down, he looks for a pass instead
+            shot_p *= 0.5
         if self.goal_team == team:
             shot_p = 0.9 if dg < 22 else 0.0
         elif safe or self.force_ball_to == opp:
@@ -194,9 +202,12 @@ class Simulator:
             # Free with a sight of goal, he shoots: no script holds him back. Whether it goes in is still the
             # match's business (_shot only scores for a scripted goal or a random-goals match).
             shot_p = 1.0
+        # A carry now and then, less the longer he's had it and with a man on him: nobody dribbles for 15 s.
+        held = m.clock - self.held_since
+        carry_p = (0.30 if held < 4 else 0.12 if held < 8 else 0.0) * (0.5 if tight else 1.0)
         if not c.is_gk and rng.random() < shot_p:
             self._shot(c)
-        elif c.is_gk or rng.random() < 0.70 or self._forced_for(c):
+        elif c.is_gk or rng.random() >= carry_p or self._forced_for(c):
             self._pass(c)
         else:
             self._carry(c)
@@ -218,7 +229,7 @@ class Simulator:
             c.override, c.urgency = None, None
             self._give(c)
             return False
-        won = rng.random() < 0.55 or self.force_ball_to == tackler.team
+        won = rng.random() < 0.55 or self._forced_loss(c)
         self._emit("tackle", team=tackler.team, player=tackler.pid, receiver=c.pid, outcome="won" if won else "lost")
         if won:
             self._give(tackler)
@@ -243,8 +254,8 @@ class Simulator:
     def _drop(self, p: Player, team: str, af_xy) -> None:
         """A defender takes up his spot for the coming move only while the ball is in his half; otherwise he
         plays normally, instead of standing in his box for a minute."""
-        if self.m.af(team, *self.m.ball)[0] > HALFWAY:
-            self._go(p, team, af_xy, 0.8)
+        if self.m.af(team, *self.m.ball)[0] > HALFWAY:  # shuffling across with the play, not rooted to the spot
+            self._go(p, team, (af_xy[0], af_xy[1] + 1.5 * math.sin(self.m.clock / 2.5)), 0.8)
         else:
             p.override, p.urgency = None, None
 
@@ -288,6 +299,8 @@ class Simulator:
         if spot is not None:
             m.ball = spot
         for p in m.on_pitch():
+            if p.run_until is not None:  # a run in progress ends at the whistle; he doesn't stand where it was going
+                p.override, p.urgency = None, None
             p.run_until, p.chase = None, False
         if fouled is not None:
             fouled.override, fouled.urgency = None, None
@@ -300,6 +313,12 @@ class Simulator:
         """Wide open: inside 18 m, nobody within 3 m of him, nobody within 1.5 m of his line to goal."""
         return wide_open(c.pos, [o.pos for o in self.m.on_pitch(self.m.other(c.team)) if not o.is_gk],
                          (L if self.m.direction(c.team) == 1 else 0.0, W / 2))  # fmt: skip
+
+    def _forced_loss(self, c: Player) -> bool:
+        """A script needs the other side to have the ball: this carrier loses it, by a tackle or a stray pass. Not
+        a keeper, and not deep in his own third (he plays it out first), so it's won back in midfield, where a
+        move can start, rather than handed over in front of his own goal."""
+        return self.force_ball_to == self.m.other(c.team) and not c.is_gk and self.m.af(c.team, c.x, c.y)[0] >= 25.0
 
     def _forced_for(self, c: Player) -> bool:
         """A scripted receiver applies only to his own team: the other side never passes the ball to him."""
@@ -352,7 +371,7 @@ class Simulator:
             outcome = "offside"
         elif self.safe_team == team or self.force_receiver == r.pid:
             outcome = "complete"
-        elif self.force_ball_to == opp or rng.random() < p_fail:
+        elif self._forced_loss(c) or rng.random() < p_fail:
             in_lane = [(ld_t, o) for ld_t, o in lane if ld_t[1] > 0.15]
             outcome = "intercepted" if in_lane and in_lane[0][0][0] < 3.0 else "incomplete"
         else:
@@ -556,6 +575,7 @@ class Simulator:
         self.active = self.force_ball_to = self.safe_team = self.force_receiver = self.goal_team = None
         self.hops.clear()
         self.suppress_after_goal = False
+        self.offside_restaged = 0
 
     def _script_offside(self, s: OffsideGoal) -> bool:
         m, rng = self.m, self.rng
@@ -565,10 +585,12 @@ class Simulator:
         # Set-up in the attacking frame: the attacker waits 8 m onside, the defender 1 m deeper than the line.
         # Then the attacker sprints, the defender steps up, and the pass goes the instant the gap between the
         # attacker's front foot and the defender's deepest playable part equals the scripted margin.
-        dx, dy = m.af(s.team, *s.defender_pos)
-        ay = m.af(s.team, 0.0, s.attacker_y)[1]
+        # The scenario gives these in the attacking frame (toward x = 105), so the move is staged at the right end
+        # whichever way the team is kicking in that half.
+        (dx, dy), ay = s.defender_pos, s.attacker_y
+        passer_at = m.af(s.team, *s.passer_pos)
         att_start, def_start = m.af(s.team, dx - 8.0, ay), m.af(s.team, dx + 1.0, dy)
-        for p, target in ((passer, s.passer_pos), (attacker, att_start), (defender, def_start)):
+        for p, target in ((passer, passer_at), (attacker, att_start), (defender, def_start)):
             if m.carrier != p.pid:
                 p.override, p.urgency = target, 0.9
         for p in m.on_pitch(m.other(s.team)):
@@ -577,9 +599,13 @@ class Simulator:
 
         if not self._play(s.team, passer, "offside_goal"):
             return False
-        passer.override = s.passer_pos
+        passer.override = passer_at
+        # While they wait, the defender shuffles across with the play, as a back line does; the run is timed off
+        # wherever he is at the kick, so the margin doesn't depend on it.
+        def_start = m.af(s.team, dx + 1.0, dy + 1.5 * math.sin(m.clock / 2.5))
+        defender.override = def_start
         settled = all(dist(p.pos, t) < 1.0 for p, t in ((attacker, att_start), (defender, def_start)))
-        if not settled and m.clock < s.at + 20:
+        if not settled and m.clock < s.at + 20 * (1 + self.offside_restaged):
             self._wait(0.5)
             return True
 
@@ -598,6 +624,12 @@ class Simulator:
                     p.y += p.vy * DT * f
                 break
             self._wait(DT)
+        else:  # the gap never closed: set them up and go again, never play it with the wrong margin
+            if self.offside_restaged < 3:
+                self.offside_restaged += 1
+                attacker.override, attacker.urgency = att_start, 0.9
+                defender.override, defender.urgency = def_start, 0.9
+                return True
         att_pos = attacker.pos
         run_to = (clamp(attacker.x + d * 6.0, 1, L - 1), clamp(attacker.y + rng.uniform(-1.5, 1.5), 1, W - 1))
         length = dist(passer.pos, run_to)
@@ -641,13 +673,24 @@ class Simulator:
         offender = m.players[s.player]
         victim_team = m.other(offender.team)
         self.safe_team = victim_team
-        offender.chase = True
         c = m.players[m.carrier]
-        if m.clock < s.at or (dist(offender.pos, c.pos) > 2.0 and m.clock < s.at + 120):
-            if m.clock >= s.at and dist(offender.pos, c.pos) < 10:
-                c.override, c.urgency = c.pos, 0.3  # the carrier checks back, so the offender can get to him
+        if m.clock < s.at or c.is_gk:
             return False
-        c.override, c.urgency = None, None
+        offender.chase = True  # he goes for the ball, and the man on it, at full speed
+        if dist(offender.pos, c.pos) > 1.6:
+            if dist(offender.pos, c.pos) < 15.0:  # closing at a sprint: he arrives before it can be moved on
+                self._wait(DT)
+                return True
+            # Too far off: the ball goes to the man nearest him, and the challenge comes, late, as he takes it.
+            mates = [
+                q for q in m.on_pitch(c.team)
+                if not q.is_gk and q.pid != c.pid and 6 <= dist(q.pos, c.pos) <= 35 and not m.offside_position(q)
+            ]  # fmt: skip
+            near = min(mates, key=lambda q: dist(q.pos, offender.pos), default=None)
+            if near is not None and dist(near.pos, offender.pos) < 15:
+                self._pass(c, receiver=near)
+                return True
+            return False
         self._close_in(offender, c)
         spot = c.pos
         self._emit("foul", team=offender.team, player=offender.pid, receiver=c.pid, start=_r(spot), contact=_r(spot))
@@ -1107,7 +1150,9 @@ class Simulator:
                     p.max_af_x = L - 47.0  # pushed up and caught upfield: the defender will be the last man
             if m.clock < s.at - 8:  # the team keeps the ball while the defence is drawn up
                 self.safe_team = s.team
-                self._go(att, s.team, (L - 50.0, lane), 0.5)
+                # He works the line meanwhile, checking short and drifting across, never standing still.
+                t = m.clock
+                self._go(att, s.team, (L - 50.0 + 2.5 * math.sin(t / 3.0), lane + 4.0 * math.sin(t / 4.3)), 0.5)
                 mate = m.nearest(s.team, att.pos, exclude=att.pid)
                 self.force_receiver = mate.pid if m.carrier == att.pid else None
                 return False
@@ -1121,6 +1166,10 @@ class Simulator:
             self._emit("carry", team=att.team, player=att.pid, start=_r(att.pos), end=_r(goal_run))
             self._dogso_run = True
         deff.chase, deff.urgency = True, 1.0
+        for p in m.on_pitch(deff.team):  # the rest of the back line turns and sprints back, a stride behind him
+            if p.pid != deff.pid and not p.is_gk:
+                p.override, p.urgency = m.af(s.team, L - 8.0, m.af(s.team, p.x, p.y)[1]), 0.95
+                p.max_af_x = ax - 2.5
         caught = dist(deff.pos, att.pos) <= 1.4 and ax >= L - 28  # inside the 30 m an obvious chance needs
         if not caught and ax < L - 20.5 and m.clock < s.at + 60:  # never let it reach the area
             self._wait(0.1)

@@ -17,6 +17,8 @@ class OffsideGoal(_Script):
     """A through ball, a goal given on the field, then a VAR offside check.
 
     margin_m > 0: the attacker is ahead of the line (offside); < 0: behind it (onside).
+    passer_pos, attacker_y and defender_pos are in the team's attacking frame (it attacks toward x = 105),
+    so the same numbers stage the move at the right end in either half.
     """
 
     kind: Literal["offside_goal"]
