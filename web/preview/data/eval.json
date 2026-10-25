@@ -1,0 +1,73 @@
+{
+ "generated": "2026-10-24",
+ "measurement": {
+  "matches": 30,
+  "calls": 72,
+  "mean_error_cm": 0.0,
+  "max_error_cm": 0.0,
+  "by_kind_max_cm": {
+   "offside_goal": 0.0,
+   "ball_out_goal": 0.0,
+   "box_edge_foul": 0.0,
+   "goal_line_clearance": 0.0,
+   "penalty_retake": 0.0
+  },
+  "direction_wrong": 0,
+  "measured": 60,
+  "errors_flagged": 24,
+  "errors_missed": 0,
+  "false_flags": 0,
+  "correct_unflagged": 48,
+  "missing": 0
+ },
+ "red_team": {
+  "texts": 200,
+  "clean_rejected": 0,
+  "planted": 979,
+  "caught": 971,
+  "by_kind": {
+   "unknown_player": {
+    "planted": 200,
+    "caught": 200
+   },
+   "field_name": {
+    "planted": 200,
+    "caught": 200
+   },
+   "signed_distance": {
+    "planted": 200,
+    "caught": 200
+   },
+   "invented_stat": {
+    "planted": 200,
+    "caught": 200
+   },
+   "changed_number": {
+    "planted": 120,
+    "caught": 112
+   },
+   "wrong_law": {
+    "planted": 59,
+    "caught": 59
+   }
+  }
+ },
+ "spoilers": {
+  "during_packages": 16,
+  "reveals": 0
+ },
+ "desk": {
+  "calls": 13,
+  "model": "gpt-5-mini",
+  "desk_first_pass": 8,
+  "desk_unplanted": 9,
+  "planted": 4,
+  "planted_caught": 4,
+  "variants": 52,
+  "recovered_on_retry": 2,
+  "fallbacks": 3,
+  "editor_catches": 2,
+  "median_s": 18.8,
+  "max_s": 31.6
+ }
+}

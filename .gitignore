@@ -10,5 +10,9 @@ dist/
 !.env.example
 .azure/
 *.log
-web/preview/data/
+web/preview/data/*
+# Tracked: the agent desk (rebuilding it needs live model calls) and the evaluation numbers. The match files
+# are rebuilt with `python -m engine.export` and `python -m real.clips`.
+!web/preview/data/desk_*.json
+!web/preview/data/eval.json
 data/statsbomb/

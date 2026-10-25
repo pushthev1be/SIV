@@ -1,0 +1,213 @@
+{
+ "match": "real_wales_iran",
+ "model": "gpt-5-mini",
+ "calls": {
+  "inc-m11-01": {
+   "kind": "red_card",
+   "variants": {
+    "fan": {
+     "audience": "fan",
+     "text": "Law 12 says a tackle that’s dangerous or uses too much force is a red card. The replay shows Wayne Hennessey fouled Mehdi Taremi at 83:43, 31.5 m from goal, and after review the referee upgraded a yellow to red based on the images and their judgement since the distance and time alone don’t prove danger.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3869
+    },
+    "analyst": {
+     "audience": "analyst",
+     "text": "Measurement: 31.5 m from goal and Law 12, which mandates a red card for a challenge that endangers an opponent’s safety or uses excessive force. The replay shows Wayne Hennessey fouled Mehdi Taremi at 83:43, the VAR review was listed as a subjective judgement, and after review the referee upgraded a yellow to red because the images and officials’ judgement supported that the challenge met the Law 12 standard.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 6349
+    },
+    "es": {
+     "audience": "es",
+     "text": "Regla 12 establece que una entrada que pone en peligro la seguridad del oponente o usa fuerza excesiva es tarjeta roja; la repetición muestra que Wayne Hennessey cometió falta sobre Mehdi Taremi en el 83:43, el incidente fue a 31.5 m de la portería y en el registro VAR la razón de la revisión figura como juicio subjetivo. El árbitro en el campo había mostrado amarilla y la cambió por roja tras la revisión; la medida numérica (31.5 m) y el tiempo de la repetición por sí solos no demuestran fuerza o peligro, por lo que los oficiales usaron las imágenes y su criterio para la expulsión.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3878
+    },
+    "officials": {
+     "audience": "officials",
+     "text": "Law 12 says a challenge that endangers an opponent’s safety or uses excessive force is a red card. The replay shows Wayne Hennessey fouled Mehdi Taremi at 83:43, 31.5 m from goal, and the VAR record notes the review reason was subjective judgment, so the on-field yellow was upgraded to red based on the images and the officials’ judgment because the distance and timing alone don’t prove force or danger; the decision is the referee’s.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3925
+    }
+   },
+   "trace": [
+    {
+     "t_ms": 11673,
+     "step": "decision_desk",
+     "agent": "Decision Desk",
+     "tools": [
+      {
+       "tool": "get_incident",
+       "args": "{\"incident_id\":\"inc-m11-01\"}"
+      },
+      {
+       "tool": "get_replay",
+       "args": "{\"incident_id\":\"inc-m11-01\"}"
+      },
+      {
+       "tool": "get_law_summary",
+       "args": "{\"topic\":\"red_card\"}"
+      }
+     ],
+     "ms": 11489,
+     "text": "The law says a challenge that endangers an opponent's safety or uses excessive force is serious foul play and must be punished by a red card. The VAR reviewed Wayne Hennessey's challenge on Mehdi Taremi at 83:43, 31.5 m from goal, and the on-field yellow was upgraded after a judgement check (reason: subjective_judgement). The officials’ decision to send Hennessey off matches the review outcome — the evidence was a subjective judgement of the challenge rather than a numeric measurement, and the review upgraded the card to red."
+    },
+    {
+     "t_ms": 11673,
+     "step": "planted",
+     "note": "a wrong number planted in the draft, to test the Verifier",
+     "text": "The law says a challenge that endangers an opponent's safety or uses excessive force is serious foul play and must be punished by a red card. The VAR reviewed Wayne Hennessey's challenge on Mehdi Taremi at 83:43, 38.5 m from goal, and the on-field yellow was upgraded after a judgement check (reason: subjective_judgement). The officials’ decision to send Hennessey off matches the review outcome — the evidence was a subjective judgement of the challenge rather than a numeric measurement, and the review upgraded the card to red."
+    },
+    {
+     "t_ms": 11678,
+     "step": "verify",
+     "target": "Decision Desk",
+     "attempt": 1,
+     "passed": false,
+     "reasons": [
+      "field_name: 'subjective_judgement' (say what it means in words)",
+      "unknown_number: '38.5 m' (not in the fact packet)"
+     ]
+    },
+    {
+     "t_ms": 22531,
+     "step": "decision_desk",
+     "agent": "Decision Desk",
+     "retry": true,
+     "tools": [
+      {
+       "tool": "get_incident",
+       "args": "{\"incident_id\":\"inc-m11-01\"}"
+      },
+      {
+       "tool": "get_replay",
+       "args": "{\"incident_id\":\"inc-m11-01\"}"
+      },
+      {
+       "tool": "get_law_summary",
+       "args": "{\"topic\":\"red_card\"}"
+      }
+     ],
+     "ms": 10853,
+     "text": "Law 12 says a challenge that endangers an opponent’s safety or uses excessive force is a red card. The replay shows Wayne Hennessey fouled Mehdi Taremi at 83:43, the incident was 31.5 m from goal and the VAR record lists the review reason as a subjective judgement. The referee’s on-field yellow was upgraded to a red after review — the numeric measurement (31.5 m) and the replay timing don’t by themselves prove force or danger, so the officials used the images and their judgement to make the sending-off."
+    },
+    {
+     "t_ms": 22532,
+     "step": "verify",
+     "target": "Decision Desk",
+     "attempt": 2,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 24288,
+     "step": "verify",
+     "target": "fan",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 24693,
+     "step": "verify",
+     "target": "officials",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 25092,
+     "step": "verify",
+     "target": "es",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 26407,
+     "step": "edit",
+     "target": "fan",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 26407,
+     "step": "persona",
+     "agent": "fan",
+     "ms": 3869,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 26425,
+     "step": "edit",
+     "target": "es",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 26426,
+     "step": "persona",
+     "agent": "es",
+     "ms": 3878,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 26479,
+     "step": "edit",
+     "target": "officials",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 26479,
+     "step": "persona",
+     "agent": "officials",
+     "ms": 3925,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 27576,
+     "step": "verify",
+     "target": "analyst",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 28890,
+     "step": "edit",
+     "target": "analyst",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 28890,
+     "step": "persona",
+     "agent": "analyst",
+     "ms": 6349,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 28895,
+     "step": "publish",
+     "audiences": [
+      "fan",
+      "analyst",
+      "es",
+      "officials"
+     ]
+    }
+   ],
+   "planted": true,
+   "total_ms": 28729
+  }
+ }
+}

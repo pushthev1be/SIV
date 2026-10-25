@@ -72,10 +72,10 @@ Verifier (code), four persona agents in parallel, each checked by code and then 
 |---|---|
 | Decision Desk drafts passing the Verifier first time | 8 of 9 |
 | Planted wrong numbers caught (one per match) | 4 of 4 |
-| Audience versions rescued by a retry | 8 of 52 |
-| Rewrites the Editor sent back because the meaning changed | 8 |
+| Audience versions rescued by a retry | 2 of 52 |
+| Rewrites the Editor sent back because the meaning changed | 2 |
 | Fallbacks to the engine's own text | 3 |
-| Time per call, whole workflow | median 20.0 s, longest 31.7 s |
+| Time per call, whole workflow | median 18.8 s, longest 31.6 s |
 
 A fallback is the system working: when an agent can't produce a grounded text in two tries, the engine's
 deterministic explanation airs instead, so a fan never sees an unchecked claim.

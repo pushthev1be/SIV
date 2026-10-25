@@ -1,0 +1,962 @@
+{
+ "match": "var_errors",
+ "model": "gpt-5-mini",
+ "calls": {
+  "inc-m05-01": {
+   "kind": "offside",
+   "variants": {
+    "fan": {
+     "audience": "fan",
+     "text": "Offside is decided when a teammate plays the ball by seeing if the attacker’s furthest playable part is ahead of the second-last defender. The data show Brennan’s left foot was 30 cm behind Ruiz when Moreau played the ball, so that measurement doesn’t back up the officials’ overturning of the goal.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3269
+    },
+    "analyst": {
+     "audience": "analyst",
+     "text": "At 9:58 when Moreau played the ball, Brennan’s left foot was 30 cm behind Ruiz’s left foot, and Law 11 requires comparing the attacker’s most forward playable part with the second-last defender at that moment. The officials overturned the on-field goal for offside, but the 30 cm gap shows Brennan was not ahead and therefore the evidence does not support the offside decision.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 4044
+    },
+    "es": {
+     "audience": "es",
+     "text": "La Regla 11 establece que el fuera de juego se juzga en el momento en que un compañero juega el balón comparando la parte más adelantada del atacante con el segundo último defensor. Los datos muestran que a las 9:58, cuando Moreau jugó el balón, el pie izquierdo de Brennan estaba 30 cm detrás del pie izquierdo de Ruiz, por lo que la medición no respalda que los árbitros anularan el gol por fuera de juego.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3661
+    },
+    "officials": {
+     "audience": "officials",
+     "text": "Law 11: offside is judged the instant a teammate plays the ball by comparing the attacker’s most forward playable part with the second-last defender. The evidence shows that at 9:58 when Moreau played the ball Brennan’s left foot was 30 cm behind Ruiz’s left foot, which does not support overturning the on-field goal for offside, so the decision rests with you the referee.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3961
+    }
+   },
+   "trace": [
+    {
+     "t_ms": 14803,
+     "step": "decision_desk",
+     "agent": "Decision Desk",
+     "tools": [
+      {
+       "tool": "get_incident",
+       "args": "{\"incident_id\":\"inc-m05-01\"}"
+      },
+      {
+       "tool": "get_replay",
+       "args": "{\"incident_id\":\"inc-m05-01\"}"
+      },
+      {
+       "tool": "get_law_summary",
+       "args": "{\"topic\":\"offside\"}"
+      }
+     ],
+     "ms": 14524,
+     "text": "Law 11 says the position is judged the moment a team-mate plays the ball and an attacker is offside only if any playable part of their head, body or feet is nearer the goal line than the second-last opponent. The factual check at 9:58 shows Brennan’s left foot was 30 cm behind Ruiz’s left foot when Moreau played the ball. VAR concluded offside and the goal was ruled out, but the measurement (Brennan 30 cm behind Ruiz) means the data shows he was onside, so the measurement does not explain that decision."
+    },
+    {
+     "t_ms": 14804,
+     "step": "planted",
+     "note": "a wrong number planted in the draft, to test the Verifier",
+     "text": "Law 11 says the position is judged the moment a team-mate plays the ball and an attacker is offside only if any playable part of their head, body or feet is nearer the goal line than the second-last opponent. The factual check at 9:58 shows Brennan’s left foot was 37 cm behind Ruiz’s left foot when Moreau played the ball. VAR concluded offside and the goal was ruled out, but the measurement (Brennan 30 cm behind Ruiz) means the data shows he was onside, so the measurement does not explain that decision."
+    },
+    {
+     "t_ms": 14808,
+     "step": "verify",
+     "target": "Decision Desk",
+     "attempt": 1,
+     "passed": false,
+     "reasons": [
+      "unknown_number: '37 cm' (not in the fact packet)"
+     ]
+    },
+    {
+     "t_ms": 27522,
+     "step": "decision_desk",
+     "agent": "Decision Desk",
+     "retry": true,
+     "tools": [
+      {
+       "tool": "get_incident",
+       "args": "{\"incident_id\":\"inc-m05-01\"}"
+      },
+      {
+       "tool": "get_replay",
+       "args": "{\"incident_id\":\"inc-m05-01\"}"
+      },
+      {
+       "tool": "get_law_summary",
+       "args": "{\"topic\":\"offside\"}"
+      }
+     ],
+     "ms": 12713,
+     "text": "Law 11 says offside is judged at the moment a teammate plays the ball by comparing the attacker’s most forward playable part with the second-last defender. The data show that at 9:58, when Moreau played the ball, Brennan’s left foot was 30 cm behind Ruiz’s left foot. The officials overturned the on-field goal for offside (no goal), but the measurement — Brennan 30 cm behind Ruiz — does not support that offside decision."
+    },
+    {
+     "t_ms": 27522,
+     "step": "verify",
+     "target": "Decision Desk",
+     "attempt": 2,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 29037,
+     "step": "verify",
+     "target": "fan",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 29417,
+     "step": "verify",
+     "target": "officials",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 29556,
+     "step": "verify",
+     "target": "analyst",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 29684,
+     "step": "verify",
+     "target": "es",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 30796,
+     "step": "edit",
+     "target": "fan",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 30796,
+     "step": "persona",
+     "agent": "fan",
+     "ms": 3269,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 31197,
+     "step": "edit",
+     "target": "es",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 31197,
+     "step": "persona",
+     "agent": "es",
+     "ms": 3661,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 31500,
+     "step": "edit",
+     "target": "officials",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 31500,
+     "step": "persona",
+     "agent": "officials",
+     "ms": 3961,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 31576,
+     "step": "edit",
+     "target": "analyst",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 31576,
+     "step": "persona",
+     "agent": "analyst",
+     "ms": 4044,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 31581,
+     "step": "publish",
+     "audiences": [
+      "fan",
+      "analyst",
+      "es",
+      "officials"
+     ]
+    }
+   ],
+   "planted": true,
+   "total_ms": 31323
+  },
+  "inc-m05-04": {
+   "kind": "penalty",
+   "variants": {
+    "fan": {
+     "audience": "fan",
+     "text": "No penalty, even though the measurement showed a foul. The laws say a defender foul in the box is a penalty, the nearest foot was 70 cm from the ball when contact with ASH-9 happened and the ball wasn’t played, but the referee decided there wasn’t enough for a foul on review, so play stands and the officials’ notes will explain why.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 2637
+    },
+    "analyst": {
+     "audience": "analyst",
+     "text": "Measurement: 70 cm (27.6 in) and under Laws 12 and 14 that distance meets the criterion for a foul by a defender inside their penalty area, which would normally be a penalty. The referee, after review, judged there was not enough for a foul and allowed play to continue; the measurement alone does not explain that judgment and the officials' notes will state the reasons.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3074
+    },
+    "es": {
+     "audience": "es",
+     "text": "No hay penalti, aunque la medición indica falta. Según las Reglas 12 y 14, una falta de un defensor dentro de su propia área es penalti; NBR-4 tenía el pie más cercano a 70 cm (27.6 in) del balón en el momento del contacto con ASH-9 dentro del área y el balón nunca fue jugado, llegando a 7 km/h, pero en la revisión el árbitro consideró que no había suficiente para señalar falta, por lo que el juego sigue; la sola medición no explica la decisión y los informes del árbitro dirán por qué.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 4670
+    },
+    "officials": {
+     "audience": "officials",
+     "text": "Law 12 makes a defender’s foul inside their own penalty area a penalty, and Law 14 covers penalty kicks; the measured distance shows NBR-4’s nearest foot was 70 cm from the ball (27.6 in) when contact with ASH-9 occurred inside the area and the ball, arriving at 7 km/h, was never played. The referee reviewed and judged the contact insufficient for a foul so play continued; the 70 cm measurement by itself does not explain that judgment and the officials’ notes will state the reasons, and the decision stands as the referee’s.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 5092
+    }
+   },
+   "trace": [
+    {
+     "t_ms": 10205,
+     "step": "decision_desk",
+     "agent": "Decision Desk",
+     "tools": [
+      {
+       "tool": "get_incident",
+       "args": "{\"incident_id\":\"inc-m05-04\"}"
+      },
+      {
+       "tool": "get_replay",
+       "args": "{\"incident_id\":\"inc-m05-04\"}"
+      },
+      {
+       "tool": "get_law_summary",
+       "args": "{\"topic\":\"penalty\"}"
+      }
+     ],
+     "ms": 9997,
+     "text": "If a defender makes a foul inside their penalty area that denies an opponent a direct free kick, it should be a penalty and VAR only intervenes for a clear and obvious error. At 25:21 Varga challenged Marchetti: the data show Varga did not touch the ball (touched_ball false), the contact was inside the area (contact_in_area true) and the nearest foot was 0.7 m (70 cm) from the ball, with Varga closing at 7.3 km/h. The officials kept the on-field decision of no penalty (no_change); because the measurement — no touch and contact inside the area — would normally point to a penalty, that measurement does not explain why they kept no penalty, so the decision must have been based on the video/judgement rather than the numeric check."
+    },
+    {
+     "t_ms": 10212,
+     "step": "verify",
+     "target": "Decision Desk",
+     "attempt": 1,
+     "passed": false,
+     "reasons": [
+      "field_name: 'touched_ball' (say what it means in words)",
+      "field_name: 'contact_in_area' (say what it means in words)",
+      "field_name: 'no_change' (say what it means in words)"
+     ]
+    },
+    {
+     "t_ms": 21118,
+     "step": "decision_desk",
+     "agent": "Decision Desk",
+     "retry": true,
+     "tools": [
+      {
+       "tool": "get_incident",
+       "args": "{\"incident_id\":\"inc-m05-04\"}"
+      },
+      {
+       "tool": "get_replay",
+       "args": "{\"incident_id\":\"inc-m05-04\"}"
+      },
+      {
+       "tool": "get_law_summary",
+       "args": "{\"topic\":\"penalty\"}"
+      }
+     ],
+     "ms": 10905,
+     "text": "The law: a defender who fouls an attacker inside their own penalty area (trip, push or reckless/careless challenge) concedes a penalty, and whether contact is a foul is a referee judgement that VAR only overturns for a clear and obvious error. The evidence at 25:21 shows Varga’s nearest foot was 0.7 m (70 cm) from the ball, he did not touch the ball (the challenger never played the ball) and the contact occurred inside the penalty area (contact happened in the box); Marchetti was the fouled player. The on-field decision was no penalty and VAR made no_change (the VAR kept the referee’s decision), and because the measurements point towards a penalty, the data does not explain why no penalty was given."
+    },
+    {
+     "t_ms": 21118,
+     "step": "verify",
+     "target": "Decision Desk",
+     "attempt": 2,
+     "passed": false,
+     "reasons": [
+      "field_name: 'no_change' (say what it means in words)"
+     ]
+    },
+    {
+     "t_ms": 21118,
+     "step": "fallback",
+     "target": "Decision Desk",
+     "note": "the engine's own explanation airs"
+    },
+    {
+     "t_ms": 22455,
+     "step": "verify",
+     "target": "fan",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 22889,
+     "step": "verify",
+     "target": "analyst",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 23681,
+     "step": "verify",
+     "target": "officials",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 23701,
+     "step": "verify",
+     "target": "es",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 23759,
+     "step": "edit",
+     "target": "fan",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 23759,
+     "step": "persona",
+     "agent": "fan",
+     "ms": 2637,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 24201,
+     "step": "edit",
+     "target": "analyst",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 24201,
+     "step": "persona",
+     "agent": "analyst",
+     "ms": 3074,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 25799,
+     "step": "edit",
+     "target": "es",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 25799,
+     "step": "persona",
+     "agent": "es",
+     "ms": 4670,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 26226,
+     "step": "edit",
+     "target": "officials",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 26226,
+     "step": "persona",
+     "agent": "officials",
+     "ms": 5092,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 26230,
+     "step": "publish",
+     "audiences": [
+      "fan",
+      "analyst",
+      "es",
+      "officials"
+     ]
+    }
+   ],
+   "planted": false,
+   "total_ms": 26039
+  },
+  "inc-m05-05": {
+   "kind": "offside",
+   "variants": {
+    "fan": {
+     "audience": "fan",
+     "text": "If any part of an attacker is closer to the goal than the second-last defender when a teammate plays the ball, they're offside. The check at 38:13 showed Doyle’s left foot was 20 cm behind Varga’s, so Doyle was onside, and that measurement doesn’t support the referee’s decision to disallow the goal.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 2767
+    },
+    "analyst": {
+     "audience": "analyst",
+     "text": "The check at 38:13 measured Doyle’s left foot 0.2 m behind Varga’s left foot, meaning Doyle was behind the second-last defender and therefore onside under Law 11. The officials ruled the goal out, but that measurement does not support the no-goal decision.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 4164
+    },
+    "es": {
+     "audience": "es",
+     "text": "La Regla 11 dice que un jugador está en fuera de juego si cualquier parte de su cabeza, cuerpo o pies está más cerca de la línea de gol contraria que el penúltimo defensor en el momento en que un compañero juega el balón. La comprobación fáctica en 38:13 midió el pie izquierdo de Doyle 0.2 m (20 cm) detrás del pie izquierdo de Varga, lo que significa que Doyle estaba detrás del penúltimo defensor y por tanto en juego; la decisión de los árbitros de anular el gol (no gol) no está respaldada por esa medición.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3435
+    },
+    "officials": {
+     "audience": "officials",
+     "text": "Law 11 defines offside as any part of a player’s head, body or feet being nearer the opponents’ goal line than the second-last defender when a teammate plays the ball. The evidence at 38:13 shows Doyle’s left foot was 0.2 m behind Varga’s left foot, meaning Doyle was behind the second-last defender and therefore onside, so that measurement does not support the officials’ decision to rule the goal out; the decision remains the referee’s.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3725
+    }
+   },
+   "trace": [
+    {
+     "t_ms": 11271,
+     "step": "decision_desk",
+     "agent": "Decision Desk",
+     "tools": [
+      {
+       "tool": "get_incident",
+       "args": "{\"incident_id\":\"inc-m05-05\"}"
+      },
+      {
+       "tool": "get_replay",
+       "args": "{\"incident_id\":\"inc-m05-05\"}"
+      },
+      {
+       "tool": "get_law_summary",
+       "args": "{\"topic\":\"offside\"}"
+      }
+     ],
+     "ms": 11048,
+     "text": "Law 11 says a player is offside if any part of their head, body or feet is nearer the opponents' goal line than the second-last defender at the moment a teammate plays the ball. The factual check at 38:13 measured Doyle's left foot 0.2 m (20 cm) behind Varga's left foot, which means Doyle was behind the second-last defender and therefore onside. The officials' final decision was to rule the goal out (no goal), but the measurement (Doyle 20 cm behind Varga) does not support that outcome and therefore does not explain the no-goal decision."
+    },
+    {
+     "t_ms": 11275,
+     "step": "verify",
+     "target": "Decision Desk",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 12799,
+     "step": "verify",
+     "target": "fan",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 12949,
+     "step": "verify",
+     "target": "analyst",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 13180,
+     "step": "verify",
+     "target": "es",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 13406,
+     "step": "verify",
+     "target": "officials",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 14046,
+     "step": "edit",
+     "target": "fan",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 14046,
+     "step": "persona",
+     "agent": "fan",
+     "ms": 2767,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 14723,
+     "step": "edit",
+     "target": "es",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 14723,
+     "step": "persona",
+     "agent": "es",
+     "ms": 3435,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 15015,
+     "step": "edit",
+     "target": "officials",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 15015,
+     "step": "persona",
+     "agent": "officials",
+     "ms": 3725,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 15448,
+     "step": "edit",
+     "target": "analyst",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 15448,
+     "step": "persona",
+     "agent": "analyst",
+     "ms": 4164,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 15451,
+     "step": "publish",
+     "audiences": [
+      "fan",
+      "analyst",
+      "es",
+      "officials"
+     ]
+    }
+   ],
+   "planted": false,
+   "total_ms": 15248
+  },
+  "inc-m05-06": {
+   "kind": "red_card",
+   "variants": {
+    "fan": {
+     "audience": "fan",
+     "text": "If a tackle risks a player’s safety or uses too much force, it’s a red card, and refs decide that by how fast and hard it is and where it hits. The replay shows Mbeki closed at 6.3 km/h while Marchetti was at 1.2 km/h, and the VAR kept the red card because that closing speed and the challenge match the referee’s call.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3277
+    },
+    "analyst": {
+     "audience": "analyst",
+     "text": "Measured closing speed: Mbeki arrived at 6.3 km/h while Marchetti was moving at 1.2 km/h, and under the law a challenge that endangers an opponent’s safety or uses excessive force is a sending‑off offence judged on speed, intensity and point of contact. The VAR review upheld the on‑field red card because the closing speed and the nature of the challenge are consistent with a decision that the tackle endangered the opponent and used excessive force.",
+     "origin": "agent",
+     "attempts": 2,
+     "ms": 7694
+    },
+    "es": {
+     "audience": "es",
+     "text": "La Regla 12 dice que una entrada que pone en peligro la seguridad del contrario o usa fuerza excesiva es expulsión, y es una decisión de apreciación basada en la velocidad, la intensidad y el punto de contacto. Las imágenes muestran la entrada de Mbeki sobre Marchetti a las 58:25 con Mbeki a 6.3 km/h y Marchetti a 1.2 km/h a 25.2 m de la portería, y la revisión VAR confirmó la tarjeta roja porque la velocidad de cierre medida y la naturaleza de la entrada respaldan el criterio del árbitro.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3930
+    },
+    "officials": {
+     "audience": "officials",
+     "text": "Ref: a challenge that endangers safety or uses excessive force is a sending‑off and that’s judged on speed, intensity and point of contact. The replay shows Mbeki’s challenge on Marchetti at 58:25 with Mbeki arriving at 6.3 km/h while Marchetti moved at 1.2 km/h and the incident 25.2 m from goal, and the VAR review upheld the red card because the measured closing speed and nature of the challenge support your original judgment — the decision is yours.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 5006
+    }
+   },
+   "trace": [
+    {
+     "t_ms": 9122,
+     "step": "decision_desk",
+     "agent": "Decision Desk",
+     "tools": [
+      {
+       "tool": "get_incident",
+       "args": "{\"incident_id\":\"inc-m05-06\"}"
+      },
+      {
+       "tool": "get_replay",
+       "args": "{\"incident_id\":\"inc-m05-06\"}"
+      },
+      {
+       "tool": "get_law_summary",
+       "args": "{\"topic\":\"red_card\"}"
+      }
+     ],
+     "ms": 8916,
+     "text": "The law says a challenge that endangers an opponent’s safety or uses excessive force is a sending‑off offence and that this is a judgement call based on speed, intensity and point of contact. The replay shows Mbeki’s challenge on Marchetti at 58:25 with Mbeki arriving at 6.3 km/h while Marchetti was moving at 1.2 km/h and the incident took place 25.2 m from goal. The VAR review upheld the on‑field red card — the measured closing speed and the nature of the challenge support the referee’s original judgment."
+    },
+    {
+     "t_ms": 9128,
+     "step": "verify",
+     "target": "Decision Desk",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 10710,
+     "step": "verify",
+     "target": "fan",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 11397,
+     "step": "verify",
+     "target": "officials",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 11862,
+     "step": "verify",
+     "target": "es",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 12409,
+     "step": "edit",
+     "target": "fan",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 12409,
+     "step": "persona",
+     "agent": "fan",
+     "ms": 3277,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 13067,
+     "step": "edit",
+     "target": "es",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 13067,
+     "step": "persona",
+     "agent": "es",
+     "ms": 3930,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 13234,
+     "step": "verify",
+     "target": "analyst",
+     "attempt": 1,
+     "passed": false,
+     "reasons": [
+      "unknown_number: '5.1 km/h' (not in the fact packet)"
+     ]
+    },
+    {
+     "t_ms": 14147,
+     "step": "edit",
+     "target": "officials",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 14147,
+     "step": "persona",
+     "agent": "officials",
+     "ms": 5006,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 14827,
+     "step": "verify",
+     "target": "analyst",
+     "attempt": 2,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 16828,
+     "step": "edit",
+     "target": "analyst",
+     "attempt": 2,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 16828,
+     "step": "persona",
+     "agent": "analyst",
+     "ms": 7694,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 16832,
+     "step": "publish",
+     "audiences": [
+      "fan",
+      "analyst",
+      "es",
+      "officials"
+     ]
+    }
+   ],
+   "planted": false,
+   "total_ms": 16649
+  },
+  "inc-m05-08": {
+   "kind": "offside",
+   "variants": {
+    "fan": {
+     "audience": "fan",
+     "text": "Offside is judged the moment a teammate plays the ball, and a player is offside if any playable part of them is closer to the goal than the second-last defender. The check shows Adeyemi was 15 cm ahead when the ball was played at 76:52, but that measurement doesn’t match why the VAR review allowed the goal.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 2842
+    },
+    "analyst": {
+     "audience": "analyst",
+     "text": "Adeyemi was 15 cm ahead of Achterberg at 76:52, the instant Takahashi played the ball, and Law 11 defines offside by any playable part of head, body or feet being nearer the opponents' goal line than the second-last defender. The VAR review allowed the goal, but the 15 cm measurement showing Adeyemi beyond the defender does not account for that decision.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 4048
+    },
+    "es": {
+     "audience": "es",
+     "text": "Regla 11 dice que la posición se juzga en el instante en que un compañero juega el balón y un atacante está en fuera de juego si cualquier parte jugable de su cabeza, cuerpo o pies está más cerca de la línea de gol del adversario que el penúltimo defensor. La comprobación factual muestra que Adeyemi estaba 15 cm por delante de Achterberg en el 76:52 (cuando Takahashi tocó el balón), y la revisión del VAR dio por válido el gol aunque la medición de 15 cm no justifica esa decisión.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 4029
+    },
+    "officials": {
+     "audience": "officials",
+     "text": "Factual check under Law 11. Kick frame 76:52 from the 100 fps ball track: NBR-6 left foot 0.15 m beyond the second-last defender ASH-4 (left foot). The evidence supports offside, no goal. Final decision: goal.",
+     "origin": "engine",
+     "attempts": 2,
+     "ms": 8374
+    }
+   },
+   "trace": [
+    {
+     "t_ms": 11778,
+     "step": "decision_desk",
+     "agent": "Decision Desk",
+     "tools": [
+      {
+       "tool": "get_incident",
+       "args": "{\"incident_id\":\"inc-m05-08\"}"
+      },
+      {
+       "tool": "get_replay",
+       "args": "{\"incident_id\":\"inc-m05-08\"}"
+      },
+      {
+       "tool": "get_law_summary",
+       "args": "{\"topic\":\"offside\"}"
+      }
+     ],
+     "ms": 11573,
+     "text": "Law 11 says a player's position is judged the instant a teammate plays the ball and an attacker is offside if any playable part of their head, body or feet is nearer the opponents' goal line than the second-last defender. The factual check finds Adeyemi was 15 cm ahead of Achterberg at 76:52 (the moment Takahashi played the ball). The VAR review returned the goal, but the measurement showing Adeyemi 15 cm beyond the defender does not explain that decision."
+    },
+    {
+     "t_ms": 11782,
+     "step": "verify",
+     "target": "Decision Desk",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 13160,
+     "step": "verify",
+     "target": "fan",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 13664,
+     "step": "verify",
+     "target": "officials",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 13975,
+     "step": "verify",
+     "target": "es",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 14201,
+     "step": "verify",
+     "target": "analyst",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 14629,
+     "step": "edit",
+     "target": "fan",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 14629,
+     "step": "persona",
+     "agent": "fan",
+     "ms": 2842,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 15490,
+     "step": "edit",
+     "target": "officials",
+     "attempt": 1,
+     "passed": false,
+     "reasons": [
+      "DIFFERENT: The rewrite adds \"The decision stands with you, referee,\" implying confirmation of the decision, which the verified explanation did not state."
+     ]
+    },
+    {
+     "t_ms": 15824,
+     "step": "edit",
+     "target": "es",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 15824,
+     "step": "persona",
+     "agent": "es",
+     "ms": 4029,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 15838,
+     "step": "edit",
+     "target": "analyst",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 15838,
+     "step": "persona",
+     "agent": "analyst",
+     "ms": 4048,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 17479,
+     "step": "verify",
+     "target": "officials",
+     "attempt": 2,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 20172,
+     "step": "edit",
+     "target": "officials",
+     "attempt": 2,
+     "passed": false,
+     "reasons": [
+      "DIFFERENT: The rewrite adds the assertion \"the decision is the referee's,\" which was not in the verified explanation."
+     ]
+    },
+    {
+     "t_ms": 20172,
+     "step": "fallback",
+     "target": "officials",
+     "note": "the engine's own text airs"
+    },
+    {
+     "t_ms": 20172,
+     "step": "persona",
+     "agent": "officials",
+     "ms": 8374,
+     "origin": "engine"
+    },
+    {
+     "t_ms": 20175,
+     "step": "publish",
+     "audiences": [
+      "fan",
+      "analyst",
+      "es",
+      "officials"
+     ]
+    }
+   ],
+   "planted": false,
+   "total_ms": 19988
+  }
+ }
+}

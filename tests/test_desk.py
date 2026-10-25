@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass, field
 
-from orchestrator.desk import AUDIENCES, Call, RecordingStore, Trace, graph, wrong_terms
+from orchestrator.desk import AUDIENCES, Call, RecordingStore, Trace, graph, new_laws, wrong_terms
 
 PACKET = {
     "incident_id": "inc-m01-09",
@@ -97,3 +97,12 @@ def test_spanish_football_words_mean_what_they_say():
     assert wrong_terms("es", "goal_line", "Según la Ley 9, el balón entero debe cruzar la línea.")
     assert wrong_terms("es", "goal_line", "Según la Regla 9, el balón entero debe cruzar la línea.") == []
     assert wrong_terms("fan", "ball_out", "fuera de juego") == []  # only the Spanish audience
+
+
+def test_a_rewrite_cites_no_law_but_the_calls_own():
+    # The offside summary mentions Law 9 in passing, so the Verifier alone let "Regla 9" through on an offside call
+    assert new_laws(GOOD, "Según la Regla 11, Okafor estaba 31 cm por delante de Achterberg.", "offside") == []
+    assert new_laws(GOOD, "La Regla 9 y la Regla 11 dicen que Okafor estaba en fuera de juego.", "offside")
+    # The law for the kind of call is fine even if the explanation didn't name it: a red card is Law 12
+    assert new_laws("The challenge endangered his safety.", "Según la Regla 12, pone en peligro.", "red_card") == []
+    assert new_laws("The keeper stepped off his line early.", "Under Law 16 he must stay on it.", "keeper_encroachment")

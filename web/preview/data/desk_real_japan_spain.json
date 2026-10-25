@@ -1,0 +1,221 @@
+{
+ "match": "real_japan_spain",
+ "model": "gpt-5-mini",
+ "calls": {
+  "inc-m10-01": {
+   "kind": "ball_out",
+   "variants": {
+    "fan": {
+     "audience": "fan",
+     "text": "The rules say the ball’s out only if the whole ball crosses the line. The tracking put the ball on the line but only to about 10 cm, so refs used the goal-line camera and saw the ball hadn’t fully crossed, so the goal stands.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3222
+    },
+    "analyst": {
+     "audience": "analyst",
+     "text": "VAR measured the ball at about 10 cm (3.9 in) from the goal line, but Law 9 requires the whole ball to cross the line to be out of play and that data resolution is too coarse for a millimetre-level call. The match officials therefore used the goal-line camera images and determined the ball had not fully crossed the line, so the goal stands.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3897
+    },
+    "es": {
+     "audience": "es",
+     "text": "Es gol porque, según la Regla 9, el balón está fuera del juego solo cuando todo el balón ha cruzado la línea de gol o la línea de banda. Los datos sitúan el balón sobre la línea cuando JPN-9 lo jugó pero solo con una precisión de unos 10 cm (3.9 in), demasiado burda para una decisión de milímetros, así que los árbitros la resolvieron con las imágenes de la cámara de la línea de gol: el balón seguía en juego y se concede el gol.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 4175
+    },
+    "officials": {
+     "audience": "officials",
+     "text": "Ref, under Law 9 the ball is out of play only when the whole ball has crossed the goal line; the event data locates the ball on the goal line when JPN-9 played it but is only accurate to about 10 cm (3.9 in), which is too coarse for a millimetre decision. The match officials used the goal-line camera images and those showed the ball was still in play, so the goal was given — the decision is yours.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3420
+    }
+   },
+   "trace": [
+    {
+     "t_ms": 17341,
+     "step": "decision_desk",
+     "agent": "Decision Desk",
+     "tools": [
+      {
+       "tool": "get_incident",
+       "args": "{\"incident_id\":\"inc-m10-01\"}"
+      },
+      {
+       "tool": "get_replay",
+       "args": "{\"incident_id\":\"inc-m10-01\"}"
+      },
+      {
+       "tool": "get_law_summary",
+       "args": "{\"topic\":\"offside\"}"
+      }
+     ],
+     "ms": 16473,
+     "text": "Law 11: a goal/ball out is a factual check where we judge the ball at the moment it was played to see whether the whole ball crossed the line. The tracking data for Kaoru Mitoma’s cross at 50:13 shows a value of -0.11 m — meaning part of the ball was still on the line (11 cm) — and the data resolution is 0.1 m (10 cm), with the replay describing the ball as on the goal line within the 10 cm accuracy. The measurement therefore shows the ball was not completely out and supports the VAR outcome to overturn the on-field no-goal and give a goal."
+    },
+    {
+     "t_ms": 17342,
+     "step": "planted",
+     "note": "a wrong number planted in the draft, to test the Verifier",
+     "text": "Law 11: a goal/ball out is a factual check where we judge the ball at the moment it was played to see whether the whole ball crossed the line. The tracking data for Kaoru Mitoma’s cross at 50:13 shows a value of -7.11 m — meaning part of the ball was still on the line (11 cm) — and the data resolution is 0.1 m (10 cm), with the replay describing the ball as on the goal line within the 10 cm accuracy. The measurement therefore shows the ball was not completely out and supports the VAR outcome to overturn the on-field no-goal and give a goal."
+    },
+    {
+     "t_ms": 17346,
+     "step": "verify",
+     "target": "Decision Desk",
+     "attempt": 1,
+     "passed": false,
+     "reasons": [
+      "signed_distance: '-7.11 m' (say the direction in words (behind, short of))",
+      "unknown_number: '7.11 m' (not in the fact packet)"
+     ]
+    },
+    {
+     "t_ms": 28222,
+     "step": "decision_desk",
+     "agent": "Decision Desk",
+     "retry": true,
+     "tools": [
+      {
+       "tool": "get_incident",
+       "args": "{\"incident_id\":\"inc-m10-01\"}"
+      },
+      {
+       "tool": "get_replay",
+       "args": "{\"incident_id\":\"inc-m10-01\"}"
+      },
+      {
+       "tool": "get_law_summary",
+       "args": "{\"topic\":\"ball_out\"}"
+      }
+     ],
+     "ms": 10875,
+     "text": "Law 9 says the ball is only out when the whole ball has crossed the goal or touch line; if any part of it is on the line it remains in play. The check measured the ball as -0.11 m (11 centimetres) short of being completely out at 50:13, with the data resolution 0.1 m (10 centimetres), so the measurement shows part of the ball was still on the line. The VAR therefore supports the on-field evidence that the ball remained in play and the referee’s decision to award the goal for Kaoru Mitoma stands."
+    },
+    {
+     "t_ms": 28224,
+     "step": "verify",
+     "target": "Decision Desk",
+     "attempt": 2,
+     "passed": false,
+     "reasons": [
+      "signed_distance: '-0.11 m' (say the direction in words (behind, short of))"
+     ]
+    },
+    {
+     "t_ms": 28224,
+     "step": "fallback",
+     "target": "Decision Desk",
+     "note": "the engine's own explanation airs"
+    },
+    {
+     "t_ms": 29964,
+     "step": "verify",
+     "target": "fan",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 30000,
+     "step": "verify",
+     "target": "analyst",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 30030,
+     "step": "verify",
+     "target": "officials",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 30663,
+     "step": "verify",
+     "target": "es",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 31455,
+     "step": "edit",
+     "target": "fan",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 31455,
+     "step": "persona",
+     "agent": "fan",
+     "ms": 3222,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 31663,
+     "step": "edit",
+     "target": "officials",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 31663,
+     "step": "persona",
+     "agent": "officials",
+     "ms": 3420,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 32133,
+     "step": "edit",
+     "target": "analyst",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 32133,
+     "step": "persona",
+     "agent": "analyst",
+     "ms": 3897,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 32413,
+     "step": "edit",
+     "target": "es",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 32413,
+     "step": "persona",
+     "agent": "es",
+     "ms": 4175,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 32417,
+     "step": "publish",
+     "audiences": [
+      "fan",
+      "analyst",
+      "es",
+      "officials"
+     ]
+    }
+   ],
+   "planted": true,
+   "total_ms": 31567
+  }
+ }
+}

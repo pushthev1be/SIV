@@ -38,9 +38,10 @@ from agent_framework import Executor, MCPStreamableHTTPTool, WorkflowBuilder, Wo
 from agent_framework.foundry import FoundryChatClient
 
 from config import credential, setting
+from engine.laws import law_summary
 from mcp_server.server import build_server
 from mcp_server.store import MatchStore
-from orchestrator.validator import validate_text
+from orchestrator.validator import LAW_REF_RE, validate_text
 
 OUT_DIR = Path(__file__).resolve().parent.parent / "web" / "preview" / "data"
 AUDIENCES = ("fan", "analyst", "es", "officials")
@@ -79,9 +80,9 @@ PERSONA = {
     "fan": "Rewrite it for a casual fan watching on their phone: two short sentences, friendly, no jargon.",
     "analyst": "Rewrite it for a TV analyst: precise, lead with the measurement and the law, two sentences.",
     "es": "Rewrite it in Spanish for a Spanish-speaking fan: two short sentences, natural Spanish football "
-    "language. Keep every number and name exactly as given. The Laws of the Game are the Reglas: write "
-    "'Regla 9', never 'Ley 9'. 'Fuera de juego' means offside and only offside: a ball out of play 'salió' "
-    "or went 'fuera del terreno de juego'.",
+    "language. Keep every number and name exactly as given. The Laws of the Game are the Reglas: a law the "
+    "text cites keeps its number (Law N is Regla N, never Ley N), and cite no other. 'Fuera de juego' means "
+    "offside and only offside: a ball out of play 'salió' or went 'fuera del terreno de juego'.",
     "officials": "Rewrite it as Ref Buddy, an assistant briefing the referee: the law, the evidence, and "
     "what the evidence supports, in two sentences. End by saying the decision is the referee's.",
 }
@@ -89,7 +90,8 @@ PERSONA_RULES = """You rewrite a verified VAR explanation for one audience.
 - Keep its meaning exactly: what the law says, what the evidence shows, what was decided, and whether the
   evidence supports the decision.
 - Add no facts: every number, law and name must already be in the text. Don't change a number (you may
-  leave one out). No player IDs, no field names, no headings, no bullet points."""
+  leave one out). No player IDs, no field names, no headings, no bullet points.
+- Write it as your own words to the audience: never mention the explanation, a rewrite or a fact check."""
 EDITOR = """You are the desk editor. You compare a rewrite with the verified explanation it came from.
 Answer SAME if the rewrite says the same decision, the same evidence direction (beyond/behind, in/out, on the
 line, touched/never touched the ball) and the same verdict on whether the evidence supports the decision.
@@ -109,8 +111,21 @@ def wrong_terms(audience: str, kind: str, text: str) -> list[str]:
     if kind != "offside" and OFFSIDE_ES.search(text):
         out.append("'fuera de juego' means offside: for a ball out of play say 'salió' or 'fuera del terreno de juego'")
     if LEY_ES.search(text):
-        out.append("the Laws of the Game are 'Reglas' in Spanish: write 'Regla 9', not 'Ley 9'")
+        out.append("the Laws of the Game are 'Reglas' in Spanish: write 'Regla N', not 'Ley N'")
     return out
+
+
+def new_laws(base: str, text: str, kind: str) -> list[str]:
+    """A law the rewrite cites that is neither in the verified text nor the law for this kind of call. The
+    Verifier can't see it when the law summaries mention that law in passing ("Regla 9" pasted into an offside
+    call, whose summary names Law 9)."""
+
+    def laws(s: str) -> set[int]:
+        return {int(n) for m in LAW_REF_RE.finditer(s) for n in re.findall(r"\d+", m.group(0))}
+
+    own = (law_summary(kind) or {}).get("law", "")
+    extra = sorted(laws(text) - laws(base) - laws(own))
+    return [f"cites Law {', '.join(map(str, extra))}, which isn't the law for this call"] if extra else []
 
 
 # ── Messages ─────────────────────────────────────────────────────────────────
@@ -292,7 +307,7 @@ class Persona(Executor):
             text = result.text.strip()
             # Code first: every number, law and ID must be in what the desk read.
             bad = [str(v) for v in validate_text(text, self.store.packet, call.state)]
-            bad += wrong_terms(self.audience, call.kind, text)
+            bad += wrong_terms(self.audience, call.kind, text) + new_laws(base.text, text, call.kind)
             self.trace.add(step="verify", target=self.audience, attempt=attempts, passed=not bad, reasons=bad)
             if bad:
                 continue

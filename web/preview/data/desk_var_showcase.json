@@ -1,0 +1,1066 @@
+{
+ "match": "var_showcase",
+ "model": "gpt-5-mini",
+ "calls": {
+  "inc-m04-02": {
+   "kind": "ball_out",
+   "variants": {
+    "fan": {
+     "audience": "fan",
+     "text": "The rule is the ball only counts out if the whole ball goes over the goal line, and the review found Castellanos’ cross was fully over the line by 4 cm at 12:01. VAR measured it out and the on-field goal was overturned, so the no-goal fits the evidence.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 2950
+    },
+    "analyst": {
+     "audience": "analyst",
+     "text": "The VAR found the ball’s furthest point 4 cm beyond the goal line at 12:01, and under the Laws the ball is out of play only when it has wholly crossed the line. Because any part on the line keeps it in play, that measurement shows the cross was out and the on-field goal was correctly overturned.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3200
+    },
+    "es": {
+     "audience": "es",
+     "text": "Las Reglas dicen que el balón está fuera del terreno de juego solo cuando todo el balón ha pasado la línea de gol; si alguna parte está sobre la línea sigue en juego. La comprobación muestra que el centro de Castellanos tenía el punto más alejado del balón 4 cm (0.04 m) totalmente sobre la línea de gol a las 12:01, por lo que el VAR midió que el balón salió y se anuló el gol, y la decisión de no conceder gol concuerda con la prueba.",
+     "origin": "agent",
+     "attempts": 2,
+     "ms": 5008
+    },
+    "officials": {
+     "audience": "officials",
+     "text": "The Laws state the ball is out of play only when the whole ball has passed over the goal line; if any part remains on the line it is still in play, and the review shows Castellanos' cross had the ball's furthest point 4 cm wholly over the goal line at 12:01. The VAR measured the ball out and the on-field goal was overturned, so the evidence supports the no-goal decision, which is the referee's.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3442
+    }
+   },
+   "trace": [
+    {
+     "t_ms": 15901,
+     "step": "decision_desk",
+     "agent": "Decision Desk",
+     "tools": [
+      {
+       "tool": "get_incident",
+       "args": "{\"incident_id\":\"inc-m04-02\"}"
+      },
+      {
+       "tool": "get_replay",
+       "args": "{\"incident_id\":\"inc-m04-02\"}"
+      },
+      {
+       "tool": "get_law_summary",
+       "args": "{\"topic\":\"ball_out\"}"
+      }
+     ],
+     "ms": 15366,
+     "text": "Law 9 says the ball is out of play only when the whole ball has passed over the goal line, and a goal scored after that cannot stand. The factual check shows Castellanos’ cross was measured 0.04 m (4 cm) wholly over the line at the key moment (12:01) before Okafor’s finish. VAR concluded the ball was out and the goal was disallowed, which agrees with the 4 cm measurement."
+    },
+    {
+     "t_ms": 15901,
+     "step": "planted",
+     "note": "a wrong number planted in the draft, to test the Verifier",
+     "text": "Law 9 says the ball is out of play only when the whole ball has passed over the goal line, and a goal scored after that cannot stand. The factual check shows Castellanos’ cross was measured 7.04 m (4 cm) wholly over the line at the key moment (12:01) before Okafor’s finish. VAR concluded the ball was out and the goal was disallowed, which agrees with the 4 cm measurement."
+    },
+    {
+     "t_ms": 15909,
+     "step": "verify",
+     "target": "Decision Desk",
+     "attempt": 1,
+     "passed": false,
+     "reasons": [
+      "unknown_number: '7.04 m' (not in the fact packet)"
+     ]
+    },
+    {
+     "t_ms": 25611,
+     "step": "decision_desk",
+     "agent": "Decision Desk",
+     "retry": true,
+     "tools": [
+      {
+       "tool": "get_incident",
+       "args": "{\"incident_id\":\"inc-m04-02\"}"
+      },
+      {
+       "tool": "get_replay",
+       "args": "{\"incident_id\":\"inc-m04-02\"}"
+      },
+      {
+       "tool": "get_law_summary",
+       "args": "{\"topic\":\"ball_out\"}"
+      }
+     ],
+     "ms": 9701,
+     "text": "The Laws say the ball is out of play only when the whole ball has passed over the goal line; if any part is on the line it remains in play. The check shows Castellanos' cross had the ball's furthest point 4 cm (0.04 m) wholly over the goal line at 12:01. The VAR measured the ball out and the on-field goal was overturned, so the no-goal decision matches the evidence."
+    },
+    {
+     "t_ms": 25613,
+     "step": "verify",
+     "target": "Decision Desk",
+     "attempt": 2,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 26955,
+     "step": "verify",
+     "target": "fan",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 27385,
+     "step": "verify",
+     "target": "es",
+     "attempt": 1,
+     "passed": false,
+     "reasons": [
+      "'fuera de juego' means offside: for a ball out of play say 'salió' or 'fuera del terreno de juego'"
+     ]
+    },
+    {
+     "t_ms": 27472,
+     "step": "verify",
+     "target": "analyst",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 27502,
+     "step": "verify",
+     "target": "officials",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 28581,
+     "step": "edit",
+     "target": "fan",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 28581,
+     "step": "persona",
+     "agent": "fan",
+     "ms": 2950,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 28848,
+     "step": "edit",
+     "target": "analyst",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 28848,
+     "step": "persona",
+     "agent": "analyst",
+     "ms": 3200,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 29102,
+     "step": "verify",
+     "target": "es",
+     "attempt": 2,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 29114,
+     "step": "edit",
+     "target": "officials",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 29114,
+     "step": "persona",
+     "agent": "officials",
+     "ms": 3442,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 30667,
+     "step": "edit",
+     "target": "es",
+     "attempt": 2,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 30667,
+     "step": "persona",
+     "agent": "es",
+     "ms": 5008,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 30670,
+     "step": "publish",
+     "audiences": [
+      "fan",
+      "analyst",
+      "es",
+      "officials"
+     ]
+    }
+   ],
+   "planted": true,
+   "total_ms": 30165
+  },
+  "inc-m04-04": {
+   "kind": "penalty_location",
+   "variants": {
+    "fan": {
+     "audience": "fan",
+     "text": "If a foul happens, a penalty is given, but VAR only steps in for clear mistakes and looks at where the contact began. The replay shows Lindqvist hit Haddad 14 cm outside the box, so VAR confirmed overturning the on-field penalty and gave a free kick.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 4358
+    },
+    "analyst": {
+     "audience": "analyst",
+     "text": "Measurement: contact began 0.14 m (14 cm) outside the penalty area, and the law says a foul inside the box is a penalty while VAR only intervenes for clear and obvious errors, chiefly whether the contact occurred inside the area. The VAR review determined the contact was outside, so overturning the on-field penalty to a free kick was correct.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 2866
+    },
+    "es": {
+     "audience": "es",
+     "text": "Si un defensor comete una falta sobre un atacante dentro del área de penal, el reinicio es un penal; el VAR solo revisa errores claros y obvios, principalmente si el contacto empezó dentro del área (Regla 12). La repetición muestra que Lindqvist contactó a Haddad en 25:10 y el contacto empezó a 0.14 m — 14 cm — fuera del área, y la medición del VAR determinó que el contacto fue fuera del área, lo que coincide con la decisión final de anular el penal señalado en el campo y conceder un tiro libre.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3760
+    },
+    "officials": {
+     "audience": "officials",
+     "text": "Ref: the law says a foul by a defender on an attacker inside the penalty area results in a penalty kick, and VAR is limited to clear and obvious errors—primarily checking whether the contact began inside the box. The replay shows Lindqvist contacted Haddad at 25:10 and that contact began 0.14 m (14 cm) outside the penalty area, the VAR measurement therefore supports overturning the on-field penalty and awarding a free kick, and the decision is the referee's.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3957
+    }
+   },
+   "trace": [
+    {
+     "t_ms": 14697,
+     "step": "decision_desk",
+     "agent": "Decision Desk",
+     "tools": [
+      {
+       "tool": "get_incident",
+       "args": "{\"incident_id\":\"inc-m04-04\"}"
+      },
+      {
+       "tool": "get_replay",
+       "args": "{\"incident_id\":\"inc-m04-04\"}"
+      },
+      {
+       "tool": "get_law_summary",
+       "args": "{\"topic\":\"penalty\"}"
+      }
+     ],
+     "ms": 14428,
+     "text": "If a defender fouls an attacker inside the penalty area, the restart is a penalty kick; VAR only checks clear and obvious errors, mainly whether the contact started inside the box. The replay shows Lindqvist made contact with Haddad at 25:10 and the contact started 0.14 m — 14 cm — outside the penalty area. The VAR measurement found the contact was outside the area, which matches the final decision to overturn the on-field penalty and award a free kick."
+    },
+    {
+     "t_ms": 14703,
+     "step": "verify",
+     "target": "Decision Desk",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 16364,
+     "step": "verify",
+     "target": "fan",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 16384,
+     "step": "verify",
+     "target": "analyst",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 16903,
+     "step": "verify",
+     "target": "es",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 16978,
+     "step": "verify",
+     "target": "officials",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 17578,
+     "step": "edit",
+     "target": "analyst",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 17578,
+     "step": "persona",
+     "agent": "analyst",
+     "ms": 2866,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 18478,
+     "step": "edit",
+     "target": "es",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 18478,
+     "step": "persona",
+     "agent": "es",
+     "ms": 3760,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 18680,
+     "step": "edit",
+     "target": "officials",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 18680,
+     "step": "persona",
+     "agent": "officials",
+     "ms": 3957,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 19066,
+     "step": "edit",
+     "target": "fan",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 19066,
+     "step": "persona",
+     "agent": "fan",
+     "ms": 4358,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 19069,
+     "step": "publish",
+     "audiences": [
+      "fan",
+      "analyst",
+      "es",
+      "officials"
+     ]
+    }
+   ],
+   "planted": false,
+   "total_ms": 18826
+  },
+  "inc-m04-05": {
+   "kind": "goal_line",
+   "variants": {
+    "fan": {
+     "audience": "fan",
+     "text": "A goal only counts if the entire ball goes over the line. Video shows Takahashi’s shot stopped 3 cm short, so the ref was right not to give it.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 4892
+    },
+    "analyst": {
+     "audience": "analyst",
+     "text": "Measurement: Takahashi’s shot was 0.03 m short of fully crossing the line, and the rule requires the entire ball to cross the goal line to count. Because part of the ball remained on the line, the VAR measurement supports the match officials’ decision to rule no goal.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 2470
+    },
+    "es": {
+     "audience": "es",
+     "text": "La Regla explica que un gol solo vale si todo el balón ha cruzado completamente la línea de gol. Las pruebas muestran que el disparo de Takahashi quedó 0.03 m (3 cm) corto de cruzarla por completo —parte del balón quedó sobre la línea— y el VAR midió eso, por lo que los árbitros actuaron correctamente al no conceder gol.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 6049
+    },
+    "officials": {
+     "audience": "officials",
+     "text": "The law requires the entire ball to cross the goal line before a goal can be awarded. The evidence shows Takahashi’s shot was 0.03 m short of doing so, with part of the ball remaining on the line, and that measurement supports the match officials’ decision to award no goal, which is the referee’s decision.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3422
+    }
+   },
+   "trace": [
+    {
+     "t_ms": 10001,
+     "step": "decision_desk",
+     "agent": "Decision Desk",
+     "tools": [
+      {
+       "tool": "get_incident",
+       "args": "{\"incident_id\":\"inc-m04-05\"}"
+      },
+      {
+       "tool": "get_replay",
+       "args": "{\"incident_id\":\"inc-m04-05\"}"
+      },
+      {
+       "tool": "get_law_summary",
+       "args": "{\"topic\":\"offside\"}"
+      },
+      {
+       "tool": "get_law_summary",
+       "args": "{\"topic\":\"goal_line\"}"
+      }
+     ],
+     "ms": 9804,
+     "text": "The law says a goal only counts if the whole ball has completely crossed the goal line. The evidence shows Takahashi’s shot was 0.03 m (3 cm) short of wholly over the line — part of the ball remained on the line. The VAR measured that and the match officials correctly awarded no goal."
+    },
+    {
+     "t_ms": 10004,
+     "step": "verify",
+     "target": "Decision Desk",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 11286,
+     "step": "verify",
+     "target": "fan",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 11535,
+     "step": "verify",
+     "target": "analyst",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 11886,
+     "step": "verify",
+     "target": "officials",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 12485,
+     "step": "edit",
+     "target": "analyst",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 12485,
+     "step": "persona",
+     "agent": "analyst",
+     "ms": 2470,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 13442,
+     "step": "edit",
+     "target": "officials",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 13442,
+     "step": "persona",
+     "agent": "officials",
+     "ms": 3422,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 14712,
+     "step": "verify",
+     "target": "es",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 14901,
+     "step": "edit",
+     "target": "fan",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 14901,
+     "step": "persona",
+     "agent": "fan",
+     "ms": 4892,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 16067,
+     "step": "edit",
+     "target": "es",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 16067,
+     "step": "persona",
+     "agent": "es",
+     "ms": 6049,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 16070,
+     "step": "publish",
+     "audiences": [
+      "fan",
+      "analyst",
+      "es",
+      "officials"
+     ]
+    }
+   ],
+   "planted": false,
+   "total_ms": 15895
+  },
+  "inc-m04-10": {
+   "kind": "keeper_encroachment",
+   "variants": {
+    "fan": {
+     "audience": "fan",
+     "text": "The goalkeeper was 38 cm off his line when the penalty was taken, and the rules say that if the keeper’s off the line and it affects the kick the penalty is retaken. VAR checked the measurement and the referee rightly had the kick retaken.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 2859
+    },
+    "analyst": {
+     "audience": "analyst",
+     "text": "Measurement: Halloran was 0.38 m off the goal line when the ball was struck, and Law 14 requires the goalkeeper to have part of a foot on or behind the line and mandates a retake if an off‑line keeper affects the kick. VAR identified that encroachment and the referee ordered the penalty retaken, a decision consistent with that measurement.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3450
+    },
+    "es": {
+     "audience": "es",
+     "text": "La Regla 14 establece que el portero debe tener parte de un pie sobre o detrás de la línea de gol cuando se lanza un penalti; si está adelantado y eso afecta el lanzamiento, el penalti se repite. La medición muestra que Halloran estaba 0.38 m (38 cm) adelantado en el momento del disparo (58:06), VAR detectó invasión y el árbitro mandó repetir el lanzamiento, lo cual es coherente con esa medición.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3251
+    },
+    "officials": {
+     "audience": "officials",
+     "text": "Law 14 requires the goalkeeper to keep part of a foot on or behind the goal line when a penalty is taken, and if the keeper is off the line in a way that affects the kick the penalty must be retaken. The evidence shows Halloran was 0.38 m off the line at the moment the ball was struck (58:06), VAR identified that encroachment and the referee ordered a retake, which is consistent with the measurement, and the decision is the referee’s.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3403
+    }
+   },
+   "trace": [
+    {
+     "t_ms": 9332,
+     "step": "decision_desk",
+     "agent": "Decision Desk",
+     "tools": [
+      {
+       "tool": "get_incident",
+       "args": "{\"incident_id\":\"inc-m04-10\"}"
+      },
+      {
+       "tool": "get_replay",
+       "args": "{\"incident_id\":\"inc-m04-10\"}"
+      },
+      {
+       "tool": "get_law_summary",
+       "args": "{\"topic\":\"keeper_encroachment\"}"
+      }
+     ],
+     "ms": 9135,
+     "text": "Law 14 says the goalkeeper must have part of a foot on or behind the goal line when a penalty is struck, and if the keeper is off the line and that affects the kick the penalty is retaken. The measurement shows Halloran was 0.38 m (38 cm) off the line at the moment the ball was struck (58:06). VAR found encroachment and the referee ordered the kick to be retaken, which is consistent with that measurement."
+    },
+    {
+     "t_ms": 9336,
+     "step": "verify",
+     "target": "Decision Desk",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 10595,
+     "step": "verify",
+     "target": "fan",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 11171,
+     "step": "verify",
+     "target": "officials",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 11257,
+     "step": "verify",
+     "target": "analyst",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 11275,
+     "step": "verify",
+     "target": "es",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 12201,
+     "step": "edit",
+     "target": "fan",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 12201,
+     "step": "persona",
+     "agent": "fan",
+     "ms": 2859,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 12601,
+     "step": "edit",
+     "target": "es",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 12601,
+     "step": "persona",
+     "agent": "es",
+     "ms": 3251,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 12756,
+     "step": "edit",
+     "target": "officials",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 12756,
+     "step": "persona",
+     "agent": "officials",
+     "ms": 3403,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 12796,
+     "step": "edit",
+     "target": "analyst",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 12796,
+     "step": "persona",
+     "agent": "analyst",
+     "ms": 3450,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 12822,
+     "step": "publish",
+     "audiences": [
+      "fan",
+      "analyst",
+      "es",
+      "officials"
+     ]
+    }
+   ],
+   "planted": false,
+   "total_ms": 12684
+  },
+  "inc-m04-12": {
+   "kind": "dogso",
+   "variants": {
+    "fan": {
+     "audience": "fan",
+     "text": "Law says stopping a clear goal chance gets you sent off. Replays show Achterberg fouled Okafor from about 20.5 m with no defenders between them and both moving fast, so the ref’s upgrade from yellow to red fits the situation.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3072
+    },
+    "analyst": {
+     "audience": "analyst",
+     "text": "Law 12 says denying an obvious goal‑scoring opportunity is a sending‑off offence. Replays show at 70:07 Achterberg fouled Okafor as he ran almost straight on goal from 20.5 m with no defenders between them (run angle 5°), both moving quickly (Okafor 15.5 km/h, Achterberg 17.2 km/h) with the keeper on the goal side and Okafor in control, so the VAR’s upgrade from yellow to red for DOGSO is supported by those measurements, though the final call is a subjective judgment by the officials.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3405
+    },
+    "es": {
+     "audience": "es",
+     "text": "La Regla 12 establece que negar una ocasión manifiesta de gol es motivo de expulsión. En la repetición se ve que a los 70:07 Achterberg cometió falta a Okafor cuando Okafor corría hacia la meta desde 20.5 m sin defensores entre ellos, su carrera era casi recta (5°), ambos iban rápido (Okafor 15.5 km/h, Achterberg 17.2 km/h), el portero estaba del lado de la portería y Okafor dominaba el balón, por lo que el VAR elevó la amarilla a roja por DOGSO y las mediciones (20.5 m, no defensores entre) avalan esa decisión, aunque fue un criterio subjetivo de los árbitros.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3780
+    },
+    "officials": {
+     "audience": "officials",
+     "text": "Law 12 makes denying an obvious goal‑scoring opportunity a sending‑off offence. The replay shows at 70:07 Achterberg fouled Okafor as Okafor ran almost straight on goal from 20.5 m with no defenders between them and both moving fast (Okafor 15.5 km/h, Achterberg 17.2 km/h) while the keeper was on the goal side and Okafor controlled the ball, and those measurements support upgrading the on-field yellow to a red for DOGSO, which was ultimately a subjective judgement by the officials; the decision is the referee's.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3230
+    }
+   },
+   "trace": [
+    {
+     "t_ms": 10891,
+     "step": "decision_desk",
+     "agent": "Decision Desk",
+     "tools": [
+      {
+       "tool": "get_incident",
+       "args": "{\"incident_id\":\"inc-m04-12\"}"
+      },
+      {
+       "tool": "get_replay",
+       "args": "{\"incident_id\":\"inc-m04-12\"}"
+      },
+      {
+       "tool": "get_law_summary",
+       "args": "{\"topic\":\"red_card\"}"
+      }
+     ],
+     "ms": 10522,
+     "text": "Law 12 says that denying an obvious goal‑scoring opportunity is a sending‑off offence. The replay shows at 70:07 Achterberg fouled Okafor when Okafor was running towards goal from 20.5 m out with zero defenders between them, his run was almost straight on goal (5°) and both players were moving fast (Okafor 15.5 km/h, Achterberg 17.2 km/h) while the keeper was on the goal side and Okafor was in control of the ball. The VAR upgraded the on-field yellow to a red for DOGSO and the measurements (20.5 m, no defenders between) support that decision, which was ultimately a subjective judgement by the officials."
+    },
+    {
+     "t_ms": 10900,
+     "step": "verify",
+     "target": "Decision Desk",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 12338,
+     "step": "verify",
+     "target": "fan",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 13176,
+     "step": "verify",
+     "target": "officials",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 13254,
+     "step": "verify",
+     "target": "analyst",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 13446,
+     "step": "verify",
+     "target": "es",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 13982,
+     "step": "edit",
+     "target": "fan",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 13982,
+     "step": "persona",
+     "agent": "fan",
+     "ms": 3072,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 14165,
+     "step": "edit",
+     "target": "officials",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 14165,
+     "step": "persona",
+     "agent": "officials",
+     "ms": 3230,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 14325,
+     "step": "edit",
+     "target": "analyst",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 14325,
+     "step": "persona",
+     "agent": "analyst",
+     "ms": 3405,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 14706,
+     "step": "edit",
+     "target": "es",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 14706,
+     "step": "persona",
+     "agent": "es",
+     "ms": 3780,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 14709,
+     "step": "publish",
+     "audiences": [
+      "fan",
+      "analyst",
+      "es",
+      "officials"
+     ]
+    }
+   ],
+   "planted": false,
+   "total_ms": 14362
+  },
+  "inc-m04-13": {
+   "kind": "offside",
+   "variants": {
+    "fan": {
+     "audience": "fan",
+     "text": "If any part of a player is closer to the goal than the second-last defender when a teammate plays the ball, they’re offside. At 82:52 Brennan’s left foot was 4 cm ahead of Ruiz’s when Moreau passed, so VAR correctly ruled the goal out.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3774
+    },
+    "analyst": {
+     "audience": "analyst",
+     "text": "Measurement at the kick (82:52) shows Brennan’s left foot was 4 cm (1.6 in) ahead of Ruiz’s left foot when Moreau played the pass, and under Law 11 a player is offside if any part of their head, body or feet is nearer the opponents’ goal line than the second-last defender at the moment a team-mate plays the ball. The VAR concluded that 4 cm supports offside, so the goal was correctly disallowed and the match was restarted with no goal.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3748
+    },
+    "es": {
+     "audience": "es",
+     "text": "La Regla 11 establece que un jugador está en fuera de juego si cualquier parte de su cabeza, cuerpo o pies está más cerca de la línea de gol rival que el penúltimo defensor en el momento en que un compañero juega el balón. La medición en el pase (82:52) muestra que el pie izquierdo de Brennan estaba 4 cm (1.6 in) por delante del pie izquierdo de Ruiz cuando Moreau jugó el pase, por lo que el VAR consideró que esa diferencia apoyaba el fuera de juego y el gol fue correctamente anulado; el partido se reanudó sin gol.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3546
+    },
+    "officials": {
+     "audience": "officials",
+     "text": "Law 11 says a player is offside if any part of their head, body or feet is nearer the opponents’ goal line than the second-last defender when a team-mate plays the ball. The measurement at the kick (82:52) shows Brennan’s left foot was 4 cm (1.6 in) ahead of Ruiz’s left foot when Moreau played the pass, and VAR concluded that margin supports offside so the goal was correctly ruled out and the match was restarted with no goal; the decision is the referee’s.",
+     "origin": "agent",
+     "attempts": 1,
+     "ms": 3636
+    }
+   },
+   "trace": [
+    {
+     "t_ms": 9942,
+     "step": "decision_desk",
+     "agent": "Decision Desk",
+     "tools": [
+      {
+       "tool": "get_incident",
+       "args": "{\"incident_id\":\"inc-m04-13\"}"
+      },
+      {
+       "tool": "get_replay",
+       "args": "{\"incident_id\":\"inc-m04-13\"}"
+      },
+      {
+       "tool": "get_law_summary",
+       "args": "{\"topic\":\"offside\"}"
+      }
+     ],
+     "ms": 9417,
+     "text": "Law 11 says a player is offside if any part of their head, body or feet is nearer the opponents’ goal line than the second-last defender at the moment a team-mate plays the ball. The measurement at the kick (82:52) shows Brennan’s left foot was 4 cm (1.6 in) ahead of Ruiz’s left foot when Moreau played the pass. The VAR found that margin supports offside, so the goal was correctly ruled out and the match was restarted with no goal."
+    },
+    {
+     "t_ms": 9947,
+     "step": "verify",
+     "target": "Decision Desk",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 11638,
+     "step": "verify",
+     "target": "fan",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 12127,
+     "step": "verify",
+     "target": "analyst",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 12279,
+     "step": "verify",
+     "target": "es",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 12297,
+     "step": "verify",
+     "target": "officials",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 13513,
+     "step": "edit",
+     "target": "es",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 13513,
+     "step": "persona",
+     "agent": "es",
+     "ms": 3546,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 13608,
+     "step": "edit",
+     "target": "officials",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 13608,
+     "step": "persona",
+     "agent": "officials",
+     "ms": 3636,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 13709,
+     "step": "edit",
+     "target": "analyst",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 13709,
+     "step": "persona",
+     "agent": "analyst",
+     "ms": 3748,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 13729,
+     "step": "edit",
+     "target": "fan",
+     "attempt": 1,
+     "passed": true,
+     "reasons": []
+    },
+    {
+     "t_ms": 13729,
+     "step": "persona",
+     "agent": "fan",
+     "ms": 3774,
+     "origin": "agent"
+    },
+    {
+     "t_ms": 13732,
+     "step": "publish",
+     "audiences": [
+      "fan",
+      "analyst",
+      "es",
+      "officials"
+     ]
+    }
+   ],
+   "planted": false,
+   "total_ms": 13227
+  }
+ }
+}
