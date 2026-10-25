@@ -253,7 +253,10 @@ In a simulated match the truth is known: the script sets every margin. Across **
 | Largest error | {m["max_error_cm"]} cm ({kinds}) |
 | Calls where the measurement pointed the wrong way | {m["direction_wrong"]} of {m["measured"]} |
 
-The errors are rounding: positions are stored to the centimetre or millimetre.
+The errors are rounding: positions are stored to the centimetre or millimetre. Read this as a check that the
+measuring code is exact and loses nothing between the feed and the screen, not as real-world accuracy: in a
+simulation the engine measures the very positions the script placed. On real data the precision is the data's
+own (about 10 cm for event data), and the system says so (see real-matches.md).
 
 ## 2. Catching the VAR's mistakes
 
