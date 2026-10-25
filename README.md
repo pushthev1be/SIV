@@ -1,9 +1,11 @@
-# VAR Narrative
+# SIV: Super Intelligence Viewer
+
+![SIV, Super Intelligence Viewer](web/preview/assets/siv-wallpaper.png)
 
 **VAR calls are the moments fans understand least.** A goal goes in, the screen says "Check in
 progress", and a minute later it is gone, with nothing anyone in the stadium or at home can follow.
 
-VAR Narrative makes those calls understandable. While a check runs, it shows what is being checked,
+SIV makes those calls understandable. While a check runs, it shows what is being checked,
 under which law, and why it is taking time. The moment the officials decide, and never before, it
 shows the evidence: a replay of the build-up, the line, the margin in centimetres and inches, and the
 players involved, explained for casual fans, analysts, the stadium screen and the officials' own

@@ -1,4 +1,4 @@
-"""Evaluate VAR Narrative and publish the numbers: docs/evaluation.md and web/preview/data/eval.json.
+"""Evaluate SIV and publish the numbers: docs/evaluation.md and web/preview/data/eval.json.
 
     uv run python scripts/evaluate.py            # about five minutes; no model calls
     uv run python scripts/evaluate.py --seeds 3  # quicker

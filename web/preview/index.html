@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VAR Narrative</title>
+<title>SIV · Super Intelligence Viewer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@500;800&display=swap" rel="stylesheet">
 <style>
   :root {
     /* Charcoal and neutrals. Hue belongs to the two clubs only. */
@@ -19,6 +19,9 @@
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--body); }
+  /* The official SIV wallpaper behind everything; panels keep their own dark surfaces on top */
+  body { background: linear-gradient(to bottom, rgba(18,18,18,0) 0 46%, rgba(18,18,18,.92) 78%), #bfe6f5 url("assets/siv-wallpaper.png") center top / cover fixed no-repeat;
+         min-height: 100vh; }
   button, select { font: 500 13px var(--body); color: var(--text); background: var(--panel-2); border: 1px solid var(--line);
                    border-radius: 6px; padding: 6px 10px; cursor: pointer; }
   button:hover { border-color: var(--faint); }
@@ -30,7 +33,8 @@
   @media (max-width: 980px) { .app { grid-template-columns: 1fr; grid-template-areas: "bar" "key" "main" "panel"; } }
 
   /* ── Top bar ── */
-  .bar { grid-area: bar; display: flex; align-items: center; gap: 14px; }
+  .bar { grid-area: bar; display: flex; align-items: center; gap: 14px; background: rgba(18,18,18,.88); border: 1px solid var(--line);
+         border-radius: 10px; padding: 8px 14px; backdrop-filter: blur(6px); }
   .bug { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 700; font-size: 24px; letter-spacing: .04em; }
   .bug .score { font-family: var(--mono); font-weight: 600; font-size: 20px; padding: 2px 10px; background: var(--panel-2); border-radius: 6px; }
   .bug .clock { font-family: var(--mono); font-weight: 500; font-size: 14px; color: var(--muted); margin-left: 6px; }
@@ -222,7 +226,41 @@
   .keyside ul.sub li:hover { background: var(--panel-2); color: var(--text); }
   .keyside ul.sub li.later span:last-child { font-style: italic; }
   .keyside .foot { margin: 10px 6px 2px; line-height: 1.4; }
-  .loading { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg); font-family: var(--display); font-size: 22px; letter-spacing: .14em; color: var(--muted); z-index: 20; }
+  .loading { position: fixed; inset: 0; display: grid; place-items: end center; padding-bottom: 6vh; background: #bfe6f5 url("assets/siv-wallpaper.png") center / cover no-repeat; font-family: var(--display); font-size: 20px; letter-spacing: .14em; color: #1e5a8a; z-index: 20; }
+  .loading span { background: rgba(255,255,255,.55); padding: 6px 14px; border-radius: 6px; }
+  /* SIV review bumper: plays once before a call replay (design: "SIV animated bumper"), tap to skip */
+  .bumper { position: absolute; inset: 0; z-index: 30; border-radius: 10px; overflow: hidden; display: none; cursor: pointer;
+            background: linear-gradient(121deg, #c4e9f7 0 54%, #b1dcee 54% 100%); --dur: 5s; --accent: #1e5a8a; }
+  .bumper.on { display: block; animation: siv-wipe var(--dur) cubic-bezier(.7,0,.2,1) 1 both; }
+  .bumper .siv-root { position: absolute; left: 50%; top: 50%; width: 1280px; height: 720px; transform-origin: 0 0; font-family: "Unbounded", system-ui, sans-serif; color: #111; }
+  .bumper.on .siv-drift, .bumper.on .siv-l, .bumper.on .siv-sub, .bumper.on .siv-ref, .bumper.on .siv-trail, .bumper.on .siv-up, .bumper.on .siv-fore,
+  .bumper.on .siv-flash, .bumper.on .siv-scan, .bumper.on .siv-sheen { animation-duration: var(--dur); animation-iteration-count: 1; animation-fill-mode: both; }
+  .bumper.on .siv-drift { animation-name: siv-drift; animation-timing-function: linear; }
+  .siv-l { display: inline-block; }
+  .bumper.on .siv-l { animation-name: siv-rise; animation-timing-function: cubic-bezier(.2,.9,.3,1.2); }
+  .bumper.on .siv-l:nth-child(2) { animation-delay: .06s; } .bumper.on .siv-l:nth-child(3) { animation-delay: .12s; }
+  .bumper.on .siv-sub { animation-name: siv-sub; }
+  .bumper.on .siv-sheen { animation-name: siv-sheen; animation-timing-function: ease-in-out; }
+  .bumper.on .siv-ref { animation-name: siv-ref; }
+  .siv-up { transform-origin: 235px 160px; } .siv-fore { transform-origin: 235px 218px; }
+  .bumper.on .siv-up { animation-name: siv-up; animation-timing-function: linear; }
+  .bumper.on .siv-fore { animation-name: siv-fore; animation-timing-function: linear; }
+  .siv-trail { stroke-dasharray: 1 1; }
+  .bumper.on .siv-trail { animation-name: siv-trail; animation-timing-function: linear; }
+  .bumper.on .siv-flash { animation-name: siv-flash; }
+  .bumper.on .siv-scan { animation-name: siv-scan; animation-timing-function: ease-in-out; }
+  @keyframes siv-wipe{0%{clip-path:polygon(120% 0,140% 0,140% 100%,100% 100%)}7%{clip-path:polygon(-20% 0,140% 0,140% 100%,-40% 100%)}84%{clip-path:polygon(-20% 0,140% 0,140% 100%,-40% 100%)}93%,100%{clip-path:polygon(-20% 0,-20% 0,-40% 100%,-40% 100%)}}
+  @keyframes siv-drift{0%{transform:translateX(160px);opacity:0}3%{opacity:0}9%{transform:translateX(0);opacity:1}80%{transform:translateX(-36px);opacity:1}90%,100%{transform:translateX(-260px);opacity:0}}
+  @keyframes siv-rise{0%,6%{transform:translateY(60px) skewX(-12deg);opacity:0}13%,100%{transform:none;opacity:1}}
+  @keyframes siv-sub{0%,11%{clip-path:inset(0 100% 0 0);letter-spacing:.9em}18%,100%{clip-path:inset(0 0 0 0);letter-spacing:.42em}}
+  @keyframes siv-sheen{0%,14%{transform:translateX(-140%) skewX(-20deg)}22%,100%{transform:translateX(260%) skewX(-20deg)}}
+  @keyframes siv-ref{0%,9%{transform:translateY(24px);opacity:0}15%,100%{transform:none;opacity:1}}
+  @keyframes siv-trail{0%,24%{stroke-dashoffset:1;opacity:1}56%,70%{stroke-dashoffset:0;opacity:1}78%,100%{stroke-dashoffset:0;opacity:0}}
+  @keyframes siv-flash{0%,56%{opacity:0}59%{opacity:.32}64%{opacity:.1}67%{opacity:.24}76%,100%{opacity:0}}
+  @keyframes siv-scan{0%,57%{transform:translateY(0);opacity:0}58%{opacity:1}70%{transform:translateY(196px);opacity:1}72%,100%{transform:translateY(196px);opacity:0}}
+  @keyframes siv-up{0%{transform:rotate(-29.1deg)}16%{transform:rotate(-29.1deg)}16.9%{transform:rotate(-76.7deg)}17.8%{transform:rotate(-115.6deg)}18.6%{transform:rotate(-135.4deg)}19.5%{transform:rotate(-111.7deg)}20.3%{transform:rotate(-89.1deg)}21.2%{transform:rotate(-119.6deg)}22%{transform:rotate(-167.7deg)}24%{transform:rotate(-167.7deg)}26.4%{transform:rotate(-146.6deg)}28.7%{transform:rotate(-133.4deg)}30.3%{transform:rotate(-131deg)}31.9%{transform:rotate(-144.7deg)}32.7%{transform:rotate(-121.6deg)}34.3%{transform:rotate(-98.6deg)}36%{transform:rotate(-78.8deg)}37.6%{transform:rotate(-59.1deg)}39.2%{transform:rotate(-39.7deg)}40.8%{transform:rotate(-22.5deg)}42.4%{transform:rotate(-10.5deg)}44%{transform:rotate(-4.8deg)}45.7%{transform:rotate(-5.5deg)}47.3%{transform:rotate(-14.3deg)}48.1%{transform:rotate(-31.8deg)}49.7%{transform:rotate(-49deg)}51.3%{transform:rotate(-46.6deg)}52.8%{transform:rotate(-38.8deg)}54.4%{transform:rotate(-27.1deg)}56%{transform:rotate(-12.3deg)}60%{transform:rotate(-12.3deg)}62.4%{transform:rotate(-20.9deg)}64.8%{transform:rotate(-26.9deg)}67.2%{transform:rotate(-29.4deg)}68%,100%{transform:rotate(-29.1deg)}}
+  @keyframes siv-fore{0%{transform:rotate(37.6deg)}16%{transform:rotate(37.6deg)}16.9%{transform:rotate(89.8deg)}17.8%{transform:rotate(102.9deg)}18.6%{transform:rotate(83.8deg)}19.5%{transform:rotate(3.3deg)}20.3%{transform:rotate(-84.9deg)}21.2%{transform:rotate(-93.9deg)}22%{transform:rotate(-58deg)}24%{transform:rotate(-58deg)}25.6%{transform:rotate(-65.8deg)}27.2%{transform:rotate(-66.7deg)}29.5%{transform:rotate(-54.8deg)}31.1%{transform:rotate(-33.7deg)}31.9%{transform:rotate(-3.3deg)}32.7%{transform:rotate(-42.6deg)}34.3%{transform:rotate(-73.1deg)}36%{transform:rotate(-92.5deg)}37.6%{transform:rotate(-105.4deg)}40%{transform:rotate(-113deg)}42.4%{transform:rotate(-105.4deg)}44.9%{transform:rotate(-83.7deg)}46.5%{transform:rotate(-60deg)}48.1%{transform:rotate(-3.3deg)}48.9%{transform:rotate(33.7deg)}50.5%{transform:rotate(54.8deg)}52.8%{transform:rotate(66.7deg)}54.4%{transform:rotate(65.8deg)}56%{transform:rotate(58deg)}60%{transform:rotate(58deg)}62.4%{transform:rotate(58.1deg)}64.8%{transform:rotate(53.4deg)}67.2%{transform:rotate(43deg)}68%,100%{transform:rotate(37.6deg)}}
+  @media (prefers-reduced-motion: reduce) { .bumper { display: none !important; } }
 </style>
 </head>
 <body>
@@ -245,14 +283,14 @@
     <symbol id="i-pause" viewBox="0 0 16 16"><rect x="3.5" y="2.5" width="3" height="11" rx=".8" fill="currentColor"/><rect x="9.5" y="2.5" width="3" height="11" rx=".8" fill="currentColor"/></symbol>
   </defs>
 </svg>
-<div class="loading" id="loading">LOADING MATCH…</div>
+<div class="loading" id="loading"><span>LOADING MATCH…</span></div>
 <div class="app">
   <header class="bar">
     <div class="bug"><span id="homeTeam"></span><span class="score" id="score">0 – 0</span><span id="awayTeam"></span><span class="clock" id="clock">0:00</span></div>
     <div class="right">
       <select id="scenario" aria-label="Match"><optgroup label="Real matches"><option value="real_japan_spain">Japan v Spain 2022: ball out?</option><option value="real_wales_iran">Wales v Iran 2022: keeper red</option></optgroup><optgroup label="Simulated"><option value="var_showcase">Every VAR call</option><option value="var_errors">VAR got it wrong</option><option value="golden">Golden match</option><option value="red_card">Red card match</option><option value="late_comeback">Late comeback</option></optgroup></select>
       <a class="evallink" href="eval.html" title="How far you can trust it, in numbers">Evaluation</a>
-      <div class="brand"><b>VAR</b> NARRATIVE</div>
+      <div class="brand"><b>SIV</b> SUPER INTELLIGENCE VIEWER</div>
     </div>
   </header>
 
@@ -264,6 +302,23 @@
     <div class="badge" id="varBadge"><span class="dot"></span><span id="varText">VAR CHECK</span></div>
     <div class="band" id="band"><div class="tag" id="bandTag"></div><div class="text"><span id="bandText"></span><button class="watch" id="bandWatch">▶ Watch the call</button></div></div>
 
+
+    <div class="bumper" id="bumper" aria-hidden="true" title="Tap to skip"><div class="siv-root"><div class="siv-drift" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center">
+      <div style="position:relative;margin-top:30px;overflow:hidden;padding:0 24px"><h1 style="margin:0;font-size:136px;font-weight:800;line-height:1.05;letter-spacing:.06em"><span class="siv-l">S</span><span class="siv-l">I</span><span class="siv-l">V</span></h1><div class="siv-sheen" style="position:absolute;top:0;bottom:0;left:0;width:34%;background:rgba(255,255,255,.45);mix-blend-mode:overlay"></div></div>
+      <p class="siv-sub" style="margin:2px 0 0;font-size:17px;font-weight:500;letter-spacing:.42em;color:#1e5a8a">SUPER INTELLIGENCE VIEWER</p>
+      <svg class="siv-ref" viewBox="0 0 400 480" width="400" height="480" style="position:absolute;left:440px;top:214px;overflow:visible">
+        <ellipse cx="200" cy="462" rx="62" ry="10" fill="#8cc3da"/>
+        <rect class="siv-flash" x="97" y="60" width="206" height="200" rx="3" fill="var(--accent)"/>
+        <line class="siv-scan" x1="97" y1="62" x2="303" y2="62" stroke="var(--accent)" stroke-width="2" opacity="0"/>
+        <g stroke-linecap="round"><line x1="187" y1="318" x2="187" y2="362" stroke="#F1B78C" stroke-width="18"/><line x1="213" y1="318" x2="213" y2="362" stroke="#F1B78C" stroke-width="18"/><line x1="187" y1="360" x2="187" y2="440" stroke="#151515" stroke-width="20"/><line x1="213" y1="360" x2="213" y2="440" stroke="#151515" stroke-width="20"/><line x1="179" y1="372" x2="195" y2="372" stroke="#FFFFFF" stroke-width="3"/><line x1="205" y1="372" x2="221" y2="372" stroke="#FFFFFF" stroke-width="3"/></g>
+        <path d="M172 442 h26 v10 a3 3 0 0 1 -3 3 h-28 a3 3 0 0 1 -3 -3 z" fill="#151515"/><path d="M202 442 h26 l8 10 a3 3 0 0 1 -3 3 h-28 a3 3 0 0 1 -3 -3 z" fill="#151515"/>
+        <path d="M166 258 H234 L239 328 H205 L200 304 L195 328 H161 Z" fill="#151515"/><rect x="193" y="126" width="14" height="26" fill="#E2A275"/>
+        <path d="M170 150 Q200 140 230 150 L241 164 L237 264 H163 L159 164 Z" fill="#1b1b1b"/><path d="M188 146 L200 166 L212 146" fill="none" stroke="#5a5a5a" stroke-width="5" stroke-linejoin="round"/><line x1="178" y1="250" x2="222" y2="250" stroke="#3a3a3a" stroke-width="4"/>
+        <circle cx="200" cy="110" r="24" fill="#F1B78C"/><circle cx="176" cy="113" r="5" fill="#E2A275"/><circle cx="224" cy="113" r="5" fill="#E2A275"/>
+        <path d="M176 106 Q174 82 196 80 Q206 70 220 78 Q230 86 225 104 Q214 92 196 96 Q184 98 176 106 Z" fill="#8A3B1C"/><circle cx="191" cy="112" r="2.6" fill="#2A1A10"/><circle cx="209" cy="112" r="2.6" fill="#2A1A10"/><path d="M192 122 Q200 128 208 122" fill="none" stroke="#9A4A2A" stroke-width="2.4" stroke-linecap="round"/>
+        <g fill="none" stroke="var(--accent)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" style="filter:drop-shadow(0 0 6px rgba(30,90,138,.6))"><path class="siv-trail" pathLength="1" d="M203 60 H301.3 V260 H203"/><path class="siv-trail" pathLength="1" d="M197 60 H98.7 V260 H197"/></g>
+        <g stroke-linecap="round"><g class="siv-up"><line x1="235" y1="160" x2="235" y2="218" stroke="#F1B78C" stroke-width="15"/><line x1="235" y1="160" x2="235" y2="186" stroke="#1b1b1b" stroke-width="21"/><g class="siv-fore"><line x1="235" y1="218" x2="235" y2="264" stroke="#F1B78C" stroke-width="13"/><circle cx="235" cy="266" r="8" fill="#F1B78C"/><line x1="235" y1="266" x2="235" y2="279" stroke="#F1B78C" stroke-width="5.5"/></g></g><g transform="translate(400 0) scale(-1 1)"><g class="siv-up"><line x1="235" y1="160" x2="235" y2="218" stroke="#F1B78C" stroke-width="15"/><line x1="235" y1="160" x2="235" y2="186" stroke="#1b1b1b" stroke-width="21"/><g class="siv-fore"><line x1="235" y1="218" x2="235" y2="264" stroke="#F1B78C" stroke-width="13"/><circle cx="235" cy="266" r="8" fill="#F1B78C"/><line x1="235" y1="266" x2="235" y2="279" stroke="#F1B78C" stroke-width="5.5"/></g></g></g></g>
+      </svg></div></div></div>
     <div class="replay" id="replay">
       <div class="rhead">
         <h3 id="rTitle">Call replay</h3><span class="phase" id="rPhase"></span><span class="muted" id="rClock"></span>
@@ -965,6 +1020,25 @@
     setPlaying(false);
     buildReplayScene(); restartReplay();
     $("replay").classList.add("on");
+    playBumper();
+  }
+  // The SIV review bumper: a quick slide-through before each call (BUMPER_S), tap to skip. The replay holds
+  // still under it and starts as it wipes away.
+  const BUMPER_S = 5;
+  let bumperTimer = null;
+  function playBumper() {
+    const b = $("bumper");
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const root = b.querySelector(".siv-root"), box = $("stage").getBoundingClientRect();
+    const k = Math.min(box.width / 1280, box.height / 720);
+    root.style.transform = `scale(${k}) translate(-640px, -360px)`;
+    b.style.setProperty("--dur", BUMPER_S + "s");
+    b.classList.remove("on"); void b.offsetWidth; b.classList.add("on");   // restart the animation
+    R.playing = false;
+    clearTimeout(bumperTimer);
+    const done = () => { clearTimeout(bumperTimer); b.classList.remove("on"); if (R.pkg) { R.playing = true; $("rPause").textContent = "❚❚"; } };
+    bumperTimer = setTimeout(done, BUMPER_S * 930);   // the wipe has cleared the screen by 93%
+    b.onclick = done;
   }
   function closeReplay() { $("replay").classList.remove("on"); R.pkg = null; render(); }
   function restartReplay() { R.rt = R.pkg.frames[0].t; R.playing = true; R.frozen = false; R.hold = 0; R.holdT = 0; R.zoom = 0; R.endHold = 0; R.cam = null; $("rPause").textContent = "❚❚"; drawReplayText(); }

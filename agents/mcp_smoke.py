@@ -28,7 +28,7 @@ from orchestrator.validator import validate_text
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("mcp").setLevel(logging.WARNING)
 
-INSTRUCTIONS = """You are the Decision Desk for VAR Narrative.
+INSTRUCTIONS = """You are the Decision Desk for SIV.
 You explain VAR checks and calls to football fans.
 Rules:
 - Get every fact from your tools (get_open_check, get_incident, get_replay, get_law_summary).

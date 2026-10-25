@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VAR Narrative · Evaluation</title>
+<title>SIV · Evaluation</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -14,7 +14,8 @@
     --body: "Inter", system-ui, sans-serif;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text); font: 400 14px/1.5 var(--body); }
+  body { margin: 0; color: var(--text); font: 400 14px/1.5 var(--body); min-height: 100vh;
+         background: linear-gradient(to bottom, rgba(18,18,18,.15) 0, rgba(18,18,18,.94) 340px), #bfe6f5 url("assets/siv-wallpaper.png") center top / cover fixed no-repeat; }
   main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 64px; }
   header { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
   h1 { font: 700 28px var(--display); letter-spacing: .06em; margin: 0; }
@@ -43,7 +44,7 @@
 </head>
 <body>
 <main>
-  <header><h1>VAR NARRATIVE <span>· EVALUATION</span></h1><a href="index.html">← Back to the match</a></header>
+  <header><h1>SIV <span>· EVALUATION</span></h1><a href="index.html">← Back to the match</a></header>
   <p class="lede">How far you can trust it, in numbers. In a simulated match the truth is known, because the script sets every margin, so every measurement and every flag can be marked right or wrong. Every number here is reproducible with <code>scripts/evaluate.py</code>.</p>
   <div class="grid" id="cards"></div>
   <div id="sections"><section><p>Loading…</p></section></div>

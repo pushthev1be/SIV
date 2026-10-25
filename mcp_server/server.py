@@ -17,7 +17,7 @@ from mcp_server.laws import LAWS, law_summary
 from mcp_server.store import MatchStore
 
 INSTRUCTIONS = (
-    "Read-only match state for VAR Narrative. Use get_open_check or get_incident for VAR calls, "
+    "Read-only match state for SIV. Use get_open_check or get_incident for VAR calls, "
     "get_replay for who was involved and the evidence, get_law_summary for which law applies. "
     "While a check is in progress, incident facts are withheld: describe what is being checked, "
     "never the outcome."

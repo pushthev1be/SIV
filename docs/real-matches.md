@@ -37,7 +37,7 @@ for the ball being out of play. After a long review, VAR used the goal-line came
 ball was still over the line, so it was in play, and the goal was given. FIFA later said other images circulating
 online were misleading.
 
-**What VAR Narrative shows:** the real move (Ito, Tanaka, Doan's cross to the far post, Mitoma's cutback), frozen on
+**What SIV shows:** the real move (Ito, Tanaka, Doan's cross to the far post, Mitoma's cutback), frozen on
 Mitoma's touch. The explainer states Law 9, then says plainly that the event data puts the ball on the goal line but
 only to about 10 cm, which is too coarse for a call decided by millimetres, so the camera images decided it. Ref Buddy
 gives the same advice. That's the honest answer, and it's why the call confused people: a ball on the line is in
@@ -52,7 +52,7 @@ Sources: [ESPN: why Japan's winning goal was awarded](https://africa.espn.com/fo
 Wales keeper Wayne Hennessey charged far out of his area and took him out (84'). The referee showed a yellow card;
 VAR recommended an on-field review, and after watching it at the monitor the referee upgraded it to a red.
 
-**What VAR Narrative shows:** the real counter-attack, Karimi's long ball and Hennessey's charge, frozen on the
+**What SIV shows:** the real counter-attack, Karimi's long ball and Hennessey's charge, frozen on the
 contact, about 30 m from his goal. The explainer states the Law 12 line between reckless (yellow) and endangering
 safety (red) and says the referee changed the card after the review. It's a judgement call, so nothing is measured
 against a line; the distance from goal is the fact that frames it.
