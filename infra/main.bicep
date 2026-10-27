@@ -1,4 +1,4 @@
-// VAR Narrative infrastructure. Deploy with `azd up` from the repo root.
+// SIV (Super Intelligence Viewer) infrastructure. Deploy with `azd up` from the repo root.
 targetScope = 'subscription'
 
 @minLength(1)
@@ -18,7 +18,7 @@ param chatModelVersion string = '2025-08-07'
 @description('Thousands of tokens per minute')
 param chatModelCapacity int = 100
 
-var tags = { 'azd-env-name': environmentName, project: 'var-narrative' }
+var tags = { 'azd-env-name': environmentName, project: 'siv' }
 var token = toLower(uniqueString(subscription().id, environmentName, location))
 
 resource rg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
@@ -52,7 +52,18 @@ module eventHubs 'modules/eventhubs.bicep' = {
   }
 }
 
+module web 'modules/staticwebapp.bicep' = {
+  name: 'web'
+  scope: rg
+  params: {
+    name: 'swa-${token}'
+    location: location
+    tags: tags
+  }
+}
+
 output AZURE_LOCATION string = location
+output WEB_URL string = web.outputs.url
 output AZURE_RESOURCE_GROUP string = rg.name
 output FOUNDRY_PROJECT_ENDPOINT string = foundry.outputs.projectEndpoint
 output FOUNDRY_MODEL string = chatModelName

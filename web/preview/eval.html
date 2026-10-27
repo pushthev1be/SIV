@@ -15,7 +15,7 @@
   }
   * { box-sizing: border-box; }
   body { margin: 0; color: var(--text); font: 400 14px/1.5 var(--body); min-height: 100vh;
-         background: linear-gradient(to bottom, rgba(18,18,18,.15) 0, rgba(18,18,18,.94) 340px), #bfe6f5 url("assets/siv-wallpaper.png") center top / cover fixed no-repeat; }
+         background: linear-gradient(to bottom, rgba(18,18,18,.62) 0, rgba(18,18,18,.94) 300px), #bfe6f5 url("assets/siv-wallpaper.png") center top / cover fixed no-repeat; }
   main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 64px; }
   header { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
   h1 { font: 700 28px var(--display); letter-spacing: .06em; margin: 0; }
@@ -72,7 +72,8 @@
       <p>Offside margins, the ball over the line, where contact started at the edge of the area, the keeper off his line: the engine's measurement against the value the script set.</p>
       <table><tr><th>Check</th><th style="text-align:right">Result</th><th></th></tr>
       ${row("Mean error", m.mean_error_cm + " cm")}${row("Largest error", m.max_error_cm + " cm")}
-      ${row("Calls where the measurement pointed the wrong way", `${m.direction_wrong} of ${m.measured}`)}</table></section>
+      ${row("Calls where the measurement pointed the wrong way", `${m.direction_wrong} of ${m.measured}`)}</table>
+      <div class="note">This checks that the measuring code is exact and loses nothing between the feed and the screen, not real-world accuracy: in a simulation the engine measures the very positions the script placed. On real data the precision is the data's own (about 10 cm for event data), and SIV says so.</div></section>
     <section><h2><b>2</b>Catching the VAR's mistakes</h2>
       <p>A decision is wrong when its own measurement contradicts it: offside given against a player who was onside, a goal allowed though he was off, a penalty refused when the challenger never touched the ball. Each should be flagged; no correct call should be.</p>
       <table><tr><th>Check</th><th style="text-align:right">Result</th><th></th></tr>

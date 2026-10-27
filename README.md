@@ -2,6 +2,10 @@
 
 ![SIV, Super Intelligence Viewer](web/preview/assets/siv-wallpaper.png)
 
+**Live demo: [green-stone-07a59ad0f.5.azurestaticapps.net](https://green-stone-07a59ad0f.5.azurestaticapps.net)**
+(opens on a real VAR call, Japan v Spain 2022; pick any match from the menu; the AI desk tab shows the agents'
+explanations and their trace) · **[Evaluation](https://green-stone-07a59ad0f.5.azurestaticapps.net/eval.html)**
+
 **VAR calls are the moments fans understand least.** A goal goes in, the screen says "Check in
 progress", and a minute later it is gone, with nothing anyone in the stadium or at home can follow.
 
