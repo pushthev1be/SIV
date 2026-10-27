@@ -80,7 +80,7 @@ async def ask(store: RecordingStore, prompt: str) -> tuple[str, float, list[str]
     try:
         async with (
             credential() as cred,
-            MCPStreamableHTTPTool(name="var-narrative", url=f"http://127.0.0.1:{port}/mcp") as mcp,
+            MCPStreamableHTTPTool(name="siv", url=f"http://127.0.0.1:{port}/mcp") as mcp,
         ):
             client = FoundryChatClient(
                 project_endpoint=setting("FOUNDRY_PROJECT_ENDPOINT"),

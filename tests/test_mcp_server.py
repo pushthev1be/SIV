@@ -129,7 +129,7 @@ def test_agent_framework_client_over_http():
         time.sleep(0.1)
 
     async def go():
-        async with MCPStreamableHTTPTool(name="var-narrative", url=f"http://127.0.0.1:{port}/mcp") as tool:
+        async with MCPStreamableHTTPTool(name="siv", url=f"http://127.0.0.1:{port}/mcp") as tool:
             names = {f.name for f in tool.functions}
             fn = next(f for f in tool.functions if f.name == "get_incident")
             result = await fn.invoke(incident_id=iid)

@@ -1367,7 +1367,7 @@
     fetch(`data/desk_${scenario}.json`, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).then((d) => { DESK = d; deskShown = ""; renderDesk(); }).catch(() => {});
     $("loading").remove();
     // Hooks for scripts/record_gifs.py and debugging; the page never needs them itself.
-    window.__varNarrative = {
+    window.__siv = {
       R, seek, openReplay, closeReplay, selectPlayer, showPane, replayAt, calls: CALLS, ready: true,
       play: (on, s) => { if (s) speed = s; setPlaying(on); },
     };

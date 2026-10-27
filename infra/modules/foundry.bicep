@@ -36,7 +36,7 @@ resource project 'Microsoft.CognitiveServices/accounts/projects@2025-06-01' = {
   tags: tags
   identity: { type: 'SystemAssigned' }
   properties: {
-    displayName: 'VAR Narrative'
+    displayName: 'SIV'
     description: 'Agents that explain VAR checks and calls to fans, grounded in the match data'
   }
 }

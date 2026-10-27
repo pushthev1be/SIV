@@ -396,7 +396,7 @@ async def run_match(name: str, plant: set[str]) -> Path:
             trace = Trace()
             server, port = serve(store)
             try:
-                async with MCPStreamableHTTPTool(name="var-narrative", url=f"http://127.0.0.1:{port}/mcp") as mcp:
+                async with MCPStreamableHTTPTool(name="siv", url=f"http://127.0.0.1:{port}/mcp") as mcp:
                     workflow = build(client, mcp, store, trace)
                     t0 = time.perf_counter()
                     run = await workflow.run(call)

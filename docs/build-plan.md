@@ -1,4 +1,4 @@
-# VAR Narrative: build plan (Oct 18 to 27)
+# SIV (Super Intelligence Viewer): build plan (Oct 18 to 27)
 
 The goal is one vertical slice that proves the trust thesis end to end, then layers on top.
 Each day ends with its exit check passing in CI. If a day slips, cut from Tier 3, then Tier 2.
@@ -8,7 +8,7 @@ Never move the noon Oct 26 feature freeze.
 
 - [ ] **Register** before Oct 20, 12:00 pm PT (Oct 20, 3:00 pm Indianapolis).
 - [ ] **Check repo provenance**: `git log --reverse --format="%ad %s" | head`. The rules require the project to be "newly created after the Registration Period begins" (Sep 29). If any simulator, offside or replay code predates Sep 29, rewrite it or disclose it in the README.
-- [x] **Name**: VAR Narrative (chosen Oct 19; the working title Touchline was taken by 8+ entries). Core idea: make unexplained VAR calls informative for fans and the audience.
+- [x] **Name**: SIV, Super Intelligence Viewer (renamed Oct 24; before that VAR Narrative from Oct 19, and the working title Touchline, which 8+ entries also used). Core idea: make unexplained VAR calls informative for fans and the audience.
 - [ ] **Check Foundry model quota** on the student subscription, and request more now if needed.
 - [ ] **Install the Azure CLIs**: `winget install Microsoft.AzureCLI` and `winget install Microsoft.Azd`, then `az login` and `azd auth login`.
 
@@ -71,7 +71,7 @@ cut the late-comeback scenario and use straight-line player motion first.
 
 | Time | Shot | Proves |
 |---|---|---|
-| 0:00 to 0:10 | VAR check with only "Check in progress", which then becomes VAR Narrative's version | The problem, and that you solve it |
+| 0:00 to 0:10 | VAR check with only "Check in progress", which then becomes SIV's version | The problem, and that you solve it |
 | 0:10 to 0:40 | Live match: speed tag, pass difficulty, pressure explainer, the decision with lines | The pipeline works end to end |
 | 0:40 to 0:55 | **Kill the explainer live; the template takes over; the overlay never blanks** | Failure recovery (your most memorable shot, so it goes early) |
 | 0:55 to 1:15 | Same decision: Northbridge fan, Ashvale fan, Spanish, Analyst | Personalization changes the experience |
@@ -81,7 +81,7 @@ cut the late-comeback scenario and use straight-line player motion first.
 
 ## Pitch skeleton
 
-> VAR Narrative turns the least-understood moments in football, VAR checks, into explanations fans can follow. A
+> SIV turns the least-understood moments in football, VAR checks, into explanations fans can follow. A
 > multi-agent workflow built with Microsoft Agent Framework and Foundry explains each moment and
 > VAR call, but a deterministic validator checks every number against the event log, and nothing
 > about a decision airs before the officials make it. Built on Azure Event Hubs, Container Apps,

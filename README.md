@@ -113,7 +113,7 @@ distances and offside margins are never stated, only derived.
 
 ```sh
 az login
-azd env new var-narrative-dev --location eastus2
+azd env new siv-dev --location eastus2
 azd env set AZURE_PRINCIPAL_ID $(az ad signed-in-user show --query id -o tsv)
 azd up                                   # Foundry project + gpt-5-mini, Event Hubs Basic
 uv run python -m agents.smoke            # the model answers through Agent Framework

@@ -1,13 +1,13 @@
 /* Generated from contracts/ by npm run gen:contracts. Do not edit. */
 
-export interface VarNarrativeContracts {
+export interface SivContracts {
   Incident?: Incident;
   MatchEvent?: MatchEvent;
   OverlayCue?: OverlayCue;
   ReplayPackage?: ReplayPackage;
 }
 /**
- * This interface was referenced by `VarNarrativeContracts`'s JSON-Schema
+ * This interface was referenced by `SivContracts`'s JSON-Schema
  * via the `definition` "Incident".
  */
 export interface Incident {
@@ -44,7 +44,7 @@ export interface Incident {
   var_outcome?: string | null;
 }
 /**
- * This interface was referenced by `VarNarrativeContracts`'s JSON-Schema
+ * This interface was referenced by `SivContracts`'s JSON-Schema
  * via the `definition` "MatchEvent".
  */
 export interface MatchEvent {
@@ -89,7 +89,7 @@ export interface MatchEvent {
     | "period_end";
 }
 /**
- * This interface was referenced by `VarNarrativeContracts`'s JSON-Schema
+ * This interface was referenced by `SivContracts`'s JSON-Schema
  * via the `definition` "BodyFrame".
  */
 export interface BodyFrame {
@@ -109,7 +109,7 @@ export interface BodyFrame {
   clock: number;
 }
 /**
- * This interface was referenced by `VarNarrativeContracts`'s JSON-Schema
+ * This interface was referenced by `SivContracts`'s JSON-Schema
  * via the `definition` "OverlayCue".
  */
 export interface OverlayCue {
@@ -140,7 +140,7 @@ export interface OverlayCue {
   validated: boolean;
 }
 /**
- * This interface was referenced by `VarNarrativeContracts`'s JSON-Schema
+ * This interface was referenced by `SivContracts`'s JSON-Schema
  * via the `definition` "AudienceProfile".
  */
 export interface AudienceProfile {
@@ -151,7 +151,7 @@ export interface AudienceProfile {
   pin?: ("sprint_speed" | "distance" | "pass_difficulty" | "possession" | "pressure") | null;
 }
 /**
- * This interface was referenced by `VarNarrativeContracts`'s JSON-Schema
+ * This interface was referenced by `SivContracts`'s JSON-Schema
  * via the `definition` "Band".
  */
 export interface Band {
@@ -159,7 +159,7 @@ export interface Band {
   text: string;
 }
 /**
- * This interface was referenced by `VarNarrativeContracts`'s JSON-Schema
+ * This interface was referenced by `SivContracts`'s JSON-Schema
  * via the `definition` "ReplayPackage".
  */
 export interface ReplayPackage {
@@ -214,7 +214,7 @@ export interface ReplayPackage {
   };
 }
 /**
- * This interface was referenced by `VarNarrativeContracts`'s JSON-Schema
+ * This interface was referenced by `SivContracts`'s JSON-Schema
  * via the `definition` "BallSample".
  */
 export interface BallSample {
@@ -224,7 +224,7 @@ export interface BallSample {
   z?: number;
 }
 /**
- * This interface was referenced by `VarNarrativeContracts`'s JSON-Schema
+ * This interface was referenced by `SivContracts`'s JSON-Schema
  * via the `definition` "ReplayFocus".
  */
 export interface ReplayFocus {
@@ -244,7 +244,7 @@ export interface ReplayFocus {
     | "taker";
 }
 /**
- * This interface was referenced by `VarNarrativeContracts`'s JSON-Schema
+ * This interface was referenced by `SivContracts`'s JSON-Schema
  * via the `definition` "ReplayFrame".
  */
 export interface ReplayFrame {
@@ -263,7 +263,7 @@ export interface ReplayFrame {
 /**
  * The measurement at the moment of the pass. Only ever present after the decision.
  *
- * This interface was referenced by `VarNarrativeContracts`'s JSON-Schema
+ * This interface was referenced by `SivContracts`'s JSON-Schema
  * via the `definition` "OffsideLines".
  */
 export interface OffsideLines {
@@ -297,7 +297,7 @@ export interface OffsideLines {
  * line, challenger never reached the ball). DOGSO has no single distance; its factors carry the evidence
  * and value_m is the distance to goal.
  *
- * This interface was referenced by `VarNarrativeContracts`'s JSON-Schema
+ * This interface was referenced by `SivContracts`'s JSON-Schema
  * via the `definition` "Measurement".
  */
 export interface Measurement {
@@ -330,7 +330,7 @@ export interface Measurement {
   value_m: number;
 }
 /**
- * This interface was referenced by `VarNarrativeContracts`'s JSON-Schema
+ * This interface was referenced by `SivContracts`'s JSON-Schema
  * via the `definition` "ReplayMoment".
  */
 export interface ReplayMoment {
@@ -339,7 +339,7 @@ export interface ReplayMoment {
   t: number;
 }
 /**
- * This interface was referenced by `VarNarrativeContracts`'s JSON-Schema
+ * This interface was referenced by `SivContracts`'s JSON-Schema
  * via the `definition` "SlowWindow".
  */
 export interface SlowWindow {

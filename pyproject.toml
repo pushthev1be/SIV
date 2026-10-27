@@ -1,5 +1,5 @@
 [project]
-name = "var-narrative"
+name = "siv"
 version = "0.1.0"
 description = "Multi-agent system that makes VAR checks and calls understandable for fans, grounded in the match data."
 readme = "README.md"

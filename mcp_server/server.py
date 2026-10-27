@@ -25,7 +25,7 @@ INSTRUCTIONS = (
 
 
 def build_server(store: MatchStore) -> FastMCP:
-    mcp = FastMCP("var-narrative", instructions=INSTRUCTIONS)
+    mcp = FastMCP("siv", instructions=INSTRUCTIONS)
 
     @mcp.tool()
     def get_open_check() -> dict[str, Any]:

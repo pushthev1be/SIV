@@ -1271,6 +1271,6 @@
       "$ref": "#/$defs/ReplayPackage"
     }
   },
-  "title": "VarNarrativeContracts",
+  "title": "SivContracts",
   "type": "object"
 }

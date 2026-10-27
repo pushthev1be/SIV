@@ -3,7 +3,7 @@
     uv run python -m engine.export golden
     uv run python scripts/record_gifs.py            # writes docs/media/*.gif
 
-Each clip is scripted against the page's window.__varNarrative hooks, recorded by headless Chromium,
+Each clip is scripted against the page's window.__siv hooks, recorded by headless Chromium,
 then cropped, trimmed and palette-encoded by ffmpeg. Same data in, same GIFs out.
 """
 
@@ -45,7 +45,7 @@ OFFSIDE = "c => c.kind === 'offside' && c.final === 'no_goal'"
 def open_call(page, at: str = "decided") -> None:
     """Jump to the golden match's ruled-out offside and open its replay."""
     page.evaluate(
-        f"""() => {{ const V = window.__varNarrative, c = V.calls.find({OFFSIDE});
+        f"""() => {{ const V = window.__siv, c = V.calls.find({OFFSIDE});
                     V.seek(c.{at} + 0.1); V.openReplay(c.iid); }}"""
     )
 
@@ -53,33 +53,33 @@ def open_call(page, at: str = "decided") -> None:
 # Each scene: (name, selector to crop to, setup(page), seconds to record after setup)
 def scene_offside(page) -> None:
     open_call(page)
-    page.evaluate("() => { const R = window.__varNarrative.R; R.rt = R.pkg.key_t - 3.0; }")
+    page.evaluate("() => { const R = window.__siv.R; R.rt = R.pkg.key_t - 3.0; }")
 
 
 def scene_callouts(page) -> None:
     open_call(page)
-    page.evaluate("() => { const R = window.__varNarrative.R; R.rt = R.pkg.frames[0].t + 1.0; }")
+    page.evaluate("() => { const R = window.__siv.R; R.rt = R.pkg.frames[0].t + 1.0; }")
 
 
 def scene_live_var(page) -> None:
     page.evaluate(
-        f"""() => {{ const V = window.__varNarrative, c = V.calls.find({OFFSIDE});
+        f"""() => {{ const V = window.__siv, c = V.calls.find({OFFSIDE});
                     V.showPane('buddy'); V.seek(c.review - 13); V.play(true, 10); }}"""
     )
 
 
 def scene_player(page) -> None:
-    page.evaluate("() => { const V = window.__varNarrative; V.seek(3700); V.selectPlayer('NBR-9'); V.play(true, 5); }")
+    page.evaluate("() => { const V = window.__siv; V.seek(3700); V.selectPlayer('NBR-9'); V.play(true, 5); }")
 
 
 def scene_calls(page) -> None:
-    page.evaluate("() => { const V = window.__varNarrative; V.seek(1400); V.showPane('calls'); V.play(true, 60); }")
+    page.evaluate("() => { const V = window.__siv; V.seek(1400); V.showPane('calls'); V.play(true, 60); }")
 
 
 def scene_measured(page) -> None:
     """Cycle through the measured calls in the showcase match, each frozen on its measurement."""
     page.evaluate(
-        """() => { const V = window.__varNarrative;
+        """() => { const V = window.__siv;
                    const kinds = ["ball_out", "penalty_location", "goal_line", "keeper_encroachment", "dogso"];
                    kinds.forEach((k, i) => setTimeout(() => {
                      const c = V.calls.find(c => c.kind === k); V.seek(c.decided + 0.2); V.openReplay(c.iid);
@@ -105,7 +105,7 @@ def record(url: str, name: str, selector: str, setup, seconds: float, tmp: Path,
         page = ctx.new_page()
         t0 = time.monotonic()
         page.goto(url + scenario)
-        page.wait_for_function("() => window.__varNarrative && window.__varNarrative.ready", timeout=60_000)
+        page.wait_for_function("() => window.__siv && window.__siv.ready", timeout=60_000)
         page.wait_for_timeout(800)  # fonts and first frame
         box = page.locator(selector).first.bounding_box()
         setup(page)
