@@ -16,3 +16,4 @@ web/preview/data/*
 !web/preview/data/desk_*.json
 !web/preview/data/eval.json
 data/statsbomb/
+build/

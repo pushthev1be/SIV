@@ -4,12 +4,23 @@
 **Live demo:** https://green-stone-07a59ad0f.5.azurestaticapps.net (no sign-in)
 **Evaluation:** https://green-stone-07a59ad0f.5.azurestaticapps.net/eval.html
 **Code:** https://github.com/pushthev1be/SIV
+**Video:** 1:56, captioned; each scene is labelled with the criterion it answers ([shot list](video.md))
 
 ## In one line
 
 VAR calls are the moments fans understand least. SIV explains every call: what is being checked, under
 which law, and the measured evidence. Nothing is shown until the officials decide, and the explanation is
 written for a casual fan, an analyst or someone following one player.
+
+## The five criteria at a glance
+
+| Criterion | In one line | In the video |
+|---|---|---|
+| 1. Technological implementation | Every number is measured from positions, never stated; real StatsBomb data and a seeded simulator share one engine; 160 tests, CI, Bicep, Entra ID with no keys | 0:42 |
+| 2. Agentic design and innovation | Agent Framework workflow on Foundry: Decision Desk over MCP, a code Verifier that fails closed, four parallel personas, an Editor, a Publisher | 1:10 |
+| 3. Real-world impact | Fans get the reason and the evidence; 24 of 24 wrong VAR calls flagged, 0 of 48 correct ones; honest about what the data can settle | 0:26, 1:34 |
+| 4. User experience and presentation | Nothing spoiled while a check runs; one switch for Casual fan, Analyst or Player-follow; replays that freeze on the line | 0:11, 0:58 |
+| 5. Category: Best Multi-Agent System | Three Foundry agents across eight executors, sequential then fan-out and fan-in, every handoff traced in the product | 1:26 |
 
 ## The problem
 

@@ -1,24 +1,26 @@
-# Demo video: shot list (target 1:45, hard limit under 2:00)
+# Demo video (1:56)
 
-Record the live demo at 1920×1080 in a clean browser window. Use no music, or only music you made or that
-is licensed for this. Use no broadcast footage: everything on screen is SIV. The voice-over below runs at
-about 150 words a minute, so each line fits its slot.
+`uv run python scripts/record_video.py` records it from the live demo and writes `build/video/siv-demo.mp4`
+(1920×1080, 30 fps, captions burned in) and `build/video/siv-demo.srt` for upload forms that take captions.
+Every frame is SIV's own page, driven through its `window.__siv` hooks: no broadcast footage and no music.
+The narration is ElevenLabs ("Daniel"), one cached clip per line, so changing a line re-voices only that line.
 
-| Time | Screen | Voice-over |
-|---|---|---|
-| 0:00–0:10 | The SIV wallpaper, then the bumper | "A goal goes in. The screen says 'Check in progress.' A minute later it's gone, and nobody can tell you why. SIV fixes that." |
-| 0:10–0:30 | `?s=real_japan_spain&v=fan`. Play to the check: the bumper, then the VAR badge. The band says only what is being checked. | "This is Japan against Spain, 2022, rebuilt from StatsBomb data. While the check runs, SIV says what's being checked and under which law. Never the answer early." |
-| 0:30–0:50 | The decision lands; open the replay: build-up, freeze, zoom onto the ball and the line, the Law 9 illustration | "When the officials decide, the evidence plays: the build-up, the deciding frame, the ball against the line. And where the data is too coarse to settle a millimetre call, SIV says so instead of inventing a margin." |
-| 0:50–1:10 | Switch Casual fan, then Analyst, then Player-follow on `var_showcase`, holding each caption for 3 s | "One match, three audiences, from the same facts. A casual fan gets plain words. An analyst gets the margin and the law. Follow one player and their moments become the story." |
-| 1:10–1:30 | AI desk tab: open one call's trace (Decision Desk read tools, Verifier, four personas, Editor, published); open a stress-test call where a planted number is rejected | "Behind it, a Microsoft Agent Framework workflow on Foundry. A Decision Desk agent reads the call over MCP. Code verifies every number and fails closed. Four persona agents write in parallel, an Editor checks meaning, and a planted wrong number never airs." |
-| 1:30–1:42 | Evaluation page: scroll the cards | "In 30 simulated matches it flagged all 24 wrong VAR decisions, and none of the 48 correct ones. The fact checker caught 99 percent of planted errors." |
-| 1:42–1:45 | Wallpaper with the live URL | "SIV. Every call, explained." |
+A card in the empty left column names the judging criterion each scene answers.
 
-## Before recording
+| Time | Criterion | Screen | Voice-over |
+|---|---|---|---|
+| 0:00–0:11 | The problem | Goal, "Check in progress", No goal; then the SIV bumper | "A goal goes in. The screen says: check in progress. A minute later, it's gone, and nobody can tell you why. SIV fixes that." |
+| 0:11–0:26 | 4 User experience | Japan v Spain 2022 (StatsBomb), Casual fan. Mitoma's cross, the bumper, the VAR steps; the band says only what is being checked | "This is Japan against Spain at the 2022 World Cup, rebuilt from StatsBomb open data. While the check runs, SIV tells fans what is being checked, and under which law. Never the answer early." |
+| 0:26–0:42 | 3 Real-world impact | The decision; the replay with the build-up, the deciding frame and the 10 cm caveat | "When the officials decide, the evidence plays: the build-up, the deciding frame, the ball against the line. Here the data is only good to ten centimetres, so SIV says so, instead of inventing a margin." |
+| 0:42–0:58 | 1 Technological implementation | Every VAR call, Analyst: Brennan's offside replay, slow motion into the freeze, 4 cm | "Every number is measured from player positions, never stated. A seeded simulator, running real tactical play scripts, gives matches where the truth is known. Here, Brennan is four centimetres offside." |
+| 0:58–1:10 | 4 User experience | The same call as Casual fan, Analyst, then Player-follow | "One match, three audiences, from the same facts. Plain words for a casual fan. The margin and the law for an analyst. Or follow a single player." |
+| 1:10–1:34 | 2 Agentic design, then 5 Best Multi-Agent System | AI desk for Japan v Spain: the trace rows light up in turn (MCP reads, the planted number rejected twice, the fallback, four personas passing); the Fan, Analyst, Español and Ref Buddy tabs | "Behind it is a Microsoft Agent Framework workflow on Foundry. A Decision Desk agent reads the call over MCP. A code Verifier checks every number, and fails closed: here, a planted wrong number is rejected twice, and never airs. Four persona agents then write in parallel, and an Editor agent checks the meaning." |
+| 1:34–1:50 | 3 Real-world impact, then 1 | Evaluation page: the four headline numbers, then the VAR-mistakes and red-team tables | "And it's measured. Across thirty simulated matches, SIV flagged all twenty-four wrong VAR decisions, and none of the forty-eight correct ones. The Verifier caught ninety-nine percent of planted errors." |
+| 1:50–1:56 | | The SIV bumper, held on the referee framing the VAR screen; the live URL and the repo | "SIV. Every call, explained." |
 
-- Use the deployed site, not localhost, so the URL on screen is the one the judges will open.
-- Close the replay's HUD callouts that overlap the band if they clutter the frame.
-- Speed: 10× for simulated matches. Real clips play at 1× by default.
-- Check the AI desk has a stress-test call in the match you show (`--plant first` runs are cached in
-  `desk_<match>.json`). If not, show the Verifier-rejection row from any retry instead, and change the
-  line to match.
+## Re-recording
+
+- `--only <scene>` records one scene to `build/video/scene_<name>.mp4`, for checking timings.
+- `--site http://127.0.0.1:8765/` records a local build instead of the deployed demo.
+- The script refuses a cut of two minutes or more; shorten a line if it does.
+- Set `ELEVENLABS_API_KEY` to voice a changed line.
