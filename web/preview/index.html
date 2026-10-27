@@ -43,6 +43,9 @@
   .brand { font-family: var(--display); font-size: 18px; letter-spacing: .16em; color: var(--muted); }
   .brand b { color: var(--text); font-weight: 700; }
   .bar select { background: transparent; border-color: var(--line); color: var(--soft); }
+  .mode { align-items: center; }
+  .mode .lbl { font: 600 10px var(--mono); letter-spacing: .1em; color: var(--muted); padding: 0 6px 0 6px; }
+  @media (max-width: 1380px) { .mode .lbl, .brand { display: none; } }
 
   /* ── Stage ── */
   .stage { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
@@ -288,6 +291,7 @@
   <header class="bar">
     <div class="bug"><span id="homeTeam"></span><span class="score" id="score">0 – 0</span><span id="awayTeam"></span><span class="clock" id="clock">0:00</span></div>
     <div class="right">
+      <div class="seg mode" id="mode" role="group" aria-label="Viewing as"><span class="lbl">VIEWING AS</span><button data-mode="fan">Casual fan</button><button data-mode="analyst">Analyst</button><button data-mode="player">Player-follow</button></div>
       <select id="scenario" aria-label="Match"><optgroup label="Real matches"><option value="real_japan_spain">Japan v Spain 2022: ball out?</option><option value="real_wales_iran">Wales v Iran 2022: keeper red</option></optgroup><optgroup label="Simulated"><option value="var_showcase">Every VAR call</option><option value="var_errors">VAR got it wrong</option><option value="golden">Golden match</option><option value="red_card">Red card match</option><option value="late_comeback">Late comeback</option></optgroup></select>
       <a class="evallink" href="eval.html" title="How far you can trust it, in numbers">Evaluation</a>
       <div class="brand"><b>SIV</b> SUPER INTELLIGENCE VIEWER</div>
@@ -374,9 +378,12 @@
 (() => {
   const $ = (id) => document.getElementById(id);
   const NS = "http://www.w3.org/2000/svg";
-  const scenario = new URLSearchParams(location.search).get("s") || "real_japan_spain";  // real matches lead
+  const params = new URLSearchParams(location.search);
+  const scenario = params.get("s") || "real_japan_spain";  // real matches lead
+  const VIEWS = ["fan", "analyst", "player"];
+  let MODE = VIEWS.includes(params.get("v")) ? params.get("v") : "fan";
   $("scenario").value = scenario;
-  $("scenario").onchange = (e) => { location.search = "?s=" + e.target.value; };
+  $("scenario").onchange = (e) => { location.search = `?s=${e.target.value}&v=${MODE}`; };
 
   let D, players, roster, colour, t = 0, playing = false, speed = 10, lastNow = 0;
   let factIdx = 0, score = {}, varOpen = null, lines = null, band = null, lastReplay = null;
@@ -631,20 +638,52 @@
   }
 
   // ── Captions (deterministic, from engine facts) ─────────────────────────
+  // The same fact is said three ways: plain words for a casual fan, the measurement and the law for an
+  // analyst, and the followed player first in Player-follow.
   function caption(f) {
-    const v = f.values, N = name;
+    const v = f.values, N = name, analyst = MODE === "analyst";
     switch (f.kind) {
       case "goal": return v.disallowed ? { tag: "No goal", text: `${D.teams[f.team].name} goal ruled out · ${score[D.home]}–${score[D.away]}`, prio: 6 } : { tag: "Goal", text: `${N(f.player)} scores for ${D.teams[f.team].name}`, prio: 5, team: f.team };
       case "card": return { tag: `${v.outcome} card`, text: N(f.player), prio: 4 };
       case "incident": {
-        if (v.state === "reviewing") return { tag: "VAR", text: `Checking a possible ${v.kind.replace("_", " ")}. Nothing is shown until the officials decide.`, prio: 6 };
+        const law = D.officials[v.incident_id]?.law?.law, what = v.kind.replace("_", " ");
+        if (v.state === "reviewing") return { tag: "VAR", text: analyst ? `Checking a possible ${what}${law ? ` under ${law}` : ""}. No measurement airs until the officials decide.` : `Checking a possible ${what}. Nothing is shown until the officials decide.`, prio: 6 };
         if (v.state !== "decided" || !v.var_outcome) return null;
-        if (v.kind === "offside") return { tag: FINAL[v.final], text: `${v.final === "goal" ? "Onside" : "Offside"} · ${N(v.facts.attacker)} ${margin(v.facts.margin_m)} ${v.facts.margin_m > 0 ? "beyond" : "behind"} ${N(v.facts.defender)}`, prio: 7 };
-        if (v.kind === "dogso") return { tag: FINAL[v.final], text: `DOGSO · ${N(v.facts.offender)} sent off: ${v.facts.distance_to_goal_m} m out, ${v.facts.defenders_between} defenders between`, prio: 7 };
-        if (MEASURED.has(v.kind) && v.facts.value_m != null) return { tag: FINAL[v.final] || v.final, text: `${KIND[v.kind]} · ${margin(v.facts.value_m)} ${SIDE(v.facts.measure, v.facts.value_m)}`, prio: 7 };
-        return { tag: FINAL[v.final] || v.final, text: `${KIND[v.kind]} review · ${N(v.facts.offender)} on ${N(v.facts.fouled)}`, prio: 7 };
+        const c = analyst ? analystCaption(v) : fanCaption(v);
+        return { tag: FINAL[v.final] || v.final, text: analyst && law ? `${c} · ${law}` : c, prio: 7 };
       }
       default: return null;
+    }
+  }
+  function analystCaption(v) {
+    const N = name, x = v.facts;
+    if (v.kind === "offside") return `${v.final === "goal" ? "Onside" : "Offside"} · ${N(x.attacker)} ${margin(x.margin_m)} ${x.margin_m > 0 ? "beyond" : "behind"} ${N(x.defender)}`;
+    if (v.kind === "dogso") return `DOGSO · ${N(x.offender)} sent off: ${x.distance_to_goal_m} m out, ${x.defenders_between} defenders between`;
+    if (MEASURED.has(v.kind) && x.value_m != null) return `${KIND[v.kind]} · ${margin(x.value_m)} ${SIDE(x.measure, x.value_m)}`;
+    return `${KIND[v.kind]} review · ${N(x.offender)} on ${N(x.fouled)}`;
+  }
+  function fanCaption(v) {
+    const N = name, x = v.facts;
+    if (v.kind === "offside") return `${N(x.attacker)} was ${x.margin_m > 0 ? "beyond" : "not beyond"} ${N(x.defender)} when the pass was played`;
+    if (v.kind === "dogso") return `${N(x.offender)} is sent off for stopping a clear chance to score`;
+    if (MEASURED.has(v.kind) && x.value_m != null) {
+      const res = x.data_resolution_m;
+      if (res != null && Math.abs(x.value_m) <= res + 0.11) return `${KIND[v.kind]}: too close for the data to settle either way`;
+      return `${KIND[v.kind]}: ${SIDE(x.measure, x.value_m)}`;
+    }
+    return `${N(x.offender)}'s challenge on ${N(x.fouled)}`;
+  }
+  const involves = (f, pid) => f.player === pid || (f.kind === "incident" && Object.values(f.values.facts || {}).includes(pid));
+  function offer(c, at) {
+    const holdFor = c.prio >= 6 ? Math.max(10, speed * 4) : Math.max(6, speed * 1.5);
+    if (!band || at > band.until || c.prio >= band.prio) band = { ...c, until: at + holdFor };
+  }
+  // Player-follow: the followed player's own moments become captions too.
+  const FOLLOW_PRIO = { goal: 5, shot: 4, card: 4, foul: 4, fouled: 4, tackle: 3, tackled: 3, interception: 3, sprint: 3, hard_pass: 2, carry: 2, pass: 1, received: 1 };
+  function followFeed(t0) {
+    for (const a of D.player_log[selected] || []) {
+      if (a.t <= t0 || a.t > t || !FOLLOW_PRIO[a.action]) continue;
+      offer({ tag: name(selected), text: actionText(a), prio: FOLLOW_PRIO[a.action], team: selected.slice(0, 3) }, a.t);
     }
   }
 
@@ -660,9 +699,12 @@
     }
     if (!live) return;
     if (f.kind === "incident" && v.state === "reviewing") playBumper();   // a VAR check opens: the SIV bumper first
-    const c = caption(f);
-    const holdFor = c && c.prio >= 6 ? Math.max(10, speed * 4) : Math.max(6, speed * 1.5);
-    if (c && (!band || f.t > band.until || c.prio >= band.prio)) band = { ...c, until: f.t + holdFor };
+    let c = caption(f);
+    if (!c) return;
+    if (MODE === "player" && selected) {
+      c = involves(f, selected) ? { ...c, text: `Following ${name(selected)} · ${c.text}`, prio: c.prio + 2 } : { ...c, prio: c.prio - 3 };
+    }
+    offer(c, f.t);
   }
 
   function seek(to) {
@@ -799,14 +841,14 @@
   function renderDesk() {
     if (!DESK) return;
     const seen = CALLS.filter((c) => c.decided <= t && DESK.calls[c.iid]);
-    const sig = seen.map((c) => c.iid + (deskAud[c.iid] || "fan")).join();
+    const sig = seen.map((c) => c.iid + (deskAud[c.iid] || VIEW_AUD[MODE])).join();
     if (sig === deskShown) return;
     deskShown = sig;
     const total = CALLS.filter((c) => DESK.calls[c.iid]).length;
     const head = `<div class="desk-head"><b>AI DESK</b><span>${DESK.model} · Agent Framework · ${seen.length}/${total} calls</span></div>`;
     if (!seen.length) { $("desk").innerHTML = head + `<div class="hint">The agent desk's explanations appear here as each VAR call is decided.</div>`; return; }
     $("desk").innerHTML = head + seen.slice().reverse().map((c) => {
-      const d = DESK.calls[c.iid], aud = deskAud[c.iid] || "fan", v = d.variants[aud];
+      const d = DESK.calls[c.iid], aud = deskAud[c.iid] || VIEW_AUD[MODE], v = d.variants[aud];
       const parallel = d.trace.filter((s) => s.step === "persona").map((s) => `${AUD.find(([k]) => k === s.agent)?.[1]} ${secs(s.ms)}`).join(" · ");
       return `<div class="dcall"><h5><span>${clockText(c.period, c.at)} · ${c.title}</span><button data-watch="${c.iid}">▶</button></h5>
         <div class="aud">${AUD.map(([k, l]) => `<button data-iid="${c.iid}" data-aud="${k}" class="${k === aud ? "on" : ""}">${l}</button>`).join("")}</div>
@@ -973,23 +1015,41 @@
     const dBall = Math.hypot(x - fr.ball[0], y - fr.ball[1]);
     return { label: dBall < 1.6 ? "On the ball" : dBall < 12 ? "In the play" : "Off the ball", cls: dBall < 1.6 ? "ball" : "", dBall };
   }
+  const VERB = { pass: "Pass", received: "Received from", carry: "Carry", shot: "Shot", tackle: "Tackle", tackled: "Tackled by", interception: "Interception",
+                 pressure: "Pressed", pressed: "Pressed by", foul: "Foul on", fouled: "Fouled by", card: "Card", goal: "Goal", kickoff: "Kickoff", sprint: "Sprint", hard_pass: "Hard pass", call: "In a call" };
+  function actionText(a) {
+    let s = VERB[a.action] || a.action;
+    if (a.with) s += ` ${a.action === "pass" ? "to " : ""}${name(a.with)}`;
+    if (a.outcome && a.outcome !== "complete") s += ` · ${String(a.outcome).replace("_", " ")}`;
+    if (a.kmh) s += ` · ${a.kmh} km/h`;
+    if (a.role) s += ` · ${CALL_ROLE[a.role] || a.role}`;
+    return s;
+  }
+  // ── Viewing as: one match, three audiences. Every mode reads the same engine facts; only what is said changes. ──
+  const VIEW_AUD = { fan: "fan", analyst: "analyst", player: "fan" };
+  const VIEW_PANE = { fan: "calls", analyst: "buddy", player: "player" };
+  function starPlayer() {   // the player at the centre of the most calls, then the busiest
+    const weight = (pid) => (D.player_log[pid] || []).reduce((s, a) => s + (a.action === "call" ? 50 : a.action === "goal" ? 20 : 1), 0);
+    return players.reduce((best, pid) => (weight(pid) > weight(best) ? pid : best), players[0]);
+  }
+  function setMode(m) {
+    MODE = m; band = null; deskShown = "";
+    $("mode").querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.mode === m));
+    const u = new URL(location.href); u.searchParams.set("v", m); history.replaceState(null, "", u);
+    R.aud = VIEW_AUD[m];
+    [...$("rTabs").children].forEach((b) => b.classList.toggle("on", b.dataset.aud === R.aud));
+    drawReplayText();
+    if (m === "player") { if (!selected) selectPlayer(starPlayer()); else showPane("player"); }
+    else showPane(VIEW_PANE[m]);
+    render();
+  }
   function renderCard(fr) {
     const pid = selected, j = players.indexOf(pid), r = roster[pid], i = fr.i;
     const log = (D.player_log[pid] || []).filter((a) => a.t <= t);
     const count = (act, pred) => log.filter((a) => a.action === act && (!pred || pred(a))).length;
     const passes = count("pass"), done = count("pass", (a) => a.outcome === "complete");
     const sprints = log.filter((a) => a.action === "sprint"), calls = log.filter((a) => a.action === "call");
-    const inv = involvement(fr, j), kmh = SPD[j][i], top = TOP[j][i], km = CUM[j][i] / 1000;
-    const verb = { pass: "Pass", received: "Received from", carry: "Carry", shot: "Shot", tackle: "Tackle", tackled: "Tackled by", interception: "Interception",
-                   pressure: "Pressed", pressed: "Pressed by", foul: "Foul on", fouled: "Fouled by", card: "Card", goal: "Goal", kickoff: "Kickoff", sprint: "Sprint", hard_pass: "Hard pass", call: "In a call" };
-    const desc = (a) => {
-      let s = verb[a.action] || a.action;
-      if (a.with) s += ` ${a.action === "pass" ? "to " : ""}${name(a.with)}`;
-      if (a.outcome && a.outcome !== "complete") s += ` · ${String(a.outcome).replace("_", " ")}`;
-      if (a.kmh) s += ` · ${a.kmh} km/h`;
-      if (a.role) s += ` · ${CALL_ROLE[a.role] || a.role}`;
-      return s;
-    };
+    const inv = involvement(fr, j), kmh = SPD[j][i], top = TOP[j][i], km = CUM[j][i] / 1000, desc = actionText;
     const inReplay = R.pkg && R.pkg.focus.find((f) => f.player === pid);
     const stat = (b, s) => `<div class="stat"><b>${b}</b><span>${s}</span></div>`;
     $("pc").innerHTML = `<div class="pc">
@@ -1103,7 +1163,7 @@
     $("rSrc").textContent = "Sources · " + P.sources.join(" · ");
     $("rTabs").innerHTML = "";
     [["fan", "Fan"], ["analyst", "Analyst"], ["stadium", "Stadium"], ["officials", "Officials"]].forEach(([k, label]) => {
-      const b = document.createElement("button"); b.textContent = label; b.className = R.aud === k ? "on" : "";
+      const b = document.createElement("button"); b.textContent = label; b.className = R.aud === k ? "on" : ""; b.dataset.aud = k;
       b.onclick = () => { R.aud = k; [...$("rTabs").children].forEach((c) => c.classList.toggle("on", c === b)); drawReplayText(); };
       $("rTabs").appendChild(b);
     });
@@ -1312,9 +1372,11 @@
     const dt = Math.min(0.25, (now - lastNow) / 1000); lastNow = now;
     if (R.pkg) { replayTick(dt); drawReplay(); }
     else if (playing) {
+      const t0 = t;
       t = Math.min(END, t + dt * speed);
       if (t > LAST_FRAME && factIdx < D.facts.length && D.facts[factIdx].t - t > 4) t = D.facts[factIdx].t - 2;  // play has stopped: skip to the VAR decision
       while (factIdx < D.facts.length && D.facts[factIdx].t <= t) applyFact(D.facts[factIdx++], true);
+      if (MODE === "player" && selected) followFeed(t0);
       if (t >= END) setPlaying(false);
       render();
     } else if (selected && now >= cardNext) render();
@@ -1364,11 +1426,13 @@
     PASSES = D.feed.filter((e) => (e.type === "pass" || e.type === "shot") && e.start && e.end);
     CHALLENGES = D.feed.filter((e) => (e.type === "tackle" || e.type === "foul") && e.at);
     seek(START); setPlaying(false);
+    $("mode").querySelectorAll("button").forEach((b) => (b.onclick = () => setMode(b.dataset.mode)));
+    setMode(MODE);
     fetch(`data/desk_${scenario}.json`, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).then((d) => { DESK = d; deskShown = ""; renderDesk(); }).catch(() => {});
     $("loading").remove();
     // Hooks for scripts/record_gifs.py and debugging; the page never needs them itself.
     window.__siv = {
-      R, seek, openReplay, closeReplay, selectPlayer, showPane, replayAt, calls: CALLS, ready: true,
+      R, seek, openReplay, closeReplay, selectPlayer, showPane, setMode, replayAt, calls: CALLS, ready: true,
       play: (on, s) => { if (s) speed = s; setPlaying(on); },
     };
     requestAnimationFrame((now) => { lastNow = now; loop(now); });
