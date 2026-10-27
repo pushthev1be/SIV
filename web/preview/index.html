@@ -66,6 +66,27 @@
   .band .watch { margin-left: auto; display: none; }
   .band .watch.on { display: inline-flex; }
   .watch { align-items: center; gap: 6px; font: 600 12px var(--body); background: var(--text); color: var(--bg); border: 0; border-radius: 999px; padding: 6px 12px; white-space: nowrap; }
+  /* The VAR protocol: while a check plays out, the steps it goes through, and the decision when it lands */
+  .vsteps { position: absolute; left: 10px; right: 10px; top: 10px; z-index: 8; display: none; align-items: center; gap: 8px; flex-wrap: wrap;
+            background: rgba(18,18,18,.94); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+  .stage.var-on .vsteps { display: flex; }
+  .stage.var-on .replay { top: var(--vsteps-h, 54px); }
+  .stage.var-on .badge { display: none; }
+  .vsteps .vt { font: 700 14px var(--display); letter-spacing: .1em; padding: 3px 10px; border-radius: 999px; background: var(--text); color: var(--bg);
+                display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+  .vsteps .vt .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--bg); animation: pulse 1s infinite; }
+  .vsteps ol { list-style: none; margin: 0; padding: 0; display: flex; gap: 2px; flex-wrap: wrap; }
+  .vsteps li { font: 600 11px var(--mono); color: var(--faint); padding: 3px 8px; border-radius: 6px; white-space: nowrap; }
+  .vsteps li.done { color: var(--soft); }
+  .vsteps li.now { color: var(--text); background: var(--raise); outline: 1px solid var(--faint); }
+  .vsteps .skip { margin-left: auto; font-size: 11px; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+  .verdict { position: absolute; left: 50%; top: 45%; transform: translate(-50%, -50%) scale(.94); z-index: 9; opacity: 0; transition: opacity .35s, transform .35s;
+             pointer-events: none; background: rgba(18,18,18,.95); border: 1px solid var(--faint); border-radius: 12px; padding: 14px 24px; text-align: center;
+             width: min(480px, calc(100% - 32px)); }
+  .verdict.on { opacity: 1; transform: translate(-50%, -50%); }
+  .verdict .k { font: 600 11px var(--mono); letter-spacing: .14em; color: var(--muted); }
+  .verdict .v { font: 700 44px var(--display); letter-spacing: .06em; text-transform: uppercase; line-height: 1.05; margin: 4px 0; }
+  .verdict .w { font-size: 14px; line-height: 1.45; color: var(--soft); }
 
   /* ── Switches ── */
   .switch { display: inline-flex; align-items: center; gap: 8px; padding: 4px 6px 4px 10px; border-radius: 999px; background: var(--panel-2); }
@@ -305,6 +326,8 @@
     <svg class="pitch" id="pitch" viewBox="-3 -3 111 74" aria-label="Pitch"></svg>
     <div class="badge" id="varBadge"><span class="dot"></span><span id="varText">VAR CHECK</span></div>
     <div class="band" id="band"><div class="tag" id="bandTag"></div><div class="text"><span id="bandText"></span><button class="watch" id="bandWatch">▶ Watch the call</button></div></div>
+    <div class="vsteps" id="vsteps"><span class="vt"><span class="dot"></span><span id="vTitle">VAR CHECK</span></span><ol id="vList"></ol><button class="skip" id="vSkip">Skip ›</button></div>
+    <div class="verdict" id="verdict" aria-live="polite"><div class="k" id="vdK"></div><div class="v" id="vdV"></div><div class="w" id="vdW"></div></div>
 
 
     <div class="bumper" id="bumper" aria-hidden="true" title="Tap to skip"><div class="siv-root"><div class="siv-drift" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center">
@@ -459,6 +482,7 @@
       `<marker id="arrow-${code}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${colour[code]}"/></marker>`).join("");
     svg("g", { id: "trails" }, p);
     playerNodes(p, selectPlayer).id = "players";
+    svg("ellipse", { id: "shadow", rx: 0.55, ry: 0.32, fill: "rgba(0,0,0,.45)", display: "none" }, p);
     svg("circle", { id: "ball", r: 0.6, fill: "#ececec", stroke: "#121212", "stroke-width": 0.15 }, p);
     svg("g", { id: "hud" }, p);
   }
@@ -487,7 +511,13 @@
     const F = D.frames, lo = frameIndex(time), a = F[lo], b = F[Math.min(lo + 1, F.length - 1)], span = b[0] - a[0];
     const k = span > 0 && span < 1.5 ? Math.min(1, Math.max(0, (time - a[0]) / span)) : 0;
     const lerp = (i) => (a[i] == null ? null : b[i] == null ? a[i] : a[i] + (b[i] - a[i]) * k);
-    return { i: lo, period: a[1], clock: a[2] + (b[2] - a[2]) * k, ball: [lerp(3), lerp(4)], pos: (j) => [lerp(5 + 2 * j), lerp(6 + 2 * j)] };
+    // A player coming into the camera's view fades in where he is first seen, and one leaving fades out.
+    const pos = (j) => {
+      const xa = a[5 + 2 * j], xb = b[5 + 2 * j];
+      if (xa == null) return xb == null ? [null, null, 0] : [xb, b[6 + 2 * j], k];
+      return [lerp(5 + 2 * j), lerp(6 + 2 * j), xb == null ? 1 - k : 1];
+    };
+    return { i: lo, period: a[1], clock: a[2] + (b[2] - a[2]) * k, ball: [lerp(3), lerp(4)], pos };
   }
 
   // ── Calls: what the timeline, Calls tab and Ref Buddy share ─────────────
@@ -532,6 +562,8 @@
     const onField = (b) => (b.on_field || "").replace("_", " ");
     CALLS.forEach((c) => {
       const b = D.officials[c.iid], f = b.facts, rf = b.replay_facts, when = clockText(c.period, c.at);
+      // The briefing is spread across the stoppage, one step at a time, in the order a VAR works.
+      const at = (k) => c.review + k * (c.decided - c.review);
       if (c.reviewed && c.review != null) {
         const what = MEASURED.has(b.kind) ? ({ ball_out: "whether the ball was out before the goal", goal_line: "whether the whole ball crossed the line",
             penalty_location: `where ${name(f.offender)}'s challenge on ${name(f.fouled)} started`, keeper_encroachment: `${name(f.subject)}'s position at the penalty`,
@@ -542,15 +574,21 @@
         say(c.review, "open", `Check open · ${when}`, `Reviewing <b>${what}</b>. On-field call: <b>${onField(b)}</b>.`);
         if (b.law) {
           const [first, ...rest] = b.law.summary.split(/(?<=\.)\s+/);
-          say(c.review + 0.01, "law", b.law.law, `${first}${rest.length ? `<details><summary class="chip" style="display:inline-block;margin-top:6px;cursor:pointer">More</summary>${rest.join(" ")}<br><span style="color:var(--muted)">${b.law.how_checked}</span></details>` : ""}<div class="row"><span class="chip">${b.factual ? "Factual check" : "Judgement check"}</span></div>`);
+          say(at(0.06), "law", b.law.law, `${first}${rest.length ? `<details><summary class="chip" style="display:inline-block;margin-top:6px;cursor:pointer">More</summary>${rest.join(" ")}<br><span style="color:var(--muted)">${b.law.how_checked}</span></details>` : ""}<div class="row"><span class="chip">${b.factual ? "Factual check" : "Judgement check"}</span></div>`);
+        }
+        const dur = D.replays[c.iid]?.during;
+        if (dur) {
+          const key = dur.moments.find((m) => Math.abs(m.t - dur.key_t) < 0.05);
+          say(at(0.18), "footage", "Footage", `Build-up from <b>${clockText(dur.period, dur.frames[0].t)}</b>, slowed down into the moment that matters${key ? `: <b>${names(key.label)}</b>` : ""}.`);
+          say(at(0.42), "footage", "Frame", `Frame found at <b>${clockText(dur.period, dur.key_t)}</b>. Checking it now.`);
         }
         if (MEASURED.has(b.kind)) {
           const ms = D.replays[c.iid]?.after?.measurement;
           if (b.kind === "dogso") {
             const dir = f.direction_off_goal_deg != null ? `heading ${f.direction_off_goal_deg}° off the line to goal` : "direction unclear";
-            say(c.review + 0.02, "evidence", "Evidence", `The four considerations: <b>${f.distance_to_goal_m} m</b> from goal; ${dir}; <b>${f.defenders_between}</b> outfield defender${f.defenders_between === 1 ? "" : "s"} between ${name(f.subject)} and goal${f.keeper_goal_side ? ", keeper goal-side" : ""}; ball ${f.in_control ? "<b>under control</b>" : "not under control"}.`);
+            say(at(0.55), "evidence", "Evidence", `The four considerations: <b>${f.distance_to_goal_m} m</b> from goal; ${dir}; <b>${f.defenders_between}</b> outfield defender${f.defenders_between === 1 ? "" : "s"} between ${name(f.subject)} and goal${f.keeper_goal_side ? ", keeper goal-side" : ""}; ball ${f.in_control ? "<b>under control</b>" : "not under control"}.`);
             const obvious = f.distance_to_goal_m <= 30 && f.defenders_between === 0 && (f.direction_off_goal_deg ?? 0) <= 35 && f.in_control;
-            say(c.review + 0.03, "advice", "Advice", obvious
+            say(at(0.8), "advice", "Advice", obvious
               ? `All four point to an obvious goal-scoring opportunity. A judgement call, but the factors support <b>upgrading to a red card</b>. The decision is yours.`
               : `The factors are mixed. If the on-field yellow looks clearly wrong, take the review at the monitor. <b>The decision is yours.</b>`);
           } else {
@@ -559,23 +597,23 @@
             const law = b.law ? b.law.law : "the Laws";
             const res = f.data_resolution_m, coarse = res != null && Math.abs(v) <= res + 0.11;
             if (coarse) {   // event data, not tracking: it can't settle a call this close, so don't pretend it can
-              say(c.review + 0.02, "evidence", "Evidence", `${law}: event data puts the ball <b>on the ${ms ? ms.line_label : "line"}</b>, but only to about <b>${margin(res)}</b>. That can't settle a call decided by millimetres.`);
-              say(c.review + 0.03, "advice", "Advice", `Decide from the <b>goal-line camera images</b>: any part of the ball over the line keeps it in play. The on-field call was <b>${onField(b)}</b>.`);
+              say(at(0.55), "evidence", "Evidence", `${law}: event data puts the ball <b>on the ${ms ? ms.line_label : "line"}</b>, but only to about <b>${margin(res)}</b>. That can't settle a call decided by millimetres.`);
+              say(at(0.8), "advice", "Advice", `Decide from the <b>goal-line camera images</b>: any part of the ball over the line keeps it in play. The on-field call was <b>${onField(b)}</b>.`);
             } else {
-            say(c.review + 0.02, "evidence", "Evidence", `${law}: the ${what} is <b>${margin(v)} ${side}</b>${ms ? ` (${ms.line_label})` : ""}.`);
+            say(at(0.55), "evidence", "Evidence", `${law}: the ${what} is <b>${margin(v)} ${side}</b>${ms ? ` (${ms.line_label})` : ""}.`);
             const advice = {
               ball_out: v > 0 ? "The ball was out before the goal. <b>Advise: no goal.</b>" : "The ball was still in play. <b>Advise: the goal stands.</b>",
               goal_line: v > 0 ? "The whole ball was over. <b>Advise: goal.</b>" : "The whole ball never crossed. <b>Advise: no goal.</b>",
               box_edge: v > 0 ? "Contact started outside the area. <b>Advise: a free kick, not a penalty.</b>" : "Contact started inside the area. <b>Advise: the penalty stands.</b>",
               keeper_line: v > 0 ? "The keeper was off the line and the save came from it. <b>Advise: retake.</b>" : "The keeper was on the line. <b>Advise: the save stands.</b>",
             }[f.measure];
-            say(c.review + 0.03, "advice", "Advice", `${advice} A factual call.`);
+            say(at(0.8), "advice", "Advice", `${advice} A factual call.`);
             }
           }
         } else if (b.kind === "offside") {
           const m = f.margin_m, side = m > 0 ? "beyond" : "behind";
-          say(c.review + 0.02, "evidence", "Evidence", `Kick frame <b>${clockText(c.period, f.kick_clock)}</b> from the ${rf.ball_track_fps || 100} fps ball track. <b>${name(f.attacker)}</b>'s ${PART[f.attacker_part] || f.attacker_part} is <b>${margin(m)} ${side}</b> ${name(f.defender)}'s ${PART[f.defender_part] || f.defender_part}, the second-last defender. Arms ignored.`);
-          say(c.review + 0.03, "advice", "Advice", m > 0
+          say(at(0.55), "evidence", "Evidence", `Kick frame <b>${clockText(c.period, f.kick_clock)}</b> from the ${rf.ball_track_fps || 100} fps ball track. <b>${name(f.attacker)}</b>'s ${PART[f.attacker_part] || f.attacker_part} is <b>${margin(m)} ${side}</b> ${name(f.defender)}'s ${PART[f.defender_part] || f.defender_part}, the second-last defender. Arms ignored.`);
+          say(at(0.8), "advice", "Advice", m > 0
             ? `The evidence shows an offside position. <b>Advise: no goal.</b> It's a factual call, so no monitor review is needed.`
             : `The evidence shows ${name(f.attacker)} onside. <b>Advise: the goal stands.</b>`);
         } else {
@@ -587,8 +625,8 @@
           }
           const missed = f.measure === "ball_contact" && f.touched_ball === false;
           if (f.measure === "ball_contact") factors.push(missed ? `<b>nearest foot ${margin(f.ball_gap_m)} from the ball</b> at contact, no deflection: the ball was never played` : `<b>${name(f.offender)} reached the ball first</b>`);
-          say(c.review + 0.02, "evidence", "Evidence", factors.length ? `Factors to weigh: ${factors.join("; ")}.` : "Watch the challenge from the closest angle.");
-          say(c.review + 0.03, "advice", "Advice", missed && f.contact_in_area && b.on_field === "no_penalty"
+          say(at(0.55), "evidence", "Evidence", factors.length ? `Factors to weigh: ${factors.join("; ")}.` : "Watch the challenge from the closest angle.");
+          say(at(0.8), "advice", "Advice", missed && f.contact_in_area && b.on_field === "no_penalty"
             ? `The challenger missed the ball and made contact inside the area. The on-field call (<b>${onField(b)}</b>) is hard to support: <b>recommend an on-field review.</b> The decision is the referee's.`
             : `A judgement call. If the on-field call (<b>${onField(b)}</b>) looks clearly wrong, take the on-field review at the monitor. <b>The decision is yours.</b>`);
         }
@@ -609,12 +647,13 @@
 
   function renderBuddy() {
     const shown = BUDDY.filter((m) => m.t <= t);
-    const key = shown.length + (varOpen ? "o" : "");
+    const key = shown.length + (varOpen ? "o" : "") + (VAR ? VAR.step : "");
     if (key === chatShown) return;
     chatShown = key;
     $("chat").innerHTML = shown.slice(-24).map((m) => `
       <li class="msg ${m.kind}"><div class="h">${m.head}<span class="t">${tToClock(m.t)}</span></div>${m.html}
       ${m.iid ? `<div><button class="watch" data-iid="${m.iid}">▶ Watch the call</button></div>` : ""}</li>`).join("")
+      + (VAR && VAR.step !== "reveal" ? `<li class="idle">${VAR.step === "decision" ? "Decision in." : "Checking…"}</li>` : "")
       + (shown.length ? "" : `<li class="idle">Watching play. The moment a check opens I'll brief you: the law, the evidence, and what it supports.</li>`);
     $("chat").querySelectorAll("button[data-iid]").forEach((b) => (b.onclick = () => openReplay(b.dataset.iid)));
     const pane = $("pane-buddy"); pane.scrollTop = pane.scrollHeight;
@@ -650,7 +689,7 @@
         if (v.state === "reviewing") return { tag: "VAR", text: analyst ? `Checking a possible ${what}${law ? ` under ${law}` : ""}. No measurement airs until the officials decide.` : `Checking a possible ${what}. Nothing is shown until the officials decide.`, prio: 6 };
         if (v.state !== "decided" || !v.var_outcome) return null;
         const c = analyst ? analystCaption(v) : fanCaption(v);
-        return { tag: FINAL[v.final] || v.final, text: analyst && law ? `${c} · ${law}` : c, prio: 7 };
+        return { tag: D.officials[v.incident_id] ? finalText(D.officials[v.incident_id]) : FINAL[v.final] || v.final, text: analyst && law ? `${c} · ${law}` : c, prio: 7 };
       }
       default: return null;
     }
@@ -668,7 +707,7 @@
     if (v.kind === "dogso") return `${N(x.offender)} is sent off for stopping a clear chance to score`;
     if (MEASURED.has(v.kind) && x.value_m != null) {
       const res = x.data_resolution_m;
-      if (res != null && Math.abs(x.value_m) <= res + 0.11) return `${KIND[v.kind]}: too close for the data to settle either way`;
+      if (res != null && Math.abs(x.value_m) <= res + 0.11) return `The data puts the ball on the line, too close to call from data alone: the camera images decided it`;
       return `${KIND[v.kind]}: ${SIDE(x.measure, x.value_m)}`;
     }
     return `${N(x.offender)}'s challenge on ${N(x.fouled)}`;
@@ -698,7 +737,7 @@
         lines = { until: f.t + Math.max(14, speed * 5), ax: v.facts.attacker_x, dx: v.facts.defender_x };
     }
     if (!live) return;
-    if (f.kind === "incident" && v.state === "reviewing") playBumper();   // a VAR check opens: the SIV bumper first
+    if (f.kind === "incident" && v.state === "reviewing" && !VAR) { playBumper(); varStart(v.incident_id); }   // a VAR check opens: the SIV bumper, then the steps
     let c = caption(f);
     if (!c) return;
     if (MODE === "player" && selected) {
@@ -708,6 +747,7 @@
   }
 
   function seek(to) {
+    if (VAR) varEnd();
     t = to; factIdx = 0; score = { [D.home]: 0, [D.away]: 0, ...(D.start_score || {}) }; varOpen = null; lines = null; band = null; lastReplay = null;
     while (factIdx < D.facts.length && D.facts[factIdx].t <= t) applyFact(D.facts[factIdx++], false);
     chatShown = -1; callsShown = ""; keyShown = ""; cardNext = 0;
@@ -716,14 +756,15 @@
 
   // ── Live render ─────────────────────────────────────────────────────────
   function render() {
-    const fr = frameAt(t), g = $("players").children, back = frameAt(Math.max(0, t - 0.5));
+    const fr = frameAt(t), g = $("players").children, back = frameAt(Math.max(0, t - 0.5)), camScale = Math.max(0.6, cam[2] / 111);
     for (let j = 0; j < players.length; j++) {
-      const [x, y] = fr.pos(j);
-      if (x == null) g[j].setAttribute("display", "none");
-      else { g[j].removeAttribute("display"); g[j].setAttribute("transform", `translate(${x.toFixed(2)},${y.toFixed(2)})`); turn(g[j], players[j], [x, y], back.pos(j), "live:"); }
+      const [x, y, alpha] = fr.pos(j);
+      if (x == null || alpha <= 0.02) g[j].setAttribute("display", "none");
+      else { g[j].removeAttribute("display"); g[j].setAttribute("opacity", alpha.toFixed(2)); g[j].setAttribute("transform", `translate(${x.toFixed(2)},${y.toFixed(2)})${camScale < 0.99 ? ` scale(${camScale.toFixed(3)})` : ""}`); turn(g[j], players[j], [x, y], back.pos(j), "live:"); }
       g[j].querySelector(".ring").setAttribute("display", players[j] === selected ? "inline" : "none");
     }
-    $("ball").setAttribute("cx", fr.ball[0]); $("ball").setAttribute("cy", fr.ball[1]);
+    drawBall($("ball"), $("shadow"), fr.ball, lift(fr.ball, AIR, t, "t"), 0.6 * camScale);
+    liveCam();
     $("clock").textContent = (fr.period === 1 ? "1H " : "2H ") + clockText(fr.period, fr.clock);
     $("score").textContent = `${score[D.home] ?? 0} – ${score[D.away] ?? 0}`;
     $("varBadge").classList.toggle("on", !!varOpen);
@@ -733,6 +774,13 @@
       svg("line", { x1: lines.dx, y1: 0, x2: lines.dx, y2: 68, stroke: colour[D.away], "stroke-width": 0.3 }, L);
       svg("line", { x1: lines.ax, y1: 0, x2: lines.ax, y2: 68, stroke: colour[D.home], "stroke-width": 0.3, "stroke-dasharray": "1 0.6" }, L);
     }
+    if (VAR && VAR.spot && (VAR.step === "stop" || VAR.step === "check")) {   // where the check is looking; nothing about the answer
+      const [sx, sy] = VAR.spot, pulse = 1.6 + 0.5 * Math.sin(performance.now() / 260), right = sx > cam[0] + cam[2] * 0.7, left = sx < cam[0] + cam[2] * 0.3;
+      svg("circle", { cx: sx, cy: sy, r: pulse + 1.2, fill: "none", stroke: "#ececec", "stroke-width": 0.22, "stroke-dasharray": "0.9 0.6", opacity: 0.85 }, L);
+      const lab = svg("text", { x: right ? sx + 2 : left ? sx - 2 : sx, y: sy - pulse - 2.2, "text-anchor": right ? "end" : left ? "start" : "middle", "font-size": 1.5, "font-family": "IBM Plex Mono", "font-weight": 600, fill: "#ececec",
+                                stroke: "rgba(18,18,18,.8)", "stroke-width": 0.35, "paint-order": "stroke" }, L);
+      lab.textContent = "UNDER REVIEW";
+    }
     const on = band && t <= band.until;
     $("band").classList.toggle("on", !!on);
     if (on) {
@@ -740,7 +788,7 @@
       $("bandTag").style.background = band.team ? colour[band.team] : "var(--text)";
       $("bandText").textContent = band.text;
       const r = lastReplay && t <= lastReplay.until ? lastReplay : null;
-      $("bandWatch").classList.toggle("on", !!r);
+      $("bandWatch").classList.toggle("on", !!r && !VAR);
       if (r) { $("bandWatch").textContent = r.phase === "during" ? "▶ Watch the build-up" : "▶ Watch the call"; $("bandWatch").onclick = () => openReplay(r.iid); }
     }
     drawTrails();
@@ -787,10 +835,13 @@
       const e = PASSES[i], a = Math.max(0, 1 - (t - e.t) / win);
       const c = colour[e.team] || "#ececec", ok = e.type === "pass" && e.outcome === "complete", shot = e.type === "shot";
       const [x1, y1] = e.start, [x2, y2] = e.end;
-      const attrs = { x1, y1, x2, y2, stroke: c, "stroke-width": shot ? 0.45 : 0.3, opacity: (0.25 + 0.65 * a).toFixed(2), "stroke-linecap": "round" };
+      const attrs = { stroke: c, "stroke-width": shot ? 0.45 : 0.3, opacity: (0.25 + 0.65 * a).toFixed(2), "stroke-linecap": "round", fill: "none" };
       if (ok || (shot && e.outcome === "goal")) attrs["marker-end"] = `url(#arrow-${e.team})`;
       if (!ok && !shot) attrs["stroke-dasharray"] = "0.9 0.7";
-      svg("line", attrs, G);
+      // On the ground: a straight line. In the air: an arc whose height follows the ball's, over its shadow.
+      const up = e.air ? peak(e) : 0;
+      if (up) svg("line", { x1, y1, x2, y2, stroke: c, "stroke-width": 0.18, opacity: (0.12 + 0.25 * a).toFixed(2), "stroke-dasharray": "0.3 0.5" }, G);
+      svg("path", { d: `M${x1},${y1} Q${(x1 + x2) / 2},${(y1 + y2) / 2 - 2 * up} ${x2},${y2}`, ...attrs }, G);
       if (!ok && !shot) {   // where the move broke down
         const k = 0.6;
         svg("path", { d: `M${x2 - k},${y2 - k} L${x2 + k},${y2 + k} M${x2 - k},${y2 + k} L${x2 + k},${y2 - k}`, stroke: c, "stroke-width": 0.28, opacity: (0.4 + 0.6 * a).toFixed(2) }, G);
@@ -805,6 +856,29 @@
       plusMark(G, e.at[0], e.at[1], 1.0, 1 - (t - e.t) / (win * 1.6), e.type === "foul");
     }
   }
+  // Lofted passes. Real clips carry StatsBomb's pass height; simulated passes are judged in the export (a long ball,
+  // or one whose straight path ran through an opponent). In flight the ball lifts off its shadow and grows.
+  let AIR = [];
+  const peak = (e) => Math.min(e.air === "high" ? 0.12 * Math.hypot(e.end[0] - e.start[0], e.end[1] - e.start[1]) : 0.05 * Math.hypot(e.end[0] - e.start[0], e.end[1] - e.start[1]), e.air === "high" ? 4.5 : 1.4);
+  function lift(ball, list, time, key, period) {
+    if (ball[0] == null) return 0;
+    for (let i = list.length - 1; i >= 0; i--) {
+      const e = list[i];
+      if ((period != null && e.period !== period) || e[key] > time) continue;
+      if (time - e[key] > 5) return 0;
+      const [x1, y1] = e.start, dx = e.end[0] - x1, dy = e.end[1] - y1, L2 = dx * dx + dy * dy;
+      const k = ((ball[0] - x1) * dx + (ball[1] - y1) * dy) / L2, off = Math.abs((ball[0] - x1) * dy - (ball[1] - y1) * dx) / Math.sqrt(L2);
+      return k > 0 && k < 1 && off < 2.5 ? 4 * k * (1 - k) * peak(e) : 0;
+    }
+    return 0;
+  }
+  function drawBall(ball, shadow, at, up, r) {
+    if (at[0] == null) return;
+    ball.setAttribute("cx", at[0]); ball.setAttribute("cy", at[1] - up); ball.setAttribute("r", r * (1 + up * 0.09));
+    if (up > 0.05) { shadow.removeAttribute("display"); shadow.setAttribute("cx", at[0]); shadow.setAttribute("cy", at[1]); shadow.setAttribute("rx", r * 0.9); shadow.setAttribute("ry", r * 0.55); shadow.setAttribute("opacity", Math.max(0.35, 1 - up * 0.12).toFixed(2)); }
+    else shadow.setAttribute("display", "none");
+  }
+
   // Tackles and fouls: a "+" at the point of contact. Fouls are bigger and carry a ring: the whistle went.
   let CHALLENGES = [];
   function plusMark(G, x, y, size, alpha, foul) {
@@ -1073,15 +1147,19 @@
   // At the key moment: pause, show who is involved for a beat, then zoom to the measurement.
   const INTRO_S = 1.6, MEASURE_S = 3.6, PLAIN_HOLD_S = 0.6;
   const MIN_ZOOM_W = { offside: 20, measured: 14 };  // metres across, so the zoom keeps some context
-  function openReplay(iid) {
+  // `auto`: the VAR protocol is running it, once through and without the bumper (it already played).
+  function openReplay(iid, opts = {}) {
     const at = replayAt[iid] || {};
-    const phase = at.after != null && t >= at.after ? "after" : at.during != null && t >= at.during ? "during" : null;
-    if (!phase) return;
-    R.pkg = D.replays[iid][phase];
-    setPlaying(false);
+    const phase = opts.phase || (at.after != null && t >= at.after ? "after" : at.during != null && t >= at.during ? "during" : null);
+    if (!phase || !D.replays[iid] || !D.replays[iid][phase]) return false;
+    if (VAR && !opts.auto) varEnd();   // the viewer picked a call: they're driving now
+    R.pkg = D.replays[iid][phase]; R.auto = !!opts.auto; R.done = false;
+    if (!R.auto) setPlaying(false);
     buildReplayScene(); restartReplay();
+    if (R.auto) { R.playing = playing; $("rPause").textContent = playing ? "❚❚" : "▶"; }
     $("replay").classList.add("on");
-    if (performance.now() - lastBumper > BUMPER_GAP_MS) playBumper();   // not twice in a row for the same call
+    if (!R.auto && performance.now() - lastBumper > BUMPER_GAP_MS) playBumper();   // not twice in a row for the same call
+    return true;
   }
   // The SIV review bumper: a quick slide-through before each call (BUMPER_S), tap to skip. It plays when a VAR
   // check opens during the match (the match pauses under it and carries on as it wipes away) and before a call
@@ -1109,7 +1187,7 @@
     bumperTimer = setTimeout(done, BUMPER_S * 930);   // the wipe has cleared the screen by 93%
     b.onclick = done;
   }
-  function closeReplay() { $("replay").classList.remove("on"); R.pkg = null; render(); }
+  function closeReplay() { $("replay").classList.remove("on"); R.pkg = null; R.auto = false; render(); }
   function restartReplay() { R.rt = R.pkg.frames[0].t; R.playing = true; R.frozen = false; R.hold = 0; R.holdT = 0; R.zoom = 0; R.endHold = 0; R.cam = null; $("rPause").textContent = "❚❚"; drawReplayText(); }
   // Broadcast-style camera: frame the ball and the players involved right now, never tighter than
   // CAM_MIN_W across, and ease toward it so the view pans with the move instead of jumping.
@@ -1146,6 +1224,7 @@
     svg("g", { id: "rLines" }, s);
     svg("g", { id: "rTrail" }, s);
     playerNodes(s, selectPlayer).id = "rPlayers";
+    svg("ellipse", { id: "rShadow", rx: 0.55, ry: 0.32, fill: "rgba(0,0,0,.45)", display: "none" }, s);
     svg("circle", { id: "rBall", r: 0.6, fill: "#ececec", stroke: "#121212", "stroke-width": 0.15 }, s);
     svg("g", { id: "rTags" }, s);
     const pts = [];
@@ -1156,7 +1235,12 @@
     else if (P.measurement) {
       const [fx, fy, fw, fh] = P.measurement.focus;
       R.zoomBox = P.measurement.kind === "dogso" ? bbox([[fx, fy], [fx + fw, fy + fh]], 2) : widen(bbox([P.measurement.point], 1.4), MIN_ZOOM_W.measured);
+    } else if (P.phase === "during") {   // check still open: zoom to the frame that matters, with nothing measured on it
+      const pts = [interp(P.ball, P.key_t, (a, b, k) => [a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k])];
+      interp(P.frames, P.key_t, (a, b) => P.focus.forEach(({ player }) => { const q = a.positions[player] || b.positions[player]; if (q) pts.push(q); }));
+      R.zoomBox = widen(bbox(pts, 3), 24);
     }
+    R.air = AIR.filter((e) => e.period === P.period);
     $("rTitle").textContent = P.kind === "offside" ? "Offside check" : P.kind === "goal_check" ? (P.facts && P.facts.penalty_kick ? "Penalty goal" : "Goal") : MEASURED.has(P.kind) ? KIND[P.kind] : `${KIND[P.kind]} review`;
     $("rPhase").className = "phase " + P.phase;
     $("rPhase").textContent = P.phase === "during" ? "CHECK IN PROGRESS" : "DECIDED";
@@ -1186,16 +1270,21 @@
     if (!R.playing) return;
     if (R.hold > 0) {
       R.hold -= dt; R.holdT += dt;
-      if ((P.lines || P.measurement) && R.holdT > INTRO_S) R.zoom = Math.min(1, R.zoom + dt * 1.4);
+      if (R.zoomBox && R.holdT > INTRO_S) R.zoom = Math.min(1, R.zoom + dt * 1.4);
       return;
     }
     if (R.zoom > 0 && R.frozen) R.zoom = Math.max(0, R.zoom - dt * 1.2);
     const slow = P.slow && R.rt >= P.slow.start && R.rt <= P.slow.end;
     const next = R.rt + dt * (slow ? P.slow.rate : 1);
-    if (!R.frozen && R.rt < P.key_t && next >= P.key_t) { R.rt = P.key_t; R.frozen = true; R.holdT = 0; R.hold = INTRO_S + (P.lines || P.measurement ? MEASURE_S : PLAIN_HOLD_S); drawReplayText(); return; }
+    if (!R.frozen && R.rt < P.key_t && next >= P.key_t) {
+      R.rt = P.key_t; R.frozen = true; R.holdT = 0;
+      R.hold = INTRO_S + (R.zoomBox ? MEASURE_S + (R.auto && P.phase === "after" ? 3 : 0) : PLAIN_HOLD_S);   // the reveal holds on the evidence
+      drawReplayText(); return;
+    }
     const last = P.frames[P.frames.length - 1].t;
     R.rt = Math.min(next, last);
     if (R.rt >= last) {
+      if (R.auto) { R.endHold += dt; if (R.endHold >= LOOP_PAUSE_S) R.done = true; return; }
       if (!R.loop) { R.playing = false; $("rPause").textContent = "▶"; return; }
       R.endHold += dt;
       if (R.endHold >= LOOP_PAUSE_S) restartReplay();
@@ -1210,8 +1299,9 @@
     const minScale = (P.measurement || P.lines) && z > 0.3 ? 0.1 : 0.18;   // zoomed in: smaller players
     interp(P.frames, R.rt, (a, b, k) => {
       players.forEach((pid, j) => {
-        const pa = a.positions[pid], pb = b.positions[pid] || pa, n = nodes[j];
-        if (!pa) { n.setAttribute("display", "none"); return; }
+        const pa0 = a.positions[pid], pb0 = b.positions[pid], n = nodes[j];
+        if (!pa0 && !pb0) { n.setAttribute("display", "none"); return; }
+        const pa = pa0 || pb0, pb = pb0 || pa0, seen = pa0 && pb0 ? 1 : pa0 ? 1 - k : k;   // coming into view, or leaving it
         const x = pa[0] + (pb[0] - pa[0]) * k, y = pa[1] + (pb[1] - pa[1]) * k;
         pos[pid] = [x, y];
         n.removeAttribute("display");
@@ -1219,7 +1309,7 @@
         const earlier = interp(P.frames, R.rt - 0.5, (a2, b2, k2) => { const qa = a2.positions[pid], qb = b2.positions[pid] || qa; return qa ? [qa[0] + (qb[0] - qa[0]) * k2, qa[1] + (qb[1] - qa[1]) * k2] : null; });
         turn(n, pid, [x, y], earlier, "replay:");
         const focus = P.focus.find((f) => f.player === pid);
-        n.style.opacity = focus || pid === selected ? 1 : 0.4;
+        n.style.opacity = (focus || pid === selected ? 1 : 0.4) * seen;
         n.querySelector(".ring").setAttribute("display", focus || pid === selected ? "inline" : "none");
       });
     });
@@ -1231,7 +1321,8 @@
       if (e.period !== P.period || e.clock > R.rt + 0.05 || e.clock < R.rt - 2.5) continue;
       plusMark(RT, e.at[0], e.at[1], Math.max(0.35, vb[2] / 90), 1 - (R.rt - e.clock) / 2.5, e.type === "foul");
     }
-    $("rBall").setAttribute("cx", ball[0]); $("rBall").setAttribute("cy", ball[1]); const br = 0.6 * Math.max(scale, minScale); $("rBall").setAttribute("r", br); $("rBall").setAttribute("stroke-width", br * 0.25);
+    const br = 0.6 * Math.max(scale, minScale);
+    drawBall($("rBall"), $("rShadow"), ball, z > 0.3 ? 0 : lift(ball, R.air || [], R.rt, "clock", P.period), br); $("rBall").setAttribute("stroke-width", br * 0.25);
 
     const tags = $("rTags"); tags.innerHTML = "";
     const intro = R.frozen && R.hold > 0 && R.holdT < INTRO_S;
@@ -1363,14 +1454,127 @@
       text(T, cx, cy + bs * 0.1, big, "#ececec", bs, "middle", "Barlow Condensed", 700);
       text(T, cx, cy + bs * 0.75, coarse ? `EVENT DATA · ±${Math.round(res * 100)} CM: TOO COARSE TO CALL` : SIDE(ms.kind, ms.value_m).toUpperCase(), "var(--muted)", bs * 0.3);
       text(T, fx + ux * u * 0.12, fy + uy * u * 0.12 + u / 60, ms.line_label.toUpperCase(), "var(--muted)", u / 55);
+      if (isBall) lawInset(T, vb, ms.kind, coarse);
     }
+  }
+  // The law in one picture: the line seen from above, and three balls. An illustration, never a measurement.
+  function lawInset(T, vb, kind, coarse) {
+    const u = vb[2], w = u * 0.4, h = u * 0.24, x = vb[0] + u * 0.02, y = vb[1] + vb[3] - h - u * 0.02, fs = u / 75;
+    const label = (lx, ly, str, fill, size, anchor = "middle", weight = 600) => { svg("text", { x: lx, y: ly, "text-anchor": anchor, "font-size": size, "font-family": "IBM Plex Mono", "font-weight": weight, fill }, T).textContent = str; };
+    svg("rect", { x, y, width: w, height: h, rx: u / 300, fill: "rgba(18,18,18,.92)", stroke: "rgba(255,255,255,.25)", "stroke-width": u / 900 }, T);
+    label(x + u / 80, y + fs * 1.5, kind === "ball_out" ? "LAW 9 · THE LINE FROM ABOVE" : "LAW 10 · THE GOAL LINE FROM ABOVE", "var(--muted)", fs, "start");
+    label(x + u / 80, y + fs * 2.9, "Any part of the ball on the line keeps it in play.", "var(--soft)", fs * 0.78, "start", 500);
+    if (coarse) label(x + u / 80, y + fs * 4, "The data can't see millimetres; the camera can.", "var(--soft)", fs * 0.78, "start", 500);
+    const lw = h * 0.08, ly = y + h * 0.6, r = h * 0.11;   // the line belongs to the area it bounds
+    svg("rect", { x: x + u / 80, y: ly - lw / 2, width: w - u / 40, height: lw, fill: "rgba(255,255,255,.75)" }, T);
+    label(x + w - u / 80, ly - lw / 2 - fs * 0.5, kind === "ball_out" ? "OUTSIDE" : "IN THE GOAL", "var(--faint)", fs * 0.75, "end");
+    label(x + w - u / 80, ly + lw / 2 + fs * 1.1, "PITCH", "var(--faint)", fs * 0.75, "end");
+    const verdicts = kind === "ball_out" ? ["IN PLAY", "IN PLAY", "OUT"] : ["NO GOAL", "NO GOAL", "GOAL"];
+    [[0, "on the line"], [-(lw / 2 + r * 0.75), "overhanging"], [-(lw / 2 + r * 1.25), "wholly over"]].forEach(([dy, what], i) => {
+      const cx = x + w * (0.15 + i * 0.24), cy = ly + dy;
+      svg("circle", { cx, cy, r, fill: "#f4f4f4", stroke: "#121212", "stroke-width": u / 900 }, T);
+      label(cx, y + h - fs * 2.1, what, "var(--muted)", fs * 0.8, "middle", 500);
+      label(cx, y + h - fs * 0.8, verdicts[i], i === 2 ? "#ececec" : "var(--soft)", fs);
+    });
+  }
+
+  // ── The VAR protocol: when a check opens, play stops and the check plays out in steps, on its own ──
+  // Play stopped → the footage (the build-up, slowed) → the frame that matters (zoomed, nothing measured) →
+  // the officials' check (Ref Buddy briefs them) → the decision → the evidence. Match time walks through the
+  // stoppage as the steps go, so Ref Buddy's briefing arrives a message at a time. Nothing about the decision
+  // is shown to fans before step five.
+  const VSTEP = [["stop", "Play stopped"], ["footage", "Footage"], ["frame", "The frame"], ["check", "Officials check"], ["decision", "Decision"], ["reveal", "Evidence"]];
+  const STOP_S = 3, CHECK_S = 7, DECISION_S = 4;
+  let VAR = null;   // { iid, c, step, s: seconds into the step, spot, box }
+  const FULL = [-3, -3, 111, 74];
+  let cam = FULL.slice(), camMoving = false;
+  const winT = (c, k) => c.review + k * (c.decided - c.review);   // a point in the stoppage
+  function varStart(iid) {
+    const c = CALLS.find((x) => x.iid === iid);
+    if (!c || c.review == null || c.decided <= c.review) return;
+    const P = D.replays[iid] && (D.replays[iid].during || D.replays[iid].after);
+    const spot = P ? interp(P.ball, P.key_t, (a, b, k) => [a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k]) : frameAt(t).ball;
+    VAR = { iid, c, step: "stop", s: 0, spot, box: spot[0] == null ? null : widen(bbox([spot], 16), 64) };
+    $("stage").classList.add("var-on");
+    $("vTitle").textContent = `VAR CHECK · ${(KIND[c.kind] || c.kind).toUpperCase()}`;
+    renderSteps();
+  }
+  function renderSteps() {
+    const i = VSTEP.findIndex(([k]) => k === VAR.step);
+    $("vList").innerHTML = VSTEP.map(([, label], j) => `<li class="${j < i ? "done" : j === i ? "now" : ""}">${j < i ? "✓" : j + 1} ${label}</li>`).join("");
+    $("vSkip").hidden = i >= 4;
+    chatShown = -1;
+    $("stage").style.setProperty("--vsteps-h", `${$("vsteps").offsetHeight + 16}px`);
+  }
+  function varGo(step) {
+    VAR.step = step; VAR.s = 0; renderSteps();
+    const c = VAR.c;
+    if (step === "footage" && !openReplay(c.iid, { auto: true, phase: "during" })) return varGo("check");
+    if (step === "check" && R.pkg) closeReplay();
+    if (step === "decision") { if (R.pkg) closeReplay(); advanceTo(c.decided); showVerdict(c); }
+    if (step === "reveal") { $("verdict").classList.remove("on"); if (!openReplay(c.iid, { auto: true, phase: "after" })) varEnd(); }
+  }
+  function varTick(dt) {
+    const c = VAR.c;
+    VAR.s += dt;
+    if (VAR.step === "stop") { advanceTo(winT(c, 0.12 * Math.min(1, VAR.s / STOP_S))); if (VAR.s >= STOP_S) varGo("footage"); }
+    else if (VAR.step === "footage" || VAR.step === "frame") {
+      const P = R.pkg;
+      if (!P) return varGo("check");
+      const a = P.frames[0].t, b = P.frames[P.frames.length - 1].t;
+      advanceTo(winT(c, 0.12 + 0.36 * Math.min(1, (R.rt - a) / Math.max(0.1, b - a))));
+      const now = R.frozen ? "frame" : "footage";
+      if (now !== VAR.step) { VAR.step = now; renderSteps(); }
+      if (R.done) varGo("check");
+    } else if (VAR.step === "check") { advanceTo(winT(c, 0.5 + 0.45 * Math.min(1, VAR.s / CHECK_S))); if (VAR.s >= CHECK_S) varGo("decision"); }
+    else if (VAR.step === "decision") { if (VAR.s >= DECISION_S) varGo("reveal"); }
+    else if (VAR.step === "reveal" && (!R.pkg || R.done)) varEnd();
+  }
+  function varEnd() {
+    if (!VAR) return;
+    VAR = null;
+    if (R.pkg) closeReplay();
+    $("verdict").classList.remove("on");
+    $("stage").classList.remove("var-on");
+    chatShown = -1;
+  }
+  function varSkip() {   // straight to the decision, then on with the match
+    const c = VAR.c;
+    if (R.pkg) closeReplay();
+    advanceTo(c.decided);
+    varEnd(); render();
+  }
+  // Move match time forward to `to`, airing whatever happens on the way, as live play would.
+  function advanceTo(to) {
+    if (to <= t) return;
+    const t0 = t;
+    t = to;
+    while (factIdx < D.facts.length && D.facts[factIdx].t <= t) applyFact(D.facts[factIdx++], true);
+    if (MODE === "player" && selected) followFeed(t0);
+  }
+  function showVerdict(c) {
+    const b = D.officials[c.iid], dec = D.facts.find((f) => f.kind === "incident" && f.values.incident_id === c.iid && f.values.state === "decided");
+    $("vdK").textContent = `VAR DECISION · ${clockText(c.period, c.at)}`;
+    $("vdV").textContent = finalText(b);
+    $("vdW").textContent = dec && dec.values.var_outcome ? (MODE === "analyst" ? analystCaption(dec.values) : fanCaption(dec.values)) : "";
+    $("verdict").classList.add("on");
+  }
+  // The live view closes in on the spot while a check runs, and eases back out after.
+  function liveCam() {
+    const want = VAR && VAR.box && VAR.step !== "reveal" ? VAR.box : FULL;
+    camMoving = want.some((v, k) => Math.abs(v - cam[k]) > 0.05);
+    if (!camMoving) return;
+    cam = cam.map((v, k) => v + (want[k] - v) * 0.06);
+    $("pitch").setAttribute("viewBox", cam.map((v) => v.toFixed(2)).join(" "));
   }
 
   // ── Loop and controls ───────────────────────────────────────────────────
   function setPlaying(on) { playing = on; $("play").innerHTML = `<svg><use href="#i-${on ? "pause" : "play"}"/></svg>`; $("play").setAttribute("aria-label", on ? "Pause" : "Play"); }
   function loop(now) {
     const dt = Math.min(0.25, (now - lastNow) / 1000); lastNow = now;
+    if (VAR && playing) varTick(dt);
     if (R.pkg) { replayTick(dt); drawReplay(); }
+    else if (VAR || camMoving) render();
     else if (playing) {
       const t0 = t;
       t = Math.min(END, t + dt * speed);
@@ -1383,7 +1587,12 @@
     requestAnimationFrame(loop);
   }
   function controls() {
-    $("play").onclick = () => { if (R.pkg) closeReplay(); setPlaying(!playing); };
+    $("play").onclick = () => {
+      if (VAR) { setPlaying(!playing); R.playing = playing; $("rPause").textContent = playing ? "❚❚" : "▶"; return; }   // pause the check where it is
+      if (R.pkg) closeReplay();
+      setPlaying(!playing);
+    };
+    $("vSkip").onclick = () => VAR && varSkip();
     [1, 10, 30, 60].forEach((s) => {
       const b = document.createElement("button"); b.textContent = s + "×"; b.className = s === speed ? "on" : "";
       b.onclick = () => { speed = s; [...$("speeds").children].forEach((c) => c.classList.toggle("on", c === b)); };
@@ -1393,7 +1602,7 @@
     $("hudToggle").onclick = () => setHud(!hud);
     $("rHud").onclick = () => setHud(!hud);
     $("rLoop").onclick = () => { R.loop = !R.loop; $("rLoop").setAttribute("aria-checked", String(R.loop)); if (R.loop && R.pkg && !R.playing) restartReplay(); };
-    $("rClose").onclick = closeReplay;
+    $("rClose").onclick = () => (VAR ? varSkip() : closeReplay());
     $("rAgain").onclick = restartReplay;
     $("rPause").onclick = () => { R.playing = !R.playing; $("rPause").textContent = R.playing ? "❚❚" : "▶"; };
     $("keyBtn").onclick = (e) => { e.stopPropagation(); $("legend").classList.toggle("on"); };
@@ -1413,6 +1622,7 @@
       `<li>${shapeIcon(D.away, false)}<span>${D.teams[D.away].name}</span><span class="n">■</span></li>` +
       `<li><svg viewBox="0 0 16 16"><path d="M2 8h9" stroke="#ececec" stroke-width="1.6"/><path d="M10 4.5 14 8 10 11.5Z" fill="#ececec"/></svg><span>Pass completed</span><span></span></li>` +
       `<li><svg viewBox="0 0 16 16"><path d="M2 8h8" stroke="#ececec" stroke-width="1.6" stroke-dasharray="2 1.6"/><path d="M11 5.5 15 10.5M11 10.5 15 5.5" stroke="#ececec" stroke-width="1.4"/></svg><span>Pass lost</span><span></span></li>` +
+      `<li><svg viewBox="0 0 16 16"><path d="M2 12h12" stroke="#8a8a8a" stroke-width="1" stroke-dasharray="1 1.4"/><path d="M2 12Q8 1 14 12" fill="none" stroke="#ececec" stroke-width="1.6"/><circle cx="8" cy="5.4" r="1.9" fill="#ececec"/><ellipse cx="8" cy="12" rx="1.6" ry=".9" fill="#5c5c5c"/></svg><span>Lofted pass: in the air</span><span></span></li>` +
       `<li><svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" stroke="#ececec" stroke-width="2" stroke-linecap="round"/></svg><span>Tackle</span><span></span></li>` +
       `<li><svg viewBox="0 0 16 16"><path d="M8 4v8M4 8h8" stroke="#ececec" stroke-width="2" stroke-linecap="round"/><circle cx="8" cy="8" r="6.5" fill="none" stroke="#ececec" stroke-width="1"/></svg><span>Foul (whistle)</span><span></span></li>`;
     $("homeTeam").innerHTML = `<span style="display:flex;align-items:center;gap:8px">${crest(D.home)}${D.home}</span>`;
@@ -1424,6 +1634,7 @@
     }
     precompute(); drawPitch(); buildCalls(); buildBuddy(); controls(); buildTimeline();
     PASSES = D.feed.filter((e) => (e.type === "pass" || e.type === "shot") && e.start && e.end);
+    AIR = PASSES.filter((e) => e.air);
     CHALLENGES = D.feed.filter((e) => (e.type === "tackle" || e.type === "foul") && e.at);
     seek(START); setPlaying(false);
     $("mode").querySelectorAll("button").forEach((b) => (b.onclick = () => setMode(b.dataset.mode)));

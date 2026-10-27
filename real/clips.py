@@ -83,13 +83,13 @@ def build(name: str):
     extra = {"source": {"name": "StatsBomb open data", "url": "https://github.com/statsbomb/open-data",
                         "real": True, "resolution_m": EVIDENCE_RESOLUTION_M},
              "start_score": clip.score_before}  # fmt: skip
-    return events, engine, teams, roster, extra, away
+    return events, engine, teams, roster, extra, away, conv.air
 
 
 def export(name: str):
     clip = CLIPS[name]
-    events, engine, teams, roster, extra, away = build(name)
-    return write(name, clip.match_code, clip.home, away, events, engine, teams, roster, extra)
+    events, engine, teams, roster, extra, away, air = build(name)
+    return write(name, clip.match_code, clip.home, away, events, engine, teams, roster, extra, air=air)
 
 
 if __name__ == "__main__":

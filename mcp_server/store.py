@@ -41,7 +41,7 @@ class MatchStore:
         """A real-match clip from StatsBomb open data (see real/clips.py)."""
         from real.clips import CLIPS, build
 
-        events, engine, _, roster, _, _ = build(name)
+        events, engine, _, roster, *_ = build(name)
         store = cls(CLIPS[name].match_code, {pid: r["name"] for pid, r in roster.items()}, engine)
         for e in events:
             store.ingest(e)

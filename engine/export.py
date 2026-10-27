@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from dataclasses import asdict
 from pathlib import Path
 
@@ -67,8 +68,29 @@ def export(name: str) -> Path:
     return write(name, sc.match_id, sc.home, sc.away, events, Engine(sc.match_id), teams, roster)
 
 
-def write(name, match_id, home, away, events, engine: Engine, teams: dict, roster: dict, extra=None) -> Path:
-    """Run the feed through the engine and write the preview's data file."""
+def lofted(e) -> str | None:
+    """Whether a simulated pass went through the air. The simulator moves the ball in two dimensions, so this
+    is inferred: a long ball is lofted, and so is a completed pass whose straight path runs through an
+    opponent, since it can only have gone over him."""
+    (x1, y1), (x2, y2) = e.start, e.end
+    dx, dy = x2 - x1, y2 - y1
+    length = math.hypot(dx, dy)
+    if length >= 32:
+        return "high"
+    if e.outcome != "complete" or length < 8:
+        return None
+    for pid, (px, py) in e.positions.items():
+        if pid[:3] == e.team:
+            continue
+        k = ((px - x1) * dx + (py - y1) * dy) / length**2
+        if 0.15 <= k <= 0.85 and math.hypot(x1 + dx * k - px, y1 + dy * k - py) < 1.0:
+            return "low" if length < 20 else "high"
+    return None
+
+
+def write(name, match_id, home, away, events, engine: Engine, teams: dict, roster: dict, extra=None, air=None) -> Path:
+    """Run the feed through the engine and write the preview's data file. `air` gives the passes known to have
+    gone through the air (real data); without it, simulated passes are judged by `lofted`."""
     players = list(roster)
     p1 = [e.clock for e in events if e.period == 1]
     p1_end = max(p1) if p1 else 2700.0 - 30
@@ -92,7 +114,10 @@ def write(name, match_id, home, away, events, engine: Engine, teams: dict, roste
             row = {"t": t_of(e.period, e.clock), "id": e.event_id, "type": e.type, "team": e.team,
                    "player": e.player, "receiver": e.receiver, "outcome": e.outcome}  # fmt: skip
             if e.type in ("pass", "shot") and e.start and e.end:  # for drawing the ball's path
-                row |= {"start": e.start, "end": e.end, "kmh": e.ball_speed_kmh}
+                row |= {"start": e.start, "end": e.end, "kmh": e.ball_speed_kmh, "period": e.period, "clock": e.clock}
+                height = (air.get(e.event_id) if air is not None else lofted(e)) if e.type == "pass" else None
+                if height:
+                    row["air"] = height
             if e.type in ("foul", "tackle") and (e.contact or e.start):  # the "+" where the challenge landed
                 row |= {"at": e.contact or e.start, "period": e.period, "clock": e.clock}
             feed.append(row)

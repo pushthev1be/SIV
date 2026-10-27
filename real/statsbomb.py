@@ -107,6 +107,7 @@ class Converter:
         self.names: dict[str, str] = {}
         self.roles: dict[str, str] = {}
         self.keeper: dict[str, str] = {}
+        self.air: dict[str, str] = {}  # pass event id -> "low" or "high", from StatsBomb's pass height
         for team in self.lineups:
             code = self.code[team["team_name"]]
             for p in team["lineup"]:
@@ -164,12 +165,12 @@ class Converter:
                 continue
             last_t = t
             other = next(c for c in self.code.values() if c != code)
-            dets = []
+            dets, actor = [], None
             for d in f["freeze_frame"]:
                 team = code if d["teammate"] else other
                 ident = None
                 if d.get("actor") and e.get("player"):
-                    ident = self.pid.get(e["player"]["id"])
+                    ident, actor = self.pid.get(e["player"]["id"]), len(dets)
                 elif d.get("keeper"):
                     ident = self.keeper.get(team)
                 dets.append((team, self._xy(d["location"], code), ident))
@@ -184,15 +185,19 @@ class Converter:
                     dd = math.hypot(x - lx, y - ly)
                     if dd <= LINK_SLACK_M + MAX_SPEED_MS * dt:
                         pairs.append((dd, i, k))
-            used_d, used_t = set(), set()
+            used_d, used_t, offered = set(), set(), set()
             for _dd, i, k in sorted(pairs):
                 if i in used_d or k in used_t:
                     continue
                 ident, trk = dets[i][2], tracks[k]
+                first = i not in offered  # the closest track still free for this detection
+                offered.add(i)
                 if ident and trk.votes and trk.votes.most_common(1)[0][0] != ident:
                     continue  # this track belongs to someone else
-                if ident and not trk.votes and len(trk.pts) >= 2:
-                    continue  # an established unnamed track is someone we never identified, not this player
+                if ident and not trk.votes and len(trk.pts) >= 2 and not (first and i == actor):
+                    # An established unnamed track is someone we never identified, unless it is the closest
+                    # free track to the player on the ball: then it was him all along, off the ball and unnamed.
+                    continue
                 used_d.add(i)
                 used_t.add(k)
                 trk.pts.append((t, *dets[i][1]))
@@ -352,7 +357,10 @@ class Converter:
                 ruled_out = scored and self.clip.awarded_goal_sb == e["player"]["name"]  # disallowed on the field
                 kw |= {"end": end, "outcome": "ruled_out" if ruled_out else "goal" if scored else "saved",
                        "ball_speed_kmh": self._speed(start, end, e.get("duration"), lo=50.0)}  # fmt: skip
-            emit(kind, t, pos, **kw)
+            ev = emit(kind, t, pos, **kw)
+            height = (e.get("pass") or {}).get("height", {}).get("name", "")
+            if kind == "pass" and height in ("Low Pass", "High Pass"):
+                self.air[ev.event_id] = "high" if height == "High Pass" else "low"
         return out, {"names": self.names, "roles": self.roles, "goal_t": goal_t, "restart_t": restart_t}
 
     def _is_checked_touch(self, e) -> bool:
